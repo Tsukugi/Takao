@@ -1,7 +1,7 @@
 import { UnitController } from '../ai/UnitController';
 import type { GameAction } from '../types';
 import { DataManager } from '../utils/DataManager';
-import type { ActionTemplate, ActionsData } from '../utils/DataManager';
+import type { ActionWithEffects, ActionsData, EffectDefinition, EffectValue } from '../utils/DataManager';
 
 /**
  * Represents the StoryTeller that generates narrative actions based on unit states
@@ -71,7 +71,7 @@ export class StoryTeller {
     let description = '';
 
     // Based on health, select action from JSON data
-    let selectedAction: ActionTemplate;
+    let selectedAction: ActionWithEffects;
 
     if (health < 30) {
       // Unit is in danger - select from low_health actions
@@ -115,56 +115,18 @@ export class StoryTeller {
       unitType: unitType || 'entity',
       health,
       mana,
-      effect: selectedAction.effect,
+      effects: selectedAction.effects,
       targetUnit: targetUnit ? targetUnit.id : null
     };
 
-    // Add type-specific payload data
-    switch (selectedAction.type) {
-      case 'explore':
-        payload.direction = this.getRandomDirection();
-        break;
-      case 'search':
-        payload.target = 'healing';
-        break;
-      case 'retreat':
-        payload.target = 'safe_location';
-        break;
-      case 'patrol':
-        payload.direction = this.getRandomDirection();
-        break;
-      case 'gather':
-        payload.resource = this.getRandomResource();
-        break;
-      case 'attack':
-        payload.damage = this.getRandomValue(10, 20);
-        break;
-      case 'support':
-        payload.healing = this.getRandomValue(10, 15);
-        break;
-      case 'interact':
-        payload.experienceGain = this.getRandomValue(5, 10);
-        break;
-      case 'defend':
-        payload.defenseBoost = this.getRandomValue(5, 10);
-        break;
-      case 'train':
-        payload.attackBoost = this.getRandomValue(2, 5);
-        payload.defenseBoost = this.getRandomValue(1, 3);
-        break;
-      case 'rest':
-        payload.healthRestore = this.getRandomValue(5, 10);
-        payload.manaRestore = this.getRandomValue(5, 10);
-        break;
-      case 'meditate':
-        payload.healthRestore = 20;
-        payload.manaRestore = 15;
-        break;
-      case 'hunt':
-        payload.resourceGain = this.getRandomValue(5, 15);
-        payload.foodGain = this.getRandomValue(3, 8);
-        break;
-    }
+    // Process the action payload to handle random value generation
+    const targetUnitForPayload = targetUnit || null; // The target unit if available
+    const allUnits = this.unitController.getUnits(); // Use sync method to get units
+
+    payload = {
+      ...payload,
+      ...this.processActionPayload(selectedAction.payload || {}, targetUnitForPayload, allUnits)
+    };
 
     action = {
       type: selectedAction.type,
@@ -175,6 +137,59 @@ export class StoryTeller {
     };
 
     return action;
+  }
+
+  /**
+   * Processes the action payload and generates any random values based on ranges
+   */
+  private processActionPayload(actionPayload: any, targetUnit?: any, _allUnits?: any[]): any {
+    const processedPayload = { ...actionPayload };
+
+    for (const [key, value] of Object.entries(processedPayload)) {
+      if (
+        typeof value === 'object' &&
+        value !== null &&
+        (value as any).hasOwnProperty('type') &&
+        (value as any).type === 'random'
+      ) {
+        // This is a random value definition - generate value based on min/max
+        const randomDef = value as { type: 'random'; min: number; max: number };
+        processedPayload[key] = this.getRandomValue(randomDef.min, randomDef.max);
+      } else if (
+        typeof value === 'object' &&
+        value !== null &&
+        (value as any).hasOwnProperty('type') &&
+        (value as any).type === 'random_direction'
+      ) {
+        // This is a direction selector
+        processedPayload[key] = this.getRandomDirection();
+      } else if (
+        typeof value === 'object' &&
+        value !== null &&
+        (value as any).hasOwnProperty('type') &&
+        (value as any).type === 'random_resource'
+      ) {
+        // This is a resource selector
+        processedPayload[key] = this.getRandomResource();
+      } else if (
+        typeof value === 'object' &&
+        value !== null &&
+        (value as any).hasOwnProperty('type') &&
+        (value as any).type === 'calculated'
+      ) {
+        // This could be a calculated value based on unit properties
+        // For now we'll handle simple cases
+        const calcDef = value as { type: 'calculated'; base: string; modifier: number };
+        if (targetUnit && calcDef.base) {
+          const baseValue = targetUnit.getPropertyValue(calcDef.base);
+          processedPayload[key] = Math.max(0, baseValue + (calcDef.modifier || 0));
+        } else {
+          processedPayload[key] = calcDef.modifier || 0;
+        }
+      }
+    }
+
+    return processedPayload;
   }
 
   /**
@@ -195,14 +210,22 @@ export class StoryTeller {
     return resources[randomIndex] || 'gold'; // fallback to 'gold' if undefined
   }
 
+
   /**
-   * Returns a default action template
+   * Returns a default action template (legacy method kept for compatibility)
    */
-  private getDefaultAction(): ActionTemplate {
+  private getDefaultAction(): any {  // Using any for compatibility until full conversion
     return {
       type: 'idle',
       description: '{{unitName}} the {{unitType}} waits for instructions.',
-      effect: 'no effect'
+      effect: 'no effect',
+      effects: [{
+        target: 'self',
+        property: 'time',
+        operation: 'add',
+        value: { type: 'static', value: 1 },
+        permanent: false
+      }]
     };
   }
 
@@ -215,114 +238,200 @@ export class StoryTeller {
 
   /**
    * Executes the effect of an action on the relevant units
+   * Uses JSON-defined effects instead of hardcoded switch
    */
   public async executeActionEffect(action: GameAction, units: any[]): Promise<void> {
-    const actionType = action.type;
-    const actionPayload = action.payload;
+    // Find the action definition from JSON data to get effect definitions
+    const actionDef = this.findActionDefinition(action.type);
 
-    // Find the acting unit by name
-    const actingUnit = units.find((unit: any) => unit.name === action.player);
-    if (!actingUnit) {
-      console.error(`Could not find acting unit with name: ${action.player}`);
+    let effectsToExecute: EffectDefinition[] = [];
+
+    if (actionDef && Array.isArray(actionDef.effects)) {
+      // Use effects from action definition
+      effectsToExecute = actionDef.effects;
+    } else if (action.payload.effects && Array.isArray(action.payload.effects)) {
+      // If no action def found, try to use effects from action payload
+      effectsToExecute = action.payload.effects;
+      console.log(`Using effects from payload for action type: ${action.type}`);
+    } else {
+      console.log(`No effects found for action type: ${action.type}, skipping effects execution`);
       return;
     }
 
-    // Handle different action types and apply effects
-    switch (actionType) {
-      case 'rest':
-        if (actionPayload.healthRestore) {
-          const currentHealth = actingUnit.getPropertyValue('health') || 0;
-          const newHealth = Math.min(100, currentHealth + actionPayload.healthRestore);
-          actingUnit.setProperty('health', newHealth); // This will update value, not baseValue
-        }
-        if (actionPayload.manaRestore) {
-          const currentMana = actingUnit.getPropertyValue('mana') || 0;
-          const newMana = Math.min(100, currentMana + actionPayload.manaRestore);
-          actingUnit.setProperty('mana', newMana); // This will update value, not baseValue
+    // Execute each effect
+    for (const effect of effectsToExecute) {
+      await this.executeSingleEffect(effect, action, units);
+    }
+  }
+
+  /**
+   * Finds an action definition by type from the loaded JSON data
+   */
+  private findActionDefinition(actionType: string): ActionWithEffects | undefined {
+    // Search through all action categories
+    const allCategories = [
+      ...this.actionsData.actions.low_health,
+      ...this.actionsData.actions.healthy,
+      ...this.actionsData.actions.default
+    ];
+
+    return allCategories.find(action => action.type === actionType);
+  }
+
+  /**
+   * Executes a single effect on the appropriate unit(s)
+   */
+  private async executeSingleEffect(effect: EffectDefinition, action: GameAction, units: any[]): Promise<void> {
+    // Determine the target unit based on effect.target
+    let targetUnit: any;
+
+    switch (effect.target) {
+      case 'self':
+        // Find the acting unit by player name
+        targetUnit = units.find((unit: any) => unit.name === action.player);
+        break;
+
+      case 'target':
+        // Find the target unit specified in the action payload
+        if (action.payload?.targetUnit) {
+          targetUnit = units.find((unit: any) => unit.id === action.payload.targetUnit);
         }
         break;
 
-      case 'train':
-        // Training permanently increases stats (base values should change)
-        if (actionPayload.attackBoost) {
-          actingUnit.setBaseProperty('attack', actionPayload.attackBoost); // Permanently increases base value
+      case 'all':
+        // Apply to all units
+        for (const unit of units) {
+          await this.applyEffectToUnit(effect, unit, action, units);
         }
-        if (actionPayload.defenseBoost) {
-          actingUnit.setBaseProperty('defense', actionPayload.defenseBoost); // Permanently increases base value
+        return; // Already applied to all, so return early
+
+      case 'ally':
+        // Apply to allied units (for now, just acting unit and target unit if they exist)
+        const actingUnit = units.find((unit: any) => unit.name === action.player);
+        if (actingUnit) {
+          await this.applyEffectToUnit(effect, actingUnit, action, units);
+        }
+        if (action.payload?.targetUnit) {
+          const target = units.find((unit: any) => unit.id === action.payload.targetUnit);
+          if (target) {
+            await this.applyEffectToUnit(effect, target, action, units);
+          }
+        }
+        return;
+
+      case 'enemy':
+        // Apply to enemy units (opposite of target unit)
+        if (action.payload?.targetUnit) {
+          targetUnit = units.find((unit: any) => unit.id === action.payload.targetUnit);
+        } else {
+          // If no specific target, pick a different unit than the acting unit
+          const actingUnit = units.find((unit: any) => unit.name === action.player);
+          targetUnit = units.find((unit: any) => unit.id !== actingUnit?.id);
         }
         break;
 
-      case 'attack':
-        // Find target unit to apply damage
-        if (actionPayload.targetUnit) {
-          const targetUnit = units.find((unit: any) => unit.id === actionPayload.targetUnit);
-          if (targetUnit) {
-            const currentHealth = targetUnit.getPropertyValue('health') || 0;
-            const newHealth = Math.max(0, currentHealth - actionPayload.damage);
-            targetUnit.setProperty('health', newHealth); // This will update value, not baseValue
+      default:
+        // Default to self
+        targetUnit = units.find((unit: any) => unit.name === action.player);
+    }
 
-            // Also reduce attacker's mana
-            if (actionPayload.damage) {
-              const currentMana = actingUnit.getPropertyValue('mana') || 0;
-              const newMana = Math.max(0, currentMana - 5); // 5 mana cost for attack
-              actingUnit.setProperty('mana', newMana); // This will update value, not baseValue
+    if (!targetUnit) {
+      console.error(`Could not find target unit for action ${action.type} with target: ${effect.target}`);
+      return;
+    }
+
+    // Apply the effect to the target unit
+    await this.applyEffectToUnit(effect, targetUnit, action, units);
+  }
+
+  /**
+   * Applies a single effect to a specific unit
+   */
+  private async applyEffectToUnit(effect: EffectDefinition, targetUnit: any, action: GameAction, allUnits: any[]): Promise<void> {
+    // Calculate the value to apply based on the effect's value definition
+    const valueToApply = this.calculateEffectValue(effect.value, action, targetUnit, allUnits);
+
+    // Apply the effect based on whether it's permanent or temporary
+    if (effect.permanent) {
+      // Use setBaseProperty for permanent changes
+      targetUnit.setBaseProperty(effect.property, valueToApply);
+    } else {
+      // Use setProperty for temporary changes
+      const currentValue = targetUnit.getPropertyValue(effect.property) || 0;
+      let newValue: number;
+
+      switch (effect.operation) {
+        case 'add':
+          newValue = currentValue + valueToApply;
+          break;
+        case 'subtract':
+          newValue = Math.max(0, currentValue - valueToApply); // Prevent negative values
+          break;
+        case 'multiply':
+          newValue = Math.round(currentValue * valueToApply);
+          break;
+        case 'divide':
+          newValue = Math.round(currentValue / valueToApply);
+          break;
+        case 'set':
+          newValue = valueToApply;
+          break;
+        default:
+          newValue = currentValue + valueToApply; // Default to add if operation is unrecognized
+      }
+
+      // Ensure health doesn't exceed maximum (if it's a health property)
+      if (effect.property === 'health') {
+        newValue = Math.min(100, Math.max(0, newValue));
+      } else if (effect.property === 'mana') {
+        newValue = Math.min(100, Math.max(0, newValue));
+      } else {
+        newValue = Math.max(0, newValue);
+      }
+
+      targetUnit.setProperty(effect.property, newValue);
+    }
+  }
+
+  /**
+   * Calculates the value to apply based on the effect value definition
+   */
+  private calculateEffectValue(valueDef: EffectValue, action: GameAction, targetUnit: any, _allUnits: any[]): number {
+    switch (valueDef.type) {
+      case 'static':
+        return valueDef.value ?? 0;
+      case 'calculation':
+        // For now, just return value or default if calculation is complex
+        return valueDef.value ?? 0;
+      case 'variable':
+        // Return value from action payload or unit properties based on the variable name
+        if (valueDef.variable) {
+          if (action.payload && action.payload[valueDef.variable] !== undefined) {
+            const payloadValue = action.payload[valueDef.variable];
+            // If payload value is a random range definition, generate the value
+            if (
+              typeof payloadValue === 'object' &&
+              payloadValue !== null &&
+              payloadValue.type === 'random'
+            ) {
+              const randomDef = payloadValue as { type: 'random'; min: number; max: number };
+              return this.getRandomValue(randomDef.min, randomDef.max);
             }
+            // Otherwise return the payload value directly
+            return payloadValue;
           }
+          // If not in payload, could check unit properties
+          return targetUnit.getPropertyValue(valueDef.variable) ?? 0;
         }
-        break;
-
-      case 'support':
-        // Find target unit to heal
-        if (actionPayload.targetUnit) {
-          const targetUnit = units.find((unit: any) => unit.id === actionPayload.targetUnit);
-          if (targetUnit) {
-            const currentHealth = targetUnit.getPropertyValue('health') || 0;
-            const newHealth = Math.min(100, currentHealth + actionPayload.healing);
-            targetUnit.setProperty('health', newHealth); // This will update value, not baseValue
-          }
+        return 0;
+      case 'random':
+        // Generate random value based on min/max in the definition
+        if (valueDef.min !== undefined && valueDef.max !== undefined) {
+          return this.getRandomValue(valueDef.min, valueDef.max);
         }
-        break;
-
-      case 'meditate':
-        if (actionPayload.healthRestore) {
-          const currentHealth = actingUnit.getPropertyValue('health') || 0;
-          const newHealth = Math.min(100, currentHealth + actionPayload.healthRestore);
-          actingUnit.setProperty('health', newHealth); // This will update value, not baseValue
-        }
-        if (actionPayload.manaRestore) {
-          const currentMana = actingUnit.getPropertyValue('mana') || 0;
-          const newMana = Math.min(100, currentMana + actionPayload.manaRestore);
-          actingUnit.setProperty('mana', newMana); // This will update value, not baseValue
-        }
-        break;
-
-      case 'defend':
-        if (actionPayload.defenseBoost) {
-          const currentDefense = actingUnit.getPropertyValue('defense') || 0;
-          const newDefense = currentDefense + actionPayload.defenseBoost;
-          actingUnit.setProperty('defense', newDefense); // This will update value, not baseValue
-        }
-        break;
-
-      case 'interact':
-        // Apply experience gain to both units (permanent improvement)
-        if (actionPayload.experienceGain && actionPayload.targetUnit) {
-          const targetUnit = units.find((unit: any) => unit.id === actionPayload.targetUnit);
-          if (targetUnit) {
-            // Apply experience gain to both units (permanent improvement)
-            const attackIncrease = Math.floor(actionPayload.experienceGain / 2);
-            actingUnit.setBaseProperty('attack', attackIncrease); // Permanent improvement
-            targetUnit.setBaseProperty('attack', attackIncrease); // Permanent improvement
-          }
-        }
-        break;
-
-      case 'hunt':
-        // Add resources to the acting unit (could be handled differently based on game design)
-        // For now, we'll just log it
-        break;
-
-      // Add more action types as needed
+        return 0;
+      default:
+        return valueDef.value ?? 0;
     }
   }
 

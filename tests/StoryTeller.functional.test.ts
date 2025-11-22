@@ -48,66 +48,197 @@ vi.mock('../src/utils/DataManager', async () => {
             {
               type: 'search',
               description: '{{unitName}} the {{unitType}} searches for healing.',
-              effect: 'health + 10-20'
+              effects: [
+                {
+                  target: 'self',
+                  property: 'health',
+                  operation: 'add',
+                  value: { type: 'static', value: 15 },
+                  permanent: false
+                }
+              ]
             },
             {
               type: 'retreat',
               description: '{{unitName}} the {{unitType}} retreats to recover.',
-              effect: 'health + 15-25'
+              effects: [
+                {
+                  target: 'self',
+                  property: 'health',
+                  operation: 'add',
+                  value: { type: 'static', value: 20 },
+                  permanent: false
+                },
+                {
+                  target: 'self',
+                  property: 'mana',
+                  operation: 'add',
+                  value: { type: 'static', value: 10 },
+                  permanent: false
+                }
+              ]
             }
           ],
           healthy: [
             {
               type: 'explore',
               description: '{{unitName}} the {{unitType}} explores confidently.',
-              effect: 'discover location'
+              effects: [
+                {
+                  target: 'self',
+                  property: 'experience',
+                  operation: 'add',
+                  value: { type: 'static', value: 3 },
+                  permanent: false
+                }
+              ]
             },
             {
               type: 'patrol',
               description: '{{unitName}} the {{unitType}} patrols vigilantly.',
-              effect: 'area awareness'
+              effects: [
+                {
+                  target: 'self',
+                  property: 'awareness',
+                  operation: 'add',
+                  value: { type: 'static', value: 2 },
+                  permanent: false
+                }
+              ]
             }
           ],
           default: [
             {
               type: 'patrol',
               description: '{{unitName}} the {{unitType}} patrols vigilantly.',
-              effect: 'area awareness'
+              effects: [
+                {
+                  target: 'self',
+                  property: 'awareness',
+                  operation: 'add',
+                  value: { type: 'static', value: 2 },
+                  permanent: false
+                }
+              ]
             },
             {
               type: 'rest',
               description: '{{unitName}} the {{unitType}} takes a moment to rest.',
-              effect: 'health + 5-10, mana + 5-10'
+              effects: [
+                {
+                  target: 'self',
+                  property: 'health',
+                  operation: 'add',
+                  value: { type: 'static', value: 8 },
+                  permanent: false
+                },
+                {
+                  target: 'self',
+                  property: 'mana',
+                  operation: 'add',
+                  value: { type: 'static', value: 5 },
+                  permanent: false
+                }
+              ]
             },
             {
               type: 'train',
               description: '{{unitName}} the {{unitType}} practices skills.',
-              effect: 'attack + 2-5'
+              effects: [
+                {
+                  target: 'self',
+                  property: 'attack',
+                  operation: 'add',
+                  value: { type: 'static', value: 3 },
+                  permanent: true
+                }
+              ]
             },
             {
               type: 'gather',
               description: '{{unitName}} the {{unitType}} gathers resources.',
-              effect: 'resource + 3-8'
+              effects: [
+                {
+                  target: 'self',
+                  property: 'resources',
+                  operation: 'add',
+                  value: { type: 'static', value: 6 },
+                  permanent: false
+                }
+              ]
             },
             {
               type: 'interact',
               description: '{{unitName}} the {{unitType}} interacts with {{targetUnitName}}.',
-              effect: 'both units gain experience'
+              effects: [
+                {
+                  target: 'self',
+                  property: 'knowledge',
+                  operation: 'add',
+                  value: { type: 'static', value: 5 },
+                  permanent: false
+                },
+                {
+                  target: 'target',
+                  property: 'knowledge',
+                  operation: 'add',
+                  value: { type: 'static', value: 5 },
+                  permanent: false
+                }
+              ]
             },
             {
               type: 'attack',
               description: '{{unitName}} the {{unitType}} attacks {{targetUnitName}}.',
-              effect: 'target health -10-20'
+              effects: [
+                {
+                  target: 'target',
+                  property: 'health',
+                  operation: 'subtract',
+                  value: { type: 'static', value: 15 },
+                  permanent: false
+                },
+                {
+                  target: 'self',
+                  property: 'mana',
+                  operation: 'subtract',
+                  value: { type: 'static', value: 5 },
+                  permanent: false
+                }
+              ]
             },
             {
               type: 'support',
               description: '{{unitName}} the {{unitType}} supports {{targetUnitName}}.',
-              effect: 'target health +10-15'
+              effects: [
+                {
+                  target: 'target',
+                  property: 'health',
+                  operation: 'add',
+                  value: { type: 'static', value: 12 },
+                  permanent: false
+                }
+              ]
             },
             {
               type: 'trade',
               description: '{{unitName}} the {{unitType}} trades with {{targetUnitName}}.',
-              effect: 'resources exchanged'
+              effects: [
+                {
+                  target: 'self',
+                  property: 'resources',
+                  operation: 'add',
+                  value: { type: 'static', value: 3 },
+                  permanent: false
+                },
+                {
+                  target: 'target',
+                  property: 'resources',
+                  operation: 'add',
+                  value: { type: 'static', value: 3 },
+                  permanent: false
+                }
+              ]
             }
           ]
         }
@@ -265,7 +396,7 @@ describe('StoryTeller', () => {
   });
 
   it('executes action effects properly', async () => {
-    const setPropertyMock = vi.fn();
+    const setPropertySpy = vi.fn();
     const mockUnit = {
       id: 'unit-1',
       name: 'TestUnit',
@@ -279,7 +410,7 @@ describe('StoryTeller', () => {
           default: return 0;
         }
       },
-      setProperty: setPropertyMock
+      setProperty: setPropertySpy
     };
 
     const units = [mockUnit];
@@ -296,9 +427,9 @@ describe('StoryTeller', () => {
 
     await storyTeller.executeActionEffect(action, units);
 
-    // Check that setProperty was called with the right values
-    expect(setPropertyMock).toHaveBeenCalledWith('health', 90); // 80 + 10
-    expect(setPropertyMock).toHaveBeenCalledWith('mana', 45); // 40 + 5
+    // Check that setProperty was called with the expected values
+    expect(setPropertySpy).toHaveBeenCalledWith('health', 88); // 80 (original) + 8 (from effects)
+    expect(setPropertySpy).toHaveBeenCalledWith('mana', 45); // 40 (original) + 5 (from effects)
   });
 
   it('executes attack action effect properly', async () => {
@@ -351,13 +482,16 @@ describe('StoryTeller', () => {
 
     await storyTeller.executeActionEffect(action, units);
 
-    // Target health should decrease (70 - 15 = 55)
+    // Target health should decrease (70 - 15 = 55) based on action payload
     expect(targetSetProperty).toHaveBeenCalledWith('health', 55);
-    // Attacker mana should decrease due to attacking cost
-    expect(attackerSetProperty).toHaveBeenCalledWith('mana', 45); // 50 - 5
+    // Attacker mana should decrease due to attacking cost (50 - 5 = 45)
+    expect(attackerSetProperty).toHaveBeenCalledWith('mana', 45);
   });
 
   it('executes support action effect properly', async () => {
+    const supporterSetProperty = vi.fn();
+    const targetSetProperty = vi.fn();
+
     const supporterUnit = {
       id: 'supporter-1',
       name: 'Supporter',
@@ -369,7 +503,7 @@ describe('StoryTeller', () => {
           default: return 0;
         }
       },
-      setProperty: vi.fn()
+      setProperty: supporterSetProperty
     };
 
     const targetUnit = {
@@ -382,7 +516,7 @@ describe('StoryTeller', () => {
           default: return 0;
         }
       },
-      setProperty: vi.fn()
+      setProperty: targetSetProperty
     };
 
     const units = [supporterUnit, targetUnit];
@@ -399,8 +533,8 @@ describe('StoryTeller', () => {
 
     await storyTeller.executeActionEffect(action, units);
 
-    // Target health should increase (50 + 20 = 70)
-    expect(targetUnit.setProperty).toHaveBeenCalledWith('health', 70);
+    // Target health should increase (50 + 12 = 62) based on JSON effects (health +12)
+    expect(targetSetProperty).toHaveBeenCalledWith('health', 62);
   });
 
   it('saves units through DataManager', async () => {

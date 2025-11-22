@@ -2,12 +2,53 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 /**
- * Represents a possible game action loaded from JSON
+ * Represents value specification for an effect
  */
-export interface ActionTemplate {
+export interface EffectValue {
+  type: 'static' | 'calculation' | 'variable' | 'random';
+  value?: number;
+  expression?: string;
+  variable?: string;
+  min?: number;
+  max?: number;
+}
+
+/**
+ * Represents an effect definition
+ */
+export interface EffectDefinition {
+  target: 'self' | 'target' | 'all' | 'ally' | 'enemy';
+  property: string;
+  operation: 'add' | 'subtract' | 'multiply' | 'divide' | 'set';
+  value: EffectValue;
+  permanent: boolean;
+  condition?: string;
+}
+
+/**
+ * Represents a random value definition
+ */
+export interface RandomValue {
+  type: 'random';
+  min: number;
+  max: number;
+}
+
+/**
+ * Represents action-specific payload data
+ */
+export interface ActionPayload {
+  [key: string]: string | number | RandomValue | object;
+}
+
+/**
+ * Represents a possible game action with effect definitions loaded from JSON
+ */
+export interface ActionWithEffects {
   type: string;
   description: string;
-  effect: string;
+  effects: EffectDefinition[];
+  payload?: ActionPayload;
 }
 
 /**
@@ -15,9 +56,9 @@ export interface ActionTemplate {
  */
 export interface ActionsData {
   actions: {
-    low_health: ActionTemplate[];
-    healthy: ActionTemplate[];
-    default: ActionTemplate[];
+    low_health: ActionWithEffects[];
+    healthy: ActionWithEffects[];
+    default: ActionWithEffects[];
   };
 }
 
