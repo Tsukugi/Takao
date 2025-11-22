@@ -64,7 +64,7 @@ export class GameEngine {
   /**
    * Processes a single turn in the game
    */
-  private async processTurn(turn: number): Promise<void> {
+  private async processTurn(_turn: number): Promise<void> {
     // Use the actual turn number from the turn manager, not the loop's turn number
     const actualTurn = this.turnManager.getCurrentTurn() + 1; // +1 because turnManager tracks the last completed turn
     console.log(`\n--- Turn ${actualTurn} ---`);

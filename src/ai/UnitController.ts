@@ -11,7 +11,7 @@ export class UnitController {
   private gameState: any;
   private initialized: boolean = false;
   private gameUnits: BaseUnit[] = [];
-  private namesCatalog: string[];
+  private namesCatalog: string[] = [];
 
   /**
    * Initializes the Unit controller with the game state
@@ -84,7 +84,7 @@ export class UnitController {
     }
 
     const randomIndex = Math.floor(Math.random() * this.namesCatalog.length);
-    return this.namesCatalog[randomIndex];
+    return this.namesCatalog[randomIndex] || 'Unknown';
   }
 
   /**
