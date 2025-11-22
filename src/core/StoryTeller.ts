@@ -233,23 +233,25 @@ export class StoryTeller {
         if (actionPayload.healthRestore) {
           const currentHealth = actingUnit.getPropertyValue('health') || 0;
           const newHealth = Math.min(100, currentHealth + actionPayload.healthRestore);
-          actingUnit.setProperty('health', newHealth);
+          actingUnit.setProperty('health', newHealth); // This will update value, not baseValue
         }
         if (actionPayload.manaRestore) {
           const currentMana = actingUnit.getPropertyValue('mana') || 0;
           const newMana = Math.min(100, currentMana + actionPayload.manaRestore);
-          actingUnit.setProperty('mana', newMana);
+          actingUnit.setProperty('mana', newMana); // This will update value, not baseValue
         }
         break;
 
       case 'train':
         if (actionPayload.attackBoost) {
           const currentAttack = actingUnit.getPropertyValue('attack') || 0;
-          actingUnit.setProperty('attack', currentAttack + actionPayload.attackBoost);
+          const newAttack = currentAttack + actionPayload.attackBoost;
+          actingUnit.setProperty('attack', newAttack); // This will update value, not baseValue
         }
         if (actionPayload.defenseBoost) {
           const currentDefense = actingUnit.getPropertyValue('defense') || 0;
-          actingUnit.setProperty('defense', currentDefense + actionPayload.defenseBoost);
+          const newDefense = currentDefense + actionPayload.defenseBoost;
+          actingUnit.setProperty('defense', newDefense); // This will update value, not baseValue
         }
         break;
 
@@ -260,13 +262,13 @@ export class StoryTeller {
           if (targetUnit) {
             const currentHealth = targetUnit.getPropertyValue('health') || 0;
             const newHealth = Math.max(0, currentHealth - actionPayload.damage);
-            targetUnit.setProperty('health', newHealth);
+            targetUnit.setProperty('health', newHealth); // This will update value, not baseValue
 
             // Also reduce attacker's mana
             if (actionPayload.damage) {
               const currentMana = actingUnit.getPropertyValue('mana') || 0;
               const newMana = Math.max(0, currentMana - 5); // 5 mana cost for attack
-              actingUnit.setProperty('mana', newMana);
+              actingUnit.setProperty('mana', newMana); // This will update value, not baseValue
             }
           }
         }
@@ -279,7 +281,7 @@ export class StoryTeller {
           if (targetUnit) {
             const currentHealth = targetUnit.getPropertyValue('health') || 0;
             const newHealth = Math.min(100, currentHealth + actionPayload.healing);
-            targetUnit.setProperty('health', newHealth);
+            targetUnit.setProperty('health', newHealth); // This will update value, not baseValue
           }
         }
         break;
@@ -288,19 +290,20 @@ export class StoryTeller {
         if (actionPayload.healthRestore) {
           const currentHealth = actingUnit.getPropertyValue('health') || 0;
           const newHealth = Math.min(100, currentHealth + actionPayload.healthRestore);
-          actingUnit.setProperty('health', newHealth);
+          actingUnit.setProperty('health', newHealth); // This will update value, not baseValue
         }
         if (actionPayload.manaRestore) {
           const currentMana = actingUnit.getPropertyValue('mana') || 0;
           const newMana = Math.min(100, currentMana + actionPayload.manaRestore);
-          actingUnit.setProperty('mana', newMana);
+          actingUnit.setProperty('mana', newMana); // This will update value, not baseValue
         }
         break;
 
       case 'defend':
         if (actionPayload.defenseBoost) {
           const currentDefense = actingUnit.getPropertyValue('defense') || 0;
-          actingUnit.setProperty('defense', currentDefense + actionPayload.defenseBoost);
+          const newDefense = currentDefense + actionPayload.defenseBoost;
+          actingUnit.setProperty('defense', newDefense); // This will update value, not baseValue
         }
         break;
 
@@ -311,10 +314,12 @@ export class StoryTeller {
           if (targetUnit) {
             // Apply experience gain to both units
             const currentAttack = actingUnit.getPropertyValue('attack') || 0;
-            actingUnit.setProperty('attack', currentAttack + Math.floor(actionPayload.experienceGain / 2));
+            const newAttack = currentAttack + Math.floor(actionPayload.experienceGain / 2);
+            actingUnit.setProperty('attack', newAttack); // This will update value, not baseValue
 
             const targetCurrentAttack = targetUnit.getPropertyValue('attack') || 0;
-            targetUnit.setProperty('attack', targetCurrentAttack + Math.floor(actionPayload.experienceGain / 2));
+            const newTargetAttack = targetCurrentAttack + Math.floor(actionPayload.experienceGain / 2);
+            targetUnit.setProperty('attack', newTargetAttack); // This will update value, not baseValue
           }
         }
         break;

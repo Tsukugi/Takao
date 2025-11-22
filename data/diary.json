@@ -1008,5 +1008,405 @@
       "description": "Kael the archer interacts with Ulric to share knowledge."
     },
     "summary": "Kael the archer interacts with Ulric to share knowledge."
+  },
+  {
+    "turn": 71,
+    "timestamp": "2025-11-22T01:57:12.873Z",
+    "action": {
+      "type": "hunt",
+      "player": "Ulric",
+      "description": "Ulric the warrior hunts for prey to sustain themselves."
+    },
+    "summary": "Ulric the warrior hunts for prey to sustain themselves."
+  },
+  {
+    "turn": 72,
+    "timestamp": "2025-11-22T01:57:13.872Z",
+    "action": {
+      "type": "support",
+      "player": "Kael",
+      "description": "Kael the archer provides support to Ulric."
+    },
+    "summary": "Kael the archer provides support to Ulric."
+  },
+  {
+    "turn": 73,
+    "timestamp": "2025-11-22T01:57:14.873Z",
+    "action": {
+      "type": "interact",
+      "player": "Kael",
+      "description": "Kael the archer interacts with Ulric to share knowledge."
+    },
+    "summary": "Kael the archer interacts with Ulric to share knowledge."
+  },
+  {
+    "turn": 74,
+    "timestamp": "2025-11-22T01:57:15.872Z",
+    "action": {
+      "type": "scout",
+      "player": "Ulric",
+      "description": "Ulric the warrior scouts ahead for potential threats."
+    },
+    "summary": "Ulric the warrior scouts ahead for potential threats."
+  },
+  {
+    "turn": 75,
+    "timestamp": "2025-11-22T01:57:16.873Z",
+    "action": {
+      "type": "patrol",
+      "player": "Ulric",
+      "description": "Ulric the warrior patrols the area vigilantly."
+    },
+    "summary": "Ulric the warrior patrols the area vigilantly."
+  },
+  {
+    "turn": 76,
+    "timestamp": "2025-11-22T01:57:17.874Z",
+    "action": {
+      "type": "patrol",
+      "player": "Ulric",
+      "description": "Ulric the warrior patrols the area vigilantly."
+    },
+    "summary": "Ulric the warrior patrols the area vigilantly."
+  },
+  {
+    "turn": 77,
+    "timestamp": "2025-11-22T01:57:18.873Z",
+    "action": {
+      "type": "explore",
+      "player": "Kael",
+      "description": "Kael the archer explores the area confidently."
+    },
+    "summary": "Kael the archer explores the area confidently."
+  },
+  {
+    "turn": 78,
+    "timestamp": "2025-11-22T01:57:19.873Z",
+    "action": {
+      "type": "trade",
+      "player": "Kael",
+      "description": "Kael the archer trades resources with Ulric."
+    },
+    "summary": "Kael the archer trades resources with Ulric."
+  },
+  {
+    "turn": 79,
+    "timestamp": "2025-11-22T01:57:20.874Z",
+    "action": {
+      "type": "hunt",
+      "player": "Kael",
+      "description": "Kael the archer hunts for prey to sustain themselves."
+    },
+    "summary": "Kael the archer hunts for prey to sustain themselves."
+  },
+  {
+    "turn": 80,
+    "timestamp": "2025-11-22T01:57:21.875Z",
+    "action": {
+      "type": "scout",
+      "player": "Ulric",
+      "description": "Ulric the warrior scouts ahead for potential threats."
+    },
+    "summary": "Ulric the warrior scouts ahead for potential threats."
+  },
+  {
+    "turn": 81,
+    "timestamp": "2025-11-22T01:57:36.718Z",
+    "action": {
+      "type": "study",
+      "player": "Kael",
+      "description": "Kael the archer studies ancient texts to gain wisdom."
+    },
+    "summary": "Kael the archer studies ancient texts to gain wisdom."
+  },
+  {
+    "turn": 82,
+    "timestamp": "2025-11-22T01:57:37.718Z",
+    "action": {
+      "type": "explore",
+      "player": "Ulric",
+      "description": "Ulric the warrior explores the area confidently."
+    },
+    "summary": "Ulric the warrior explores the area confidently."
+  },
+  {
+    "turn": 83,
+    "timestamp": "2025-11-22T01:57:38.719Z",
+    "action": {
+      "type": "study",
+      "player": "Kael",
+      "description": "Kael the archer studies ancient texts to gain wisdom."
+    },
+    "summary": "Kael the archer studies ancient texts to gain wisdom."
+  },
+  {
+    "turn": 84,
+    "timestamp": "2025-11-22T01:57:39.718Z",
+    "action": {
+      "type": "support",
+      "player": "Ulric",
+      "description": "Ulric the warrior provides support to Kael."
+    },
+    "summary": "Ulric the warrior provides support to Kael."
+  },
+  {
+    "turn": 85,
+    "timestamp": "2025-11-22T01:57:40.718Z",
+    "action": {
+      "type": "rest",
+      "player": "Kael",
+      "description": "Kael the archer takes a moment to rest and recover."
+    },
+    "summary": "Kael the archer takes a moment to rest and recover."
+  },
+  {
+    "turn": 86,
+    "timestamp": "2025-11-22T01:57:41.719Z",
+    "action": {
+      "type": "explore",
+      "player": "Kael",
+      "description": "Kael the archer explores the area confidently."
+    },
+    "summary": "Kael the archer explores the area confidently."
+  },
+  {
+    "turn": 87,
+    "timestamp": "2025-11-22T01:57:42.720Z",
+    "action": {
+      "type": "interact",
+      "player": "Kael",
+      "description": "Kael the archer interacts with Ulric to share knowledge."
+    },
+    "summary": "Kael the archer interacts with Ulric to share knowledge."
+  },
+  {
+    "turn": 88,
+    "timestamp": "2025-11-22T01:57:43.721Z",
+    "action": {
+      "type": "explore",
+      "player": "Ulric",
+      "description": "Ulric the warrior explores the area confidently."
+    },
+    "summary": "Ulric the warrior explores the area confidently."
+  },
+  {
+    "turn": 89,
+    "timestamp": "2025-11-22T01:57:44.722Z",
+    "action": {
+      "type": "patrol",
+      "player": "Kael",
+      "description": "Kael the archer patrols the area vigilantly."
+    },
+    "summary": "Kael the archer patrols the area vigilantly."
+  },
+  {
+    "turn": 90,
+    "timestamp": "2025-11-22T01:57:45.722Z",
+    "action": {
+      "type": "scout",
+      "player": "Ulric",
+      "description": "Ulric the warrior scouts ahead for potential threats."
+    },
+    "summary": "Ulric the warrior scouts ahead for potential threats."
+  },
+  {
+    "turn": 91,
+    "timestamp": "2025-11-22T01:58:19.376Z",
+    "action": {
+      "type": "explore",
+      "player": "Ulric",
+      "description": "Ulric the warrior explores the area confidently."
+    },
+    "summary": "Ulric the warrior explores the area confidently."
+  },
+  {
+    "turn": 92,
+    "timestamp": "2025-11-22T01:58:20.376Z",
+    "action": {
+      "type": "scout",
+      "player": "Ulric",
+      "description": "Ulric the warrior scouts ahead for potential threats."
+    },
+    "summary": "Ulric the warrior scouts ahead for potential threats."
+  },
+  {
+    "turn": 93,
+    "timestamp": "2025-11-22T01:58:21.376Z",
+    "action": {
+      "type": "scout",
+      "player": "Kael",
+      "description": "Kael the archer scouts ahead for potential threats."
+    },
+    "summary": "Kael the archer scouts ahead for potential threats."
+  },
+  {
+    "turn": 94,
+    "timestamp": "2025-11-22T01:58:22.376Z",
+    "action": {
+      "type": "train",
+      "player": "Ulric",
+      "description": "Ulric the warrior practices to improve their skills."
+    },
+    "summary": "Ulric the warrior practices to improve their skills."
+  },
+  {
+    "turn": 95,
+    "timestamp": "2025-11-22T01:58:23.378Z",
+    "action": {
+      "type": "interact",
+      "player": "Ulric",
+      "description": "Ulric the warrior interacts with Kael to share knowledge."
+    },
+    "summary": "Ulric the warrior interacts with Kael to share knowledge."
+  },
+  {
+    "turn": 96,
+    "timestamp": "2025-11-22T01:58:24.378Z",
+    "action": {
+      "type": "defend",
+      "player": "Kael",
+      "description": "Kael the archer strengthens defenses at their position."
+    },
+    "summary": "Kael the archer strengthens defenses at their position."
+  },
+  {
+    "turn": 97,
+    "timestamp": "2025-11-22T01:58:25.379Z",
+    "action": {
+      "type": "trade",
+      "player": "Kael",
+      "description": "Kael the archer trades resources with Ulric."
+    },
+    "summary": "Kael the archer trades resources with Ulric."
+  },
+  {
+    "turn": 98,
+    "timestamp": "2025-11-22T01:58:26.380Z",
+    "action": {
+      "type": "hunt",
+      "player": "Kael",
+      "description": "Kael the archer hunts for prey to sustain themselves."
+    },
+    "summary": "Kael the archer hunts for prey to sustain themselves."
+  },
+  {
+    "turn": 99,
+    "timestamp": "2025-11-22T01:58:27.382Z",
+    "action": {
+      "type": "scout",
+      "player": "Kael",
+      "description": "Kael the archer scouts ahead for potential threats."
+    },
+    "summary": "Kael the archer scouts ahead for potential threats."
+  },
+  {
+    "turn": 100,
+    "timestamp": "2025-11-22T01:58:28.382Z",
+    "action": {
+      "type": "patrol",
+      "player": "Kael",
+      "description": "Kael the archer patrols the area vigilantly."
+    },
+    "summary": "Kael the archer patrols the area vigilantly."
+  },
+  {
+    "turn": 101,
+    "timestamp": "2025-11-22T01:58:35.589Z",
+    "action": {
+      "type": "hunt",
+      "player": "Kael",
+      "description": "Kael the archer hunts for prey to sustain themselves."
+    },
+    "summary": "Kael the archer hunts for prey to sustain themselves."
+  },
+  {
+    "turn": 102,
+    "timestamp": "2025-11-22T01:58:36.589Z",
+    "action": {
+      "type": "rest",
+      "player": "Ulric",
+      "description": "Ulric the warrior takes a moment to rest and recover."
+    },
+    "summary": "Ulric the warrior takes a moment to rest and recover."
+  },
+  {
+    "turn": 103,
+    "timestamp": "2025-11-22T01:58:37.590Z",
+    "action": {
+      "type": "explore",
+      "player": "Kael",
+      "description": "Kael the archer explores the area confidently."
+    },
+    "summary": "Kael the archer explores the area confidently."
+  },
+  {
+    "turn": 104,
+    "timestamp": "2025-11-22T01:58:38.591Z",
+    "action": {
+      "type": "scout",
+      "player": "Ulric",
+      "description": "Ulric the warrior scouts ahead for potential threats."
+    },
+    "summary": "Ulric the warrior scouts ahead for potential threats."
+  },
+  {
+    "turn": 105,
+    "timestamp": "2025-11-22T01:58:39.591Z",
+    "action": {
+      "type": "explore",
+      "player": "Ulric",
+      "description": "Ulric the warrior explores the area confidently."
+    },
+    "summary": "Ulric the warrior explores the area confidently."
+  },
+  {
+    "turn": 106,
+    "timestamp": "2025-11-22T01:58:40.592Z",
+    "action": {
+      "type": "scout",
+      "player": "Ulric",
+      "description": "Ulric the warrior scouts ahead for potential threats."
+    },
+    "summary": "Ulric the warrior scouts ahead for potential threats."
+  },
+  {
+    "turn": 107,
+    "timestamp": "2025-11-22T01:58:44.277Z",
+    "action": {
+      "type": "train",
+      "player": "Kael",
+      "description": "Kael the archer practices to improve their skills."
+    },
+    "summary": "Kael the archer practices to improve their skills."
+  },
+  {
+    "turn": 108,
+    "timestamp": "2025-11-22T01:58:45.277Z",
+    "action": {
+      "type": "scout",
+      "player": "Ulric",
+      "description": "Ulric the warrior scouts ahead for potential threats."
+    },
+    "summary": "Ulric the warrior scouts ahead for potential threats."
+  },
+  {
+    "turn": 109,
+    "timestamp": "2025-11-22T01:58:46.278Z",
+    "action": {
+      "type": "interact",
+      "player": "Ulric",
+      "description": "Ulric the warrior interacts with Kael to share knowledge."
+    },
+    "summary": "Ulric the warrior interacts with Kael to share knowledge."
+  },
+  {
+    "turn": 110,
+    "timestamp": "2025-11-22T01:58:47.279Z",
+    "action": {
+      "type": "rest",
+      "player": "Kael",
+      "description": "Kael the archer takes a moment to rest and recover."
+    },
+    "summary": "Kael the archer takes a moment to rest and recover."
   }
 ]

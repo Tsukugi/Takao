@@ -6,23 +6,23 @@
     "properties": {
       "health": {
         "name": "health",
-        "value": 87,
-        "baseValue": 87
+        "value": 100,
+        "baseValue": 100
       },
       "mana": {
         "name": "mana",
-        "value": 50,
-        "baseValue": 50
+        "value": 59,
+        "baseValue": 59
       },
       "attack": {
         "name": "attack",
-        "value": 47,
-        "baseValue": 47
+        "value": 62,
+        "baseValue": 62
       },
       "defense": {
         "name": "defense",
-        "value": 23,
-        "baseValue": 23
+        "value": 25,
+        "baseValue": 25
       }
     }
   },
@@ -33,23 +33,23 @@
     "properties": {
       "health": {
         "name": "health",
-        "value": 86,
-        "baseValue": 86
+        "value": 100,
+        "baseValue": 100
       },
       "mana": {
         "name": "mana",
-        "value": 37,
-        "baseValue": 37
+        "value": 52,
+        "baseValue": 52
       },
       "attack": {
         "name": "attack",
-        "value": 51,
-        "baseValue": 51
+        "value": 68,
+        "baseValue": 68
       },
       "defense": {
         "name": "defense",
-        "value": 13,
-        "baseValue": 13
+        "value": 24,
+        "baseValue": 24
       }
     }
   }
