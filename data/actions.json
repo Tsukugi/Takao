@@ -10,6 +10,16 @@
         "type": "retreat",
         "description": "{{unitName}} the {{unitType}} retreats to recover from injuries.",
         "effect": "health + 15-25, position change"
+      },
+      {
+        "type": "meditate",
+        "description": "{{unitName}} the {{unitType}} focuses on inner healing.",
+        "effect": "health + 20, mana + 15"
+      },
+      {
+        "type": "call_help",
+        "description": "{{unitName}} the {{unitType}} calls for aid from nearby allies.",
+        "effect": "ally support, temporary healing"
       }
     ],
     "healthy": [
@@ -22,6 +32,16 @@
         "type": "patrol",
         "description": "{{unitName}} the {{unitType}} patrols the area vigilantly.",
         "effect": "area awareness, threat detection"
+      },
+      {
+        "type": "scout",
+        "description": "{{unitName}} the {{unitType}} scouts ahead for potential threats.",
+        "effect": "intelligence gain, area mapping"
+      },
+      {
+        "type": "hunt",
+        "description": "{{unitName}} the {{unitType}} hunts for prey to sustain themselves.",
+        "effect": "resource + 5-15, food gain"
       }
     ],
     "default": [
@@ -44,6 +64,36 @@
         "type": "gather",
         "description": "{{unitName}} the {{unitType}} gathers resources from the surroundings.",
         "effect": "resource + 3-8, position change"
+      },
+      {
+        "type": "interact",
+        "description": "{{unitName}} the {{unitType}} interacts with {{targetUnitName}} to share knowledge.",
+        "effect": "experience gain for both units"
+      },
+      {
+        "type": "defend",
+        "description": "{{unitName}} the {{unitType}} strengthens defenses at their position.",
+        "effect": "defense + 5-10, position advantage"
+      },
+      {
+        "type": "attack",
+        "description": "{{unitName}} the {{unitType}} attacks {{targetUnitName}} aggressively.",
+        "effect": "target health -10-20, attacker mana -5"
+      },
+      {
+        "type": "support",
+        "description": "{{unitName}} the {{unitType}} provides support to {{targetUnitName}}.",
+        "effect": "target health +10-15, minor mana cost"
+      },
+      {
+        "type": "trade",
+        "description": "{{unitName}} the {{unitType}} trades resources with {{targetUnitName}}.",
+        "effect": "resource exchange, relationship boost"
+      },
+      {
+        "type": "study",
+        "description": "{{unitName}} the {{unitType}} studies ancient texts to gain wisdom.",
+        "effect": "mana + 10-15, knowledge gain"
       }
     ]
   }
