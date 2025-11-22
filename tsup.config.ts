@@ -12,5 +12,5 @@ export default defineConfig({
   dts: true, // Generate declaration files
   splitting: false,
   target: 'es2022',
-  platform: 'neutral',
+  platform: 'node',
 });

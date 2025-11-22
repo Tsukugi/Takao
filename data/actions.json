@@ -1,0 +1,50 @@
+{
+  "actions": {
+    "low_health": [
+      {
+        "type": "search",
+        "description": "{{unitName}} the {{unitType}} struggles with low health and searches for healing.",
+        "effect": "health + 10-20"
+      },
+      {
+        "type": "retreat",
+        "description": "{{unitName}} the {{unitType}} retreats to recover from injuries.",
+        "effect": "health + 15-25, position change"
+      }
+    ],
+    "healthy": [
+      {
+        "type": "explore",
+        "description": "{{unitName}} the {{unitType}} explores the area confidently.",
+        "effect": "discover location, gain experience"
+      },
+      {
+        "type": "patrol",
+        "description": "{{unitName}} the {{unitType}} patrols the area vigilantly.",
+        "effect": "area awareness, threat detection"
+      }
+    ],
+    "default": [
+      {
+        "type": "patrol",
+        "description": "{{unitName}} the {{unitType}} patrols the area vigilantly.",
+        "effect": "area awareness, threat detection"
+      },
+      {
+        "type": "rest",
+        "description": "{{unitName}} the {{unitType}} takes a moment to rest and recover.",
+        "effect": "health + 5-10, mana + 5-10"
+      },
+      {
+        "type": "train",
+        "description": "{{unitName}} the {{unitType}} practices to improve their skills.",
+        "effect": "attack + 2-5, defense + 1-3"
+      },
+      {
+        "type": "gather",
+        "description": "{{unitName}} the {{unitType}} gathers resources from the surroundings.",
+        "effect": "resource + 3-8, position change"
+      }
+    ]
+  }
+}

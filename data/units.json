@@ -1,0 +1,56 @@
+[
+  {
+    "id": "ef98256b-0f93-4fa6-b87b-b86091355a4c",
+    "name": "Ulric",
+    "type": "warrior",
+    "properties": {
+      "health": {
+        "name": "health",
+        "value": 100,
+        "baseValue": 100
+      },
+      "mana": {
+        "name": "mana",
+        "value": 50,
+        "baseValue": 50
+      },
+      "attack": {
+        "name": "attack",
+        "value": 20,
+        "baseValue": 20
+      },
+      "defense": {
+        "name": "defense",
+        "value": 15,
+        "baseValue": 15
+      }
+    }
+  },
+  {
+    "id": "048a3f71-e95f-4055-b126-7d8311d18ba8",
+    "name": "Kael",
+    "type": "archer",
+    "properties": {
+      "health": {
+        "name": "health",
+        "value": 70,
+        "baseValue": 70
+      },
+      "mana": {
+        "name": "mana",
+        "value": 30,
+        "baseValue": 30
+      },
+      "attack": {
+        "name": "attack",
+        "value": 25,
+        "baseValue": 25
+      },
+      "defense": {
+        "name": "defense",
+        "value": 10,
+        "baseValue": 10
+      }
+    }
+  }
+]
