@@ -63,3 +63,7 @@ node_modules/@atsu/atago/
 # Runtime data files (user-specific game state)
 data/diary.json
 data/units.json
+
+# Backup files
+*.backup
+*.bak

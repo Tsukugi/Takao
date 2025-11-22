@@ -35,10 +35,31 @@ export interface RandomValue {
 }
 
 /**
+ * Represents names data structure from names.json
+ */
+export interface NamesData {
+  warriors?: string[];
+  archers?: string[];
+  mages?: string[];
+  clerics?: string[];
+  general?: string[];
+  [key: string]: string[] | undefined; // Allow other categories
+}
+
+/**
  * Represents action-specific payload data
  */
 export interface ActionPayload {
   [key: string]: string | number | RandomValue | object;
+}
+
+/**
+ * Represents action status requirements
+ */
+export interface ActionStatusRequirements {
+  health?: string;
+  mana?: string;
+  [key: string]: string | undefined;
 }
 
 /**
@@ -49,6 +70,9 @@ export interface ActionWithEffects {
   description: string;
   effects: EffectDefinition[];
   payload?: ActionPayload;
+  manaRequirement?: number;
+  requiredStatus?: ActionStatusRequirements;
+  targetStatus?: string;
 }
 
 /**
@@ -60,6 +84,7 @@ export interface ActionsData {
     healthy: ActionWithEffects[];
     default: ActionWithEffects[];
   };
+  special?: ActionWithEffects[];
 }
 
 /**
@@ -170,14 +195,14 @@ export class DataManager {
   /**
    * Loads names catalog from the names.json file
    */
-  public static loadNames(): string[] {
+  public static loadNames(): NamesData {
     if (!fs.existsSync(this.NAMES_FILE)) {
       throw new Error(`Names file not found: ${this.NAMES_FILE}`);
     }
 
     const data = fs.readFileSync(this.NAMES_FILE, 'utf-8');
     const jsonData = JSON.parse(data);
-    return jsonData.names || [];
+    return jsonData;
   }
 
   /**

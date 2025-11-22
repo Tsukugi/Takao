@@ -70,25 +70,96 @@ export class StoryTeller {
     let action: GameAction;
     let description = '';
 
-    // Based on health, select action from JSON data
-    let selectedAction: ActionWithEffects;
+    // Get available actions based on unit status and requirements
+    let availableActions: ActionWithEffects[] = [];
 
-    if (health < 30) {
-      // Unit is in danger - select from low_health actions
-      const lowHealthActions = this.actionsData.actions.low_health;
-      const randomIndex = Math.floor(Math.random() * lowHealthActions.length);
-      selectedAction = lowHealthActions[randomIndex] || this.getDefaultAction();
-    } else if (health > 80 && Math.random() > 0.5) {
-      // Unit is healthy and adventurous - select from healthy actions
-      const healthyActions = this.actionsData.actions.healthy;
-      const randomIndex = Math.floor(Math.random() * healthyActions.length);
-      selectedAction = healthyActions[randomIndex] || this.getDefaultAction();
-    } else {
-      // Default action - select from default actions
-      const defaultActions = this.actionsData.actions.default;
-      const randomIndex = Math.floor(Math.random() * defaultActions.length);
-      selectedAction = defaultActions[randomIndex] || this.getDefaultAction();
+    // Combine actions from all categories
+    const allActions = [
+      ...this.actionsData.actions.low_health,
+      ...this.actionsData.actions.healthy,
+      ...this.actionsData.actions.default
+    ];
+
+    // Filter actions based on unit requirements (health, mana, etc.)
+    for (const action of allActions) {
+      // Check mana requirement
+      if (action.manaRequirement !== undefined && action.manaRequirement > mana) {
+        continue; // Skip if unit doesn't have enough mana
+      }
+
+      // Check required status conditions
+      if (action.requiredStatus) {
+        let meetsStatus = true;
+        for (const [property, condition] of Object.entries(action.requiredStatus)) {
+          const unitValue = randomUnit?.getPropertyValue(property);
+
+          // Evaluate condition (e.g., "health <= 30")
+          if (typeof condition === 'string' && unitValue !== undefined) {
+            if (condition.includes('<=')) {
+              const parts = condition.split('<=')[1];
+              if (parts) {
+                const threshold = parseFloat(parts.trim());
+                if (isNaN(threshold) || unitValue > threshold) {
+                  meetsStatus = false;
+                  break;
+                }
+              }
+            } else if (condition.includes('>=')) {
+              const parts = condition.split('>=')[1];
+              if (parts) {
+                const threshold = parseFloat(parts.trim());
+                if (isNaN(threshold) || unitValue < threshold) {
+                  meetsStatus = false;
+                  break;
+                }
+              }
+            } else if (condition.includes('<')) {
+              const parts = condition.split('<')[1];
+              if (parts) {
+                const threshold = parseFloat(parts.trim());
+                if (isNaN(threshold) || unitValue >= threshold) {
+                  meetsStatus = false;
+                  break;
+                }
+              }
+            } else if (condition.includes('>')) {
+              const parts = condition.split('>')[1];
+              if (parts) {
+                const threshold = parseFloat(parts.trim());
+                if (isNaN(threshold) || unitValue <= threshold) {
+                  meetsStatus = false;
+                  break;
+                }
+              }
+            }
+          }
+        }
+        if (!meetsStatus) continue;
+      }
+
+      // Add action to available list
+      availableActions.push(action);
     }
+
+    // Add special actions if applicable (though they might require specific conditions)
+    if (this.actionsData.special) {
+      // For now, add all special actions, but in a more advanced version,
+      // we could have additional filtering logic here
+      availableActions = [...availableActions, ...this.actionsData.special];
+    }
+
+    // If no actions are available based on requirements, fallback to default actions
+    if (availableActions.length === 0) {
+      availableActions = [
+        ...this.actionsData.actions.low_health,
+        ...this.actionsData.actions.healthy,
+        ...this.actionsData.actions.default
+      ];
+    }
+
+    // Select a random action from available actions
+    const randomIndex = Math.floor(Math.random() * availableActions.length);
+    const selectedAction = availableActions[randomIndex] || this.getDefaultAction();
 
     // For interaction-type actions, select another unit to interact with
     let targetUnit = null;
@@ -261,6 +332,30 @@ export class StoryTeller {
     // Execute each effect
     for (const effect of effectsToExecute) {
       await this.executeSingleEffect(effect, action, units);
+    }
+
+    // After executing all effects, check for dead units and handle death
+    this.checkForDeadUnits(units);
+  }
+
+  /**
+   * Checks units for deaths and updates their status
+   */
+  private checkForDeadUnits(units: any[]): void {
+    for (const unit of units) {
+      const health = unit.getPropertyValue('health') || 0;
+      const currentStatus = unit.getPropertyValue('status') || 'alive';
+
+      // If health drops to 0 or below and unit is currently alive, mark as dead
+      if (health <= 0 && currentStatus === 'alive') {
+        unit.setProperty('status', 'dead');
+        console.log(`${unit.name} has died!`);
+      }
+      // If health recovers above 0 and unit was dead, mark as alive (for resurrection)
+      else if (health > 0 && currentStatus === 'dead') {
+        unit.setProperty('status', 'alive');
+        console.log(`${unit.name} has been revived!`);
+      }
     }
   }
 

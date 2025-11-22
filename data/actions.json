@@ -26,7 +26,7 @@
         "effects": [
           {
             "target": "self",
-            "property": "health",
+            "property": "health", 
             "operation": "add",
             "value": { "type": "static", "value": 20 },
             "permanent": false
@@ -34,7 +34,7 @@
           {
             "target": "self",
             "property": "mana",
-            "operation": "add",
+            "operation": "add", 
             "value": { "type": "static", "value": 10 },
             "permanent": false
           }
@@ -52,28 +52,14 @@
             "target": "self",
             "property": "health",
             "operation": "add",
-            "value": { "type": "static", "value": 20 },
+            "value": { "type": "variable", "variable": "healthRestore" },
             "permanent": false
           },
           {
             "target": "self",
             "property": "mana",
             "operation": "add",
-            "value": { "type": "static", "value": 15 },
-            "permanent": false
-          }
-        ]
-      },
-      {
-        "type": "call_help",
-        "description": "{{unitName}} the {{unitType}} calls for aid from nearby allies.",
-        "payload": {},
-        "effects": [
-          {
-            "target": "self",
-            "property": "health",
-            "operation": "add",
-            "value": { "type": "static", "value": 10 },
+            "value": { "type": "variable", "variable": "manaRestore" },
             "permanent": false
           }
         ]
@@ -89,7 +75,7 @@
         "effects": [
           {
             "target": "self",
-            "property": "experience",
+            "property": "experience", 
             "operation": "add",
             "value": { "type": "static", "value": 3 },
             "permanent": false
@@ -97,21 +83,11 @@
         ]
       },
       {
-        "type": "patrol",
-        "description": "{{unitName}} the {{unitType}} patrols the area vigilantly.",
-        "effects": [
-          {
-            "target": "self",
-            "property": "awareness",
-            "operation": "add", 
-            "value": { "type": "static", "value": 2 },
-            "permanent": false
-          }
-        ]
-      },
-      {
         "type": "scout",
-        "description": "{{unitName}} the {{unitType}} scouts ahead for threats.",
+        "description": "{{unitName}} the {{unitType}} scouts ahead for potential threats.",
+        "payload": {
+          "direction": "random_direction"
+        },
         "effects": [
           {
             "target": "self",
@@ -125,12 +101,24 @@
       {
         "type": "hunt",
         "description": "{{unitName}} the {{unitType}} hunts for prey to sustain themselves.",
+        "payload": {
+          "resourceGain": {
+            "type": "random",
+            "min": 5,
+            "max": 15
+          },
+          "foodGain": {
+            "type": "random",
+            "min": 3,
+            "max": 8
+          }
+        },
         "effects": [
           {
             "target": "self",
-            "property": "resources",
+            "property": "resources", 
             "operation": "add",
-            "value": { "type": "static", "value": 8 },
+            "value": { "type": "variable", "variable": "resourceGain" },
             "permanent": false
           }
         ]
@@ -140,6 +128,9 @@
       {
         "type": "patrol",
         "description": "{{unitName}} the {{unitType}} patrols the area vigilantly.",
+        "payload": {
+          "direction": "random_direction"
+        },
         "effects": [
           {
             "target": "self",
@@ -160,11 +151,12 @@
             "max": 12
           },
           "manaRestore": {
-            "type": "random",
+            "type": "random", 
             "min": 3,
             "max": 8
           }
         },
+        "manaRequirement": 0,
         "effects": [
           {
             "target": "self",
@@ -174,10 +166,110 @@
             "permanent": false
           },
           {
+            "target": "self", 
+            "property": "mana",
+            "operation": "add",
+            "value": { "type": "variable", "variable": "manaRestore" },
+            "permanent": false
+          }
+        ]
+      },
+      {
+        "type": "meditate",
+        "description": "{{unitName}} the {{unitType}} focuses on inner peace and mana restoration.",
+        "payload": {
+          "manaRestore": {
+            "type": "random",
+            "min": 8,
+            "max": 15
+          },
+          "healthRestore": {
+            "type": "random",
+            "min": 2,
+            "max": 5
+          }
+        },
+        "manaRequirement": 0,
+        "effects": [
+          {
             "target": "self",
             "property": "mana",
             "operation": "add",
             "value": { "type": "variable", "variable": "manaRestore" },
+            "permanent": false
+          },
+          {
+            "target": "self",
+            "property": "health",
+            "operation": "add",
+            "value": { "type": "variable", "variable": "healthRestore" },
+            "permanent": false
+          }
+        ]
+      },
+      {
+        "type": "desperate_attack",
+        "description": "{{unitName}} the {{unitType}} launches a desperate attack despite low health.",
+        "payload": {
+          "damage": {
+            "type": "random",
+            "min": 12,
+            "max": 25
+          },
+          "cost": {
+            "type": "random",
+            "min": 5,
+            "max": 10
+          }
+        },
+        "manaRequirement": 10,
+        "requiredStatus": {
+          "health": "<=30"
+        },
+        "effects": [
+          {
+            "target": "target",
+            "property": "health",
+            "operation": "subtract",
+            "value": { "type": "variable", "variable": "damage" },
+            "permanent": false
+          },
+          {
+            "target": "self",
+            "property": "mana",
+            "operation": "subtract",
+            "value": { "type": "variable", "variable": "cost" },
+            "permanent": false
+          }
+        ]
+      },
+      {
+        "type": "conserve_mana",
+        "description": "{{unitName}} the {{unitType}} enters a low-power state to preserve mana.",
+        "payload": {
+          "manaBonus": {
+            "type": "random",
+            "min": 15,
+            "max": 25
+          }
+        },
+        "manaRequirement": 0,
+        "requiredStatus": {
+          "mana": "<=20"
+        },
+        "effects": [
+          {
+            "target": "self",
+            "property": "mana",
+            "operation": "add",
+            "value": { "type": "variable", "variable": "manaBonus" },
+            "permanent": false
+          },
+          {
+            "target": "self",
+            "property": "health",
+            "operation": "add",
+            "value": { "type": "static", "value": 3 },
             "permanent": false
           }
         ]
@@ -206,7 +298,7 @@
             "permanent": true
           },
           {
-            "target": "self",
+            "target": "self", 
             "property": "defense",
             "operation": "add",
             "value": { "type": "variable", "variable": "defenseBoost" },
@@ -215,54 +307,29 @@
         ]
       },
       {
-        "type": "meditate",
-        "description": "{{unitName}} the {{unitType}} focuses on inner peace.",
-        "effects": [
-          {
-            "target": "self",
-            "property": "mana",
-            "operation": "add",
-            "value": { "type": "static", "value": 15 },
-            "permanent": false
-          },
-          {
-            "target": "self",
-            "property": "health",
-            "operation": "add", 
-            "value": { "type": "static", "value": 5 },
-            "permanent": false
-          }
-        ]
-      },
-      {
-        "type": "gather",
-        "description": "{{unitName}} the {{unitType}} gathers resources from the surroundings.",
-        "effects": [
-          {
-            "target": "self",
-            "property": "resources",
-            "operation": "add",
-            "value": { "type": "static", "value": 6 },
-            "permanent": false
-          }
-        ]
-      },
-      {
         "type": "interact",
         "description": "{{unitName}} the {{unitType}} interacts with {{targetUnitName}} to share knowledge.",
+        "payload": {
+          "experienceGain": {
+            "type": "random", 
+            "min": 5,
+            "max": 10
+          },
+          "targetUnit": "random_target"
+        },
         "effects": [
           {
             "target": "self",
             "property": "knowledge",
             "operation": "add",
-            "value": { "type": "static", "value": 5 },
+            "value": { "type": "variable", "variable": "experienceGain" },
             "permanent": false
           },
           {
             "target": "target",
-            "property": "knowledge",
+            "property": "knowledge", 
             "operation": "add",
-            "value": { "type": "static", "value": 5 },
+            "value": { "type": "variable", "variable": "experienceGain" },
             "permanent": false
           }
         ]
@@ -270,12 +337,19 @@
       {
         "type": "defend",
         "description": "{{unitName}} the {{unitType}} strengthens defenses at their position.",
+        "payload": {
+          "defenseBoost": {
+            "type": "random",
+            "min": 5,
+            "max": 10
+          }
+        },
         "effects": [
           {
             "target": "self",
             "property": "defense",
             "operation": "add",
-            "value": { "type": "static", "value": 5 },
+            "value": { "type": "variable", "variable": "defenseBoost" },
             "permanent": true
           }
         ]
@@ -291,6 +365,7 @@
           },
           "manaCost": 5
         },
+        "manaRequirement": 5,
         "effects": [
           {
             "target": "target",
@@ -303,7 +378,7 @@
             "target": "self",
             "property": "mana",
             "operation": "subtract",
-            "value": { "type": "static", "value": 5 },
+            "value": { "type": "variable", "variable": "manaCost" },
             "permanent": false
           }
         ]
@@ -311,12 +386,21 @@
       {
         "type": "support",
         "description": "{{unitName}} the {{unitType}} provides support to {{targetUnitName}}.",
+        "payload": {
+          "healing": {
+            "type": "random",
+            "min": 10,
+            "max": 15
+          },
+          "targetUnit": "random_target"
+        },
+        "manaRequirement": 8,
         "effects": [
           {
             "target": "target",
             "property": "health",
             "operation": "add",
-            "value": { "type": "static", "value": 12 },
+            "value": { "type": "variable", "variable": "healing" },
             "permanent": false
           }
         ]
@@ -324,19 +408,27 @@
       {
         "type": "trade",
         "description": "{{unitName}} the {{unitType}} trades resources with {{targetUnitName}}.",
+        "payload": {
+          "resourceExchange": {
+            "type": "random",
+            "min": 3,
+            "max": 8
+          },
+          "targetUnit": "random_target"
+        },
         "effects": [
           {
             "target": "self",
             "property": "resources",
             "operation": "add",
-            "value": { "type": "static", "value": 3 },
+            "value": { "type": "variable", "variable": "resourceExchange" },
             "permanent": false
           },
           {
-            "target": "target",
-            "property": "resources", 
+            "target": "target", 
+            "property": "resources",
             "operation": "add",
-            "value": { "type": "static", "value": 3 },
+            "value": { "type": "variable", "variable": "resourceExchange" },
             "permanent": false
           }
         ]
@@ -344,25 +436,41 @@
       {
         "type": "study",
         "description": "{{unitName}} the {{unitType}} studies ancient texts to gain wisdom.",
+        "payload": {
+          "wisdomGain": {
+            "type": "random",
+            "min": 8,
+            "max": 15
+          }
+        },
+        "manaRequirement": 10,
         "effects": [
           {
             "target": "self",
             "property": "wisdom",
             "operation": "add",
-            "value": { "type": "static", "value": 8 },
+            "value": { "type": "variable", "variable": "wisdomGain" },
             "permanent": true
           }
         ]
       },
       {
         "type": "craft",
-        "description": "{{unitName}} the {{unitType}} crafts equipment.",
+        "description": "{{unitName}} the {{unitType}} crafts equipment to strengthen themselves.",
+        "payload": {
+          "defenseBoost": {
+            "type": "random",
+            "min": 4,
+            "max": 8
+          }
+        },
+        "manaRequirement": 15,
         "effects": [
           {
             "target": "self",
             "property": "defense",
             "operation": "add",
-            "value": { "type": "static", "value": 4 },
+            "value": { "type": "variable", "variable": "defenseBoost" },
             "permanent": true
           }
         ]
@@ -370,12 +478,20 @@
       {
         "type": "negotiate",
         "description": "{{unitName}} the {{unitType}} negotiates with {{targetUnitName}}.",
+        "payload": {
+          "diplomacyGain": {
+            "type": "random",
+            "min": 6,
+            "max": 10
+          },
+          "targetUnit": "random_target"
+        },
         "effects": [
           {
             "target": "self",
             "property": "diplomacy",
             "operation": "add",
-            "value": { "type": "static", "value": 6 },
+            "value": { "type": "variable", "variable": "diplomacyGain" },
             "permanent": false
           }
         ]
@@ -383,12 +499,20 @@
       {
         "type": "stealth",
         "description": "{{unitName}} the {{unitType}} moves with stealth.",
+        "payload": {
+          "stealthBoost": {
+            "type": "random",
+            "min": 8,
+            "max": 12
+          }
+        },
+        "manaRequirement": 12,
         "effects": [
           {
             "target": "self",
             "property": "stealth",
             "operation": "add",
-            "value": { "type": "static", "value": 8 },
+            "value": { "type": "variable", "variable": "stealthBoost" },
             "permanent": false
           }
         ]
@@ -396,29 +520,103 @@
       {
         "type": "summon",
         "description": "{{unitName}} the {{unitType}} summons an ally.",
+        "payload": {
+          "manaCost": 25
+        },
+        "manaRequirement": 25,
         "effects": [
           {
             "target": "self",
             "property": "mana",
             "operation": "subtract",
-            "value": { "type": "static", "value": 25 },
+            "value": { "type": "variable", "variable": "manaCost" },
             "permanent": false
           }
         ]
       },
       {
         "type": "inspire",
-        "description": "{{unitName}} the {{unitType}} inspires {{targetUnitName}}.",
+        "description": "{{unitName}} the {{unitType}} inspires {{targetUnitName}} with鼓舞.",
+        "payload": {
+          "moraleBoost": {
+            "type": "random",
+            "min": 10,
+            "max": 20
+          },
+          "targetUnit": "random_target"
+        },
+        "manaRequirement": 15,
         "effects": [
           {
             "target": "target",
             "property": "morale",
             "operation": "add",
-            "value": { "type": "static", "value": 10 },
+            "value": { "type": "variable", "variable": "moraleBoost" },
             "permanent": false
           }
         ]
       }
     ]
-  }
+  },
+  "special": [
+    {
+      "type": "resurrect",
+      "description": "{{unitName}} channels energy to resurrect {{targetUnitName}}.",
+      "payload": {
+        "manaCost": 40,
+        "healthRestore": 20
+      },
+      "manaRequirement": 40,
+      "targetStatus": "dead",
+      "effects": [
+        {
+          "target": "target",
+          "property": "status",
+          "operation": "set",
+          "value": { "type": "static", "value": "alive" },
+          "permanent": false
+        },
+        {
+          "target": "target",
+          "property": "health",
+          "operation": "set",
+          "value": { "type": "variable", "variable": "healthRestore" },
+          "permanent": false
+        },
+        {
+          "target": "self",
+          "property": "mana",
+          "operation": "subtract",
+          "value": { "type": "variable", "variable": "manaCost" },
+          "permanent": false
+        }
+      ]
+    },
+    {
+      "type": "last_rites",
+      "description": "{{unitName}} performs sacred last rites for {{targetUnitName}}.",
+      "payload": {
+        "healingBonus": 15,
+        "manaBonus": 10
+      },
+      "manaRequirement": 20,
+      "targetStatus": "dead",
+      "effects": [
+        {
+          "target": "allies",
+          "property": "health",
+          "operation": "add",
+          "value": { "type": "variable", "variable": "healingBonus" },
+          "permanent": false
+        },
+        {
+          "target": "allies",
+          "property": "mana",
+          "operation": "add",
+          "value": { "type": "variable", "variable": "manaBonus" },
+          "permanent": false
+        }
+      ]
+    }
+  ]
 }
