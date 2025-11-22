@@ -82,6 +82,7 @@ export class DataManager {
 
   /**
    * Loads diary entries
+   * If file doesn't exist, returns an empty array
    */
   public static loadDiary(): any[] {
     if (!fs.existsSync(this.DIARY_FILE)) {
@@ -94,6 +95,7 @@ export class DataManager {
 
   /**
    * Loads unit states from the units.json file
+   * If file doesn't exist, returns an empty array
    */
   public static loadUnits(): any[] {
     if (!fs.existsSync(this.UNITS_FILE)) {
@@ -106,6 +108,7 @@ export class DataManager {
 
   /**
    * Gets the last turn number from the diary entries
+   * If file doesn't exist or is empty, returns 0
    */
   public static getLastTurnNumber(): number {
     if (!fs.existsSync(this.DIARY_FILE)) {
@@ -113,7 +116,7 @@ export class DataManager {
     }
 
     const content = fs.readFileSync(this.DIARY_FILE, 'utf-8');
-    const diary = JSON.parse(content);
+    const diary: any[] = JSON.parse(content);
 
     if (!diary || diary.length === 0) {
       return 0;

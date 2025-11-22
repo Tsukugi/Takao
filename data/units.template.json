@@ -1,7 +1,7 @@
 [
   {
-    "id": "ef98256b-0f93-4fa6-b87b-b86091355a4c",
-    "name": "Ulric",
+    "id": "example-unit-uuid-1234-5678-9012",
+    "name": "ExampleWarrior",
     "type": "warrior",
     "properties": {
       "health": {
@@ -11,45 +11,45 @@
       },
       "mana": {
         "name": "mana",
-        "value": 59,
-        "baseValue": 59
+        "value": 50,
+        "baseValue": 50
       },
       "attack": {
         "name": "attack",
-        "value": 62,
-        "baseValue": 62
+        "value": 20,
+        "baseValue": 20
       },
       "defense": {
         "name": "defense",
-        "value": 25,
-        "baseValue": 25
+        "value": 15,
+        "baseValue": 15
       }
     }
   },
   {
-    "id": "048a3f71-e95f-4055-b126-7d8311d18ba8",
-    "name": "Kael",
+    "id": "example-unit-uuid-9876-5432-1098",
+    "name": "ExampleArcher",
     "type": "archer",
     "properties": {
       "health": {
         "name": "health",
-        "value": 100,
-        "baseValue": 100
+        "value": 70,
+        "baseValue": 70
       },
       "mana": {
         "name": "mana",
-        "value": 52,
-        "baseValue": 52
+        "value": 30,
+        "baseValue": 30
       },
       "attack": {
         "name": "attack",
-        "value": 68,
-        "baseValue": 68
+        "value": 25,
+        "baseValue": 25
       },
       "defense": {
         "name": "defense",
-        "value": 24,
-        "baseValue": 24
+        "value": 10,
+        "baseValue": 10
       }
     }
   }
