@@ -243,15 +243,12 @@ export class StoryTeller {
         break;
 
       case 'train':
+        // Training permanently increases stats (base values should change)
         if (actionPayload.attackBoost) {
-          const currentAttack = actingUnit.getPropertyValue('attack') || 0;
-          const newAttack = currentAttack + actionPayload.attackBoost;
-          actingUnit.setProperty('attack', newAttack); // This will update value, not baseValue
+          actingUnit.setBaseProperty('attack', actionPayload.attackBoost); // Permanently increases base value
         }
         if (actionPayload.defenseBoost) {
-          const currentDefense = actingUnit.getPropertyValue('defense') || 0;
-          const newDefense = currentDefense + actionPayload.defenseBoost;
-          actingUnit.setProperty('defense', newDefense); // This will update value, not baseValue
+          actingUnit.setBaseProperty('defense', actionPayload.defenseBoost); // Permanently increases base value
         }
         break;
 
@@ -308,18 +305,14 @@ export class StoryTeller {
         break;
 
       case 'interact':
-        // Apply experience gain to both units
+        // Apply experience gain to both units (permanent improvement)
         if (actionPayload.experienceGain && actionPayload.targetUnit) {
           const targetUnit = units.find((unit: any) => unit.id === actionPayload.targetUnit);
           if (targetUnit) {
-            // Apply experience gain to both units
-            const currentAttack = actingUnit.getPropertyValue('attack') || 0;
-            const newAttack = currentAttack + Math.floor(actionPayload.experienceGain / 2);
-            actingUnit.setProperty('attack', newAttack); // This will update value, not baseValue
-
-            const targetCurrentAttack = targetUnit.getPropertyValue('attack') || 0;
-            const newTargetAttack = targetCurrentAttack + Math.floor(actionPayload.experienceGain / 2);
-            targetUnit.setProperty('attack', newTargetAttack); // This will update value, not baseValue
+            // Apply experience gain to both units (permanent improvement)
+            const attackIncrease = Math.floor(actionPayload.experienceGain / 2);
+            actingUnit.setBaseProperty('attack', attackIncrease); // Permanent improvement
+            targetUnit.setBaseProperty('attack', attackIncrease); // Permanent improvement
           }
         }
         break;
