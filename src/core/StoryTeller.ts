@@ -99,8 +99,22 @@ export class StoryTeller {
       );
     }
 
-    // Choose a random unit to center the story around
-    const randomUnit = MathUtils.getRandomFromArray(units);
+    // Filter out dead units - only consider alive units for taking actions
+    const aliveUnits = units.filter(unit => {
+      const statusProperty = unit.properties.status;
+      return !statusProperty || statusProperty.value !== 'dead';
+    });
+
+    // If no alive units exist, return a default action
+    if (aliveUnits.length === 0) {
+      return ActionProcessor.getDefaultExecutedAction(
+        new BaseUnit('default-unit', 'DefaultUnit', 'unknown', {}),
+        turn
+      );
+    }
+
+    // Choose a random alive unit to center the story around
+    const randomUnit = MathUtils.getRandomFromArray(aliveUnits);
 
     // Get properties of the unit to create a meaningful story
     const unitName = randomUnit.name;
