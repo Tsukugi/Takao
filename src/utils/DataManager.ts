@@ -47,6 +47,18 @@ export interface NamesData {
 }
 
 /**
+ * Represents the structure of names.json
+ */
+export interface NameCategories {
+  warriors: string[];
+  archers: string[];
+  mages: string[];
+  clerics: string[];
+  general: string[];
+  [key: string]: string[];
+}
+
+/**
  * Represents action-specific payload data
  */
 export interface ActionPayload {

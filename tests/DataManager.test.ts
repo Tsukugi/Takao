@@ -34,7 +34,9 @@ describe('DataManager', () => {
     };
     
     const namesData = {
-      names: ['Alice', 'Bob', 'Charlie', 'Diana', 'Eric']
+      warriors: ['Alice', 'Bob'],
+      archers: ['Charlie', 'Diana'],
+      general: ['Eric']
     };
     
     const unitsData = [
@@ -98,11 +100,16 @@ describe('DataManager', () => {
     (DataManager as any).NAMES_FILE = NAMES_FILE;
 
     const names = DataManager.loadNames();
-    
-    expect(names).toHaveLength(5);
-    expect(names).toContain('Alice');
-    expect(names).toContain('Bob');
-    expect(names).toContain('Diana');
+
+    // With the new structure, we need to check the properties exist
+    expect(names).toHaveProperty('warriors');
+    expect(names).toHaveProperty('archers');
+    expect(names).toHaveProperty('general');
+    expect(names.warriors).toContain('Alice');
+    expect(names.warriors).toContain('Bob');
+    expect(names.archers).toContain('Charlie');
+    expect(names.archers).toContain('Diana');
+    expect(names.general).toContain('Eric');
 
     // Restore original path
     (DataManager as any).NAMES_FILE = originalNamesFile;

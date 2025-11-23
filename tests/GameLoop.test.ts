@@ -18,12 +18,12 @@ describe('GameLoop', () => {
 
   it('tracks turn count correctly', () => {
     expect(gameLoop.getTurn()).toBe(0);
-    
+
     // Simulate a turn by manually calling the start-stop cycle
     const callback = vi.fn();
     gameLoop.start(callback);
     gameLoop.stop();
-    
+
     // After starting and stopping, turn should still be 0 initially
     expect(gameLoop.getTurn()).toBe(0);
   });
@@ -35,41 +35,41 @@ describe('GameLoop', () => {
 
   it('starts the game loop correctly', () => {
     const callback = vi.fn();
-    
+
     gameLoop.start(callback);
-    
+
     expect(gameLoop.getRunning()).toBe(true);
   });
 
   it('stops the game loop correctly', () => {
     const callback = vi.fn();
     gameLoop.start(callback);
-    
+
     expect(gameLoop.getRunning()).toBe(true);
-    
+
     gameLoop.stop();
-    
+
     expect(gameLoop.getRunning()).toBe(false);
   });
 
   it('does not start if already running', () => {
     const callback = vi.fn();
     gameLoop.start(callback);
-    
+
     expect(gameLoop.getRunning()).toBe(true);
-    
+
     // Try to start again - should show warning in console but stay running
     gameLoop.start(vi.fn());
-    
+
     expect(gameLoop.getRunning()).toBe(true);
   });
 
   it('returns correct running state at all times', () => {
     expect(gameLoop.getRunning()).toBe(false);
-    
+
     gameLoop.start(vi.fn());
     expect(gameLoop.getRunning()).toBe(true);
-    
+
     gameLoop.stop();
     expect(gameLoop.getRunning()).toBe(false);
   });
