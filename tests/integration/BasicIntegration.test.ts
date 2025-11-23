@@ -24,10 +24,10 @@ describe('Integration Tests', () => {
 
     // Just call the internal processTurn method to make sure it doesn't crash
     try {
-      // @ts-ignore - accessing private method for testing
-      await engine.processTurn(1);
+      await engine.processTurn();
       // This is expected to fail gracefully in test environment
     } catch (error) {
+      console.warn('processTurn failed as expected in test environment', error);
       // Expected since we don't have full environment setup in test
     }
 

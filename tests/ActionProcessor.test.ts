@@ -106,8 +106,7 @@ describe('ActionProcessor', () => {
 
       const result = await ActionProcessor.executeActionEffect(
         action,
-        mockUnits,
-        initialStates
+        mockUnits
       );
 
       expect(result.success).toBe(true);
@@ -146,8 +145,7 @@ describe('ActionProcessor', () => {
 
       const result = await ActionProcessor.executeActionEffect(
         action,
-        mockUnits,
-        initialStates
+        mockUnits
       );
 
       expect(result.success).toBe(true);
@@ -185,8 +183,7 @@ describe('ActionProcessor', () => {
 
       const result = await ActionProcessor.executeActionEffect(
         action,
-        mockUnits,
-        initialStates
+        mockUnits
       );
 
       expect(result.success).toBe(true);
@@ -211,8 +208,7 @@ describe('ActionProcessor', () => {
 
       const result = await ActionProcessor.executeActionEffect(
         action,
-        mockUnits,
-        initialStates
+        mockUnits
       );
 
       expect(result.success).toBe(true); // Should succeed even if no effects found
@@ -233,8 +229,7 @@ describe('ActionProcessor', () => {
 
       const result = await ActionProcessor.executeActionEffect(
         action,
-        mockUnits,
-        initialStates
+        mockUnits
       );
 
       // Should still return success but might have no effect
