@@ -56,27 +56,25 @@ export class GameEngine {
     this.sessionTurnCount = 0; // Reset session turn count
 
     // Start the game loop
-    this.gameLoop.start((turn: number) => {
-      this.processTurn(turn);
-    });
+    this.gameLoop.start(() => this.processTurn());
   }
 
   /**
    * Processes a single turn in the game
    */
-  private async processTurn(_turn: number): Promise<void> {
+  private async processTurn(): Promise<void> {
     // Use the actual turn number from the turn manager, not the loop's turn number
     const actualTurn = this.turnManager.getCurrentTurn() + 1; // +1 because turnManager tracks the last completed turn
     console.log(`\n--- Turn ${actualTurn} ---`);
 
     try {
       // Use the StoryTeller to generate a story action for this turn
-      const storyAction = await this.storyTeller.generateStoryAction(actualTurn);
+      const { action } = await this.storyTeller.generateStoryAction(actualTurn);
 
-      console.log(`Story Action: ${storyAction.payload.description || storyAction.type}`);
+      console.log(`Story Action: ${action.description || action.type}`);
 
       // Process the action through the turn manager
-      await this.turnManager.processAction(storyAction);
+      await this.turnManager.processAction(action);
 
       // Show the latest story
       const latestStory = this.storyTeller.getLatestStory();

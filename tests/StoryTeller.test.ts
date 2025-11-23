@@ -1,12 +1,13 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { StoryTeller } from '../src/core/StoryTeller';
 import { DataManager } from '../src/utils/DataManager';
+import { Action, ExecutedAction } from '../src/types';
 
 // Mock the Atago library
 vi.mock('@atsu/atago', async () => {
   const actual = await vi.importActual('@atsu/atago');
   return {
-    ...(actual as any),
+    ...actual,
     BaseUnit: class {
       id: string;
       name: string;
@@ -47,7 +48,6 @@ vi.mock('@atsu/atago', async () => {
 
 // Mock DataManager with the correct structure
 vi.mock('../src/utils/DataManager', async () => {
-  const actual = await vi.importActual('../src/utils/DataManager');
   return {
     DataManager: {
       loadNames: vi.fn(() => ({
@@ -61,6 +61,7 @@ vi.mock('../src/utils/DataManager', async () => {
               type: 'search',
               description:
                 '{{unitName}} the {{unitType}} searches for healing.',
+              payload: {},
               effects: [
                 {
                   target: 'self',
@@ -74,6 +75,7 @@ vi.mock('../src/utils/DataManager', async () => {
             {
               type: 'retreat',
               description: '{{unitName}} the {{unitType}} retreats to recover.',
+              payload: {},
               effects: [
                 {
                   target: 'self',
@@ -97,6 +99,7 @@ vi.mock('../src/utils/DataManager', async () => {
               type: 'explore',
               description:
                 '{{unitName}} the {{unitType}} explores confidently.',
+              payload: {},
               effects: [
                 {
                   target: 'self',
@@ -110,6 +113,7 @@ vi.mock('../src/utils/DataManager', async () => {
             {
               type: 'patrol',
               description: '{{unitName}} the {{unitType}} patrols vigilantly.',
+              payload: {},
               effects: [
                 {
                   target: 'self',
@@ -125,6 +129,7 @@ vi.mock('../src/utils/DataManager', async () => {
             {
               type: 'patrol',
               description: '{{unitName}} the {{unitType}} patrols vigilantly.',
+              payload: {},
               effects: [
                 {
                   target: 'self',
@@ -139,6 +144,7 @@ vi.mock('../src/utils/DataManager', async () => {
               type: 'rest',
               description:
                 '{{unitName}} the {{unitType}} takes a moment to rest.',
+              payload: {},
               effects: [
                 {
                   target: 'self',
@@ -159,6 +165,7 @@ vi.mock('../src/utils/DataManager', async () => {
             {
               type: 'train',
               description: '{{unitName}} the {{unitType}} practices skills.',
+              payload: {},
               effects: [
                 {
                   target: 'self',
@@ -172,6 +179,7 @@ vi.mock('../src/utils/DataManager', async () => {
             {
               type: 'gather',
               description: '{{unitName}} the {{unitType}} gathers resources.',
+              payload: {},
               effects: [
                 {
                   target: 'self',
@@ -186,6 +194,7 @@ vi.mock('../src/utils/DataManager', async () => {
               type: 'interact',
               description:
                 '{{unitName}} the {{unitType}} interacts with {{targetUnitName}}.',
+              payload: {},
               effects: [
                 {
                   target: 'self',
@@ -207,6 +216,7 @@ vi.mock('../src/utils/DataManager', async () => {
               type: 'attack',
               description:
                 '{{unitName}} the {{unitType}} attacks {{targetUnitName}}.',
+              payload: {},
               effects: [
                 {
                   target: 'target',
@@ -228,6 +238,7 @@ vi.mock('../src/utils/DataManager', async () => {
               type: 'support',
               description:
                 '{{unitName}} the {{unitType}} supports {{targetUnitName}}.',
+              payload: {},
               effects: [
                 {
                   target: 'target',
@@ -242,6 +253,7 @@ vi.mock('../src/utils/DataManager', async () => {
               type: 'trade',
               description:
                 '{{unitName}} the {{unitType}} trades with {{targetUnitName}}.',
+              payload: {},
               effects: [
                 {
                   target: 'self',
@@ -266,6 +278,7 @@ vi.mock('../src/utils/DataManager', async () => {
             type: 'resurrect',
             description:
               '{{unitName}} the {{unitType}} resurrects {{targetUnitName}}.',
+            payload: {},
             effects: [
               {
                 target: 'target',
@@ -425,17 +438,17 @@ describe('StoryTeller', () => {
 
     mockUnitController.getUnitState.mockResolvedValue([mockUnit]);
 
-    const action = await storyTeller.generateStoryAction(5);
+    const newAction = await storyTeller.generateStoryAction(5);
 
     // Check that action has expected structure
-    expect(action).toHaveProperty('type');
-    expect(action).toHaveProperty('player');
-    expect(action).toHaveProperty('payload');
-    expect(action).toHaveProperty('turn');
-    expect(action).toHaveProperty('timestamp');
-    expect(action.turn).toBe(5);
-    expect(typeof action.player).toBe('string');
-    expect(action.player).toBe('TestWarrior');
+    expect(newAction).toHaveProperty('turn');
+    expect(newAction).toHaveProperty('timestamp');
+    expect(newAction.turn).toBe(5);
+    expect(newAction.action).toHaveProperty('type');
+    expect(newAction.action).toHaveProperty('player');
+    expect(newAction.action).toHaveProperty('payload');
+    expect(typeof newAction.action.player).toBe('string');
+    expect(newAction.action.player).toBe('TestWarrior');
   });
 
   it('selects low_health action for damaged unit', async () => {
@@ -459,13 +472,13 @@ describe('StoryTeller', () => {
 
     mockUnitController.getUnitState.mockResolvedValue([mockUnit]);
 
-    const action = await storyTeller.generateStoryAction(1);
+    const newAction = await storyTeller.generateStoryAction(1);
 
     // The system should favor low_health actions for units with very low health
     // but it might also select from other categories depending on other factors
     // So we'll check that it's either a low_health action or one of the common general actions
     expect(['search', 'retreat', 'patrol', 'rest', 'explore']).toContain(
-      action.type
+      newAction.action.type
     );
   });
 
@@ -490,7 +503,7 @@ describe('StoryTeller', () => {
 
     mockUnitController.getUnitState.mockResolvedValue([mockUnit]);
 
-    const action = await storyTeller.generateStoryAction(2);
+    const newAction = await storyTeller.generateStoryAction(2);
 
     // Should select from healthy or default actions, or low_health actions if other factors are involved
     expect([
@@ -501,53 +514,19 @@ describe('StoryTeller', () => {
       'gather',
       'search',
       'retreat',
-    ]).toContain(action.type);
+    ]).toContain(newAction.action.type);
   });
 
   it('handles empty units array gracefully', async () => {
     mockUnitController.getUnitState.mockResolvedValue([]);
 
-    const action = await storyTeller.generateStoryAction(3);
+    const newAction = await storyTeller.generateStoryAction(3);
 
-    expect(action.type).toBe('idle');
-    expect(action.player).toBe('narrator');
+    expect(newAction.action.type).toBe('idle');
+    expect(newAction.action.player).toBe('narrator');
   });
 
   it('executes action effects properly (now uses ActionProcessor)', async () => {
-    const setPropertySpy = vi.fn();
-    const mockUnit = {
-      id: 'unit-1',
-      name: 'TestUnit',
-      type: 'warrior',
-      getPropertyValue: (prop: string) => {
-        switch (prop) {
-          case 'health':
-            return 80;
-          case 'mana':
-            return 40;
-          case 'attack':
-            return 20;
-          case 'defense':
-            return 15;
-          default:
-            return 0;
-        }
-      },
-      setProperty: setPropertySpy,
-    };
-
-    const units = [mockUnit];
-    const action = {
-      type: 'rest',
-      player: 'TestUnit',
-      payload: {
-        healthRestore: 8,
-        manaRestore: 5,
-      },
-      turn: 1,
-      timestamp: Date.now(),
-    };
-
     // In the new architecture, action effects are mostly handled by external processors
     // Just make sure no errors happen in the process
     await storyTeller.generateStoryAction(1); // This internally calls action effect processing
@@ -572,15 +551,19 @@ describe('StoryTeller', () => {
   });
 
   it('saves diary entries correctly', async () => {
-    const action = {
+    const action: Action = {
       type: 'test_action',
       player: 'TestPlayer',
-      payload: { description: 'Test action description' },
-      turn: 7,
-      timestamp: Date.now(),
+      description: 'Test action description',
     };
 
-    storyTeller.saveDiaryEntry(action, 7);
+    const executedAction: ExecutedAction = {
+      turn: 7,
+      timestamp: Date.now(),
+      action,
+    };
+
+    storyTeller.saveDiaryEntry(executedAction, 7);
 
     expect(DataManager.saveDiaryEntry).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -590,7 +573,7 @@ describe('StoryTeller', () => {
           player: 'TestPlayer',
           description: 'Test action description',
         }),
-        summary: 'Test action description',
+        timestamp: expect.any(String),
       })
     );
   });

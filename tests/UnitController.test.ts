@@ -51,11 +51,8 @@ vi.mock('../src/utils/DataManager', async () => {
     ...(actual as any),
     DataManager: {
       loadNames: vi.fn(() => ({
-        warriors: ['WarriorName', 'BraveWarrior'],
-        archers: ['ArcherName', 'SwiftArcher'],
-        mages: ['MageName', 'WiseMage'],
-        clerics: ['ClericName', 'HealingCleric'],
-        general: ['RogueName', 'StealthRogue'],
+        male: ['WarriorName', 'BraveWarrior'],
+        female: ['ArcherName', 'SwiftArcher'],
       })),
       loadUnits: vi.fn(() => []),
       ensureDataDirectory: vi.fn(),
@@ -70,11 +67,8 @@ describe('UnitController', () => {
     vi.clearAllMocks();
     // Mock the DataManager to return test names
     (DataManager.loadNames as any).mockReturnValue({
-      warriors: ['WarriorName', 'BraveWarrior'],
-      archers: ['ArcherName', 'SwiftArcher'],
-      mages: ['MageName', 'WiseMage'],
-      clerics: ['ClericName', 'HealingCleric'],
-      general: ['RogueName', 'StealthRogue'],
+      male: ['WarriorName', 'BraveWarrior'],
+      female: ['ArcherName', 'SwiftArcher'],
     });
     (DataManager.loadUnits as any).mockReturnValue([]);
 
@@ -165,19 +159,21 @@ describe('UnitController', () => {
 
   it('generates random names from catalog by type', () => {
     const namesCatalog = {
-      warriors: ['Alice', 'Bob'],
-      general: ['Charlie', 'David'],
+      male: ['David', 'Bob'],
+      female: ['Ana', 'Maria'],
     };
     unitController['namesCatalog'] = namesCatalog;
 
-    const name = unitController['getRandomNameByType']('warriors');
-    expect(['Alice', 'Bob']).toContain(name);
+    const name = unitController['getRandomName'](true); // Male
+    expect(['David', 'Bob']).toContain(name);
+    const femaleName = unitController['getRandomName'](false); // Female
+    expect(['Ana', 'Maria']).toContain(femaleName);
   });
 
   it('returns default when names catalog is empty', () => {
     unitController['namesCatalog'] = {};
 
-    const name = unitController['getRandomNameByType']();
+    const name = unitController['getRandomName']();
     expect(name).toBe('Unknown');
   });
 });

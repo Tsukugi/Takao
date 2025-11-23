@@ -228,7 +228,7 @@
         },
         "effects": [
           {
-            "target": "target",
+            "target": "unit",
             "property": "health",
             "operation": "subtract",
             "value": { "type": "variable", "variable": "damage" },
@@ -326,7 +326,7 @@
             "permanent": false
           },
           {
-            "target": "target",
+            "target": "unit",
             "property": "knowledge", 
             "operation": "add",
             "value": { "type": "variable", "variable": "experienceGain" },
@@ -368,7 +368,7 @@
         "manaRequirement": 5,
         "effects": [
           {
-            "target": "target",
+            "target": "unit",
             "property": "health",
             "operation": "subtract",
             "value": { "type": "variable", "variable": "damage" },
@@ -397,7 +397,7 @@
         "manaRequirement": 8,
         "effects": [
           {
-            "target": "target",
+            "target": "unit",
             "property": "health",
             "operation": "add",
             "value": { "type": "variable", "variable": "healing" },
@@ -425,7 +425,7 @@
             "permanent": false
           },
           {
-            "target": "target", 
+            "target": "unit", 
             "property": "resources",
             "operation": "add",
             "value": { "type": "variable", "variable": "resourceExchange" },
@@ -548,7 +548,7 @@
         "manaRequirement": 15,
         "effects": [
           {
-            "target": "target",
+            "target": "unit",
             "property": "morale",
             "operation": "add",
             "value": { "type": "variable", "variable": "moraleBoost" },
@@ -570,14 +570,14 @@
       "targetStatus": "dead",
       "effects": [
         {
-          "target": "target",
+          "target": "unit",
           "property": "status",
           "operation": "set",
           "value": { "type": "static", "value": "alive" },
           "permanent": false
         },
         {
-          "target": "target",
+          "target": "unit",
           "property": "health",
           "operation": "set",
           "value": { "type": "variable", "variable": "healthRestore" },

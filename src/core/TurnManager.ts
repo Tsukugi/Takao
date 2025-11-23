@@ -1,4 +1,4 @@
-import type { GameState, GameAction, Turn } from '../types';
+import type { GameState, Action, Turn } from '../types';
 
 /**
  * Represents the turn manager that handles turn-based mechanics
@@ -27,14 +27,14 @@ export class TurnManager {
   /**
    * Processes an action for the current turn
    */
-  public async processAction(action: GameAction): Promise<void> {
+  public async processAction(action: Action): Promise<void> {
     // Validate the action
     if (!this.isValidAction(action)) {
       throw new Error(`Invalid action: ${JSON.stringify(action)}`);
     }
 
     // Apply the action to the game state
-    this.gameState = this.applyActionToState(this.gameState, action);
+    this.gameState = this.applyActionToState(this.gameState);
 
     // Add action to the turn history
     const currentTurn = this.history.find(t => t.number === this.currentTurn);
@@ -54,7 +54,7 @@ export class TurnManager {
   /**
    * Validates an action against the current game state
    */
-  private isValidAction(action: GameAction): boolean {
+  private isValidAction(action: Action): boolean {
     // In a real implementation, this would validate the action against game rules
     // For now, we just check that the action has a type and player
     return !!action.type && !!action.player;
@@ -63,33 +63,9 @@ export class TurnManager {
   /**
    * Applies an action to the game state
    */
-  private applyActionToState(state: GameState, action: GameAction): GameState {
-    // In a real implementation, this would apply the action to the game state
-    // For now we'll make a simple implementation that just adds the action to the state
-    const newState = { ...state };
-
-    // Update the turn counter
-    newState.turn = action.turn;
-
-    // Here you would implement specific logic for different action types
-    switch (action.type) {
-      case 'move':
-        // Handle move action
-        break;
-      case 'attack':
-        // Handle attack action
-        break;
-      case 'collect':
-        // Handle collect action
-        break;
-      case 'build':
-        // Handle build action
-        break;
-      default:
-        console.log(`Unknown action type: ${action.type}`);
-    }
-
-    return newState;
+  private applyActionToState(state: GameState): GameState {
+    // TODO: Implement actual game logic to modify the state based on the action
+    return state;
   }
 
   /**

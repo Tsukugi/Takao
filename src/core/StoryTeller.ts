@@ -1,9 +1,10 @@
 import { UnitController } from '../ai/UnitController';
-import type { GameAction } from '../types';
+import type { Action, ExecutedAction, ActionsData, DiaryEntry } from '../types';
 import { DataManager } from '../utils/DataManager';
-import type { ActionWithEffects, ActionsData } from '../utils/DataManager';
 import { StatTracker } from '../utils/StatTracker';
 import { ActionProcessor } from '../utils/ActionProcessor';
+import { MathUtils } from '../utils/Math';
+import { BaseUnit } from '@atsu/atago';
 
 /**
  * Represents the StoryTeller that generates narrative actions based on unit states
@@ -12,7 +13,7 @@ export class StoryTeller {
   private unitController: UnitController;
   private actionsData: ActionsData;
   private storyHistory: string[] = [];
-  private diary: any[] = [];
+  private diary: DiaryEntry[] = [];
 
   constructor(unitController: UnitController) {
     this.unitController = unitController;
@@ -24,7 +25,7 @@ export class StoryTeller {
   /**
    * Generates a story action based on the current unit states
    */
-  public async generateStoryAction(turn: number): Promise<GameAction> {
+  public async generateStoryAction(turn: number): Promise<ExecutedAction> {
     // Get the current state of units from the UnitController
     const units = await this.unitController.getUnitState();
 
@@ -35,9 +36,14 @@ export class StoryTeller {
     const initialStates = StatTracker.takeSnapshot(units);
 
     // Execute action effects using the ActionProcessor
-    const result = await ActionProcessor.executeActionEffect(storyAction, units, initialStates);
+    const result = await ActionProcessor.executeActionEffect(
+      storyAction.action,
+      units
+    );
     if (!result.success) {
-      console.error(`Failed to execute action effect: ${result.errorMessage || 'Unknown error'}`);
+      console.error(
+        `Failed to execute action effect: ${result.errorMessage || 'Unknown error'}`
+      );
       return storyAction; // Return early if execution fails
     }
 
@@ -48,19 +54,25 @@ export class StoryTeller {
       // Group changes by unit and format them
       const groupedChanges = StatTracker.groupChangesByUnit(changes);
 
-      console.log(`\nStat changes for action: ${storyAction.type} by ${storyAction.player}`);
+      console.log(
+        `\nStat changes for action: ${storyAction.action.type} by ${storyAction.action.player}`
+      );
 
       for (const [unitId, unitChanges] of groupedChanges) {
-        const unit = units.find((u: any) => u.id === unitId);
+        const unit = units.find(u => u.id === unitId);
         if (unit) {
           const formattedChanges = StatTracker.formatStatChanges(unitChanges);
-          console.log(`  ${unit.name} (${unit.id}): ${formattedChanges.join(', ')}`);
+          console.log(
+            `  ${unit.name} (${unit.id}): ${formattedChanges.join(', ')}`
+          );
         }
       }
     }
 
     // Add to story history
-    this.storyHistory.push(`Turn ${turn}: ${this.describeAction(storyAction)}`);
+    this.storyHistory.push(
+      `Turn ${turn}: ${this.describeAction(storyAction.action)}`
+    );
 
     // Save the current unit states and diary entry
     this.saveUnits();
@@ -72,52 +84,66 @@ export class StoryTeller {
   /**
    * Creates a story action based on unit states
    */
-  private createStoryBasedOnUnits(units: any[], turn: number): GameAction {
+  private createStoryBasedOnUnits(
+    units: BaseUnit[],
+    turn: number
+  ): ExecutedAction {
     // If no units exist, create a default action
     if (units.length === 0) {
+      // Return a default narrative action instead of throwing
       return {
-        type: 'idle',
-        player: 'narrator',
-        payload: { description: 'The world waits in silence...' },
         turn,
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        action: {
+          type: 'idle',
+          player: 'narrator',
+          description:
+            'No units available for action. World continues its quiet existence.',
+          payload: {},
+        },
       };
     }
 
     // Choose a random unit to center the story around
-    const randomUnit = units[Math.floor(Math.random() * units.length)];
+    const randomUnit = MathUtils.getRandomFromArray(units);
 
     // Get properties of the unit to create a meaningful story
-    const unitName = randomUnit?.name || 'Unknown Unit';
-    const unitType = randomUnit?.type || 'entity';
-    const health = randomUnit?.getPropertyValue('health') || 100;
-    const mana = randomUnit?.getPropertyValue('mana') || 50;
+    const unitName = randomUnit.name;
+    const unitType = randomUnit.type;
+    const mana = randomUnit.getPropertyValue('mana');
 
     // Create a story action based on unit properties using JSON data
-    let action: GameAction;
     let description = '';
 
     // Get available actions based on unit status and requirements
-    let availableActions: ActionWithEffects[] = [];
+    let availableActions: Action[] = [];
 
     // Combine actions from all categories
     const allActions = [
       ...this.actionsData.actions.low_health,
       ...this.actionsData.actions.healthy,
-      ...this.actionsData.actions.default
+      ...this.actionsData.actions.default,
     ];
 
     // Filter actions based on unit requirements (health, mana, etc.)
     for (const action of allActions) {
+      // Check if action has a payload, if not, provide empty object
+      const payload = action.payload || {};
+
       // Check mana requirement
-      if (action.manaRequirement !== undefined && action.manaRequirement > mana) {
+      if (
+        payload.manaRequirement !== undefined &&
+        payload.manaRequirement > mana
+      ) {
         continue; // Skip if unit doesn't have enough mana
       }
 
       // Check required status conditions
-      if (action.requiredStatus) {
+      if (payload.requiredStatus) {
         let meetsStatus = true;
-        for (const [property, condition] of Object.entries(action.requiredStatus)) {
+        for (const [property, condition] of Object.entries(
+          payload.requiredStatus
+        )) {
           const unitValue = randomUnit?.getPropertyValue(property);
 
           // Evaluate condition (e.g., "health <= 30")
@@ -180,61 +206,52 @@ export class StoryTeller {
       availableActions = [
         ...this.actionsData.actions.low_health,
         ...this.actionsData.actions.healthy,
-        ...this.actionsData.actions.default
+        ...this.actionsData.actions.default,
       ];
     }
 
     // Select a random action from available actions
     const randomIndex = Math.floor(Math.random() * availableActions.length);
-    const selectedAction = availableActions[randomIndex] || ActionProcessor.getDefaultAction();
+    const selectedAction =
+      availableActions[randomIndex] ||
+      ActionProcessor.getDefaultAction(randomUnit);
 
     // For interaction-type actions, select another unit to interact with
     let targetUnit = null;
     let targetUnitName = 'another unit';
 
-    if (['interact', 'attack', 'support', 'trade'].includes(selectedAction.type) && units.length > 1) {
+    if (
+      ['interact', 'attack', 'support', 'trade'].includes(
+        selectedAction.type
+      ) &&
+      units.length > 1
+    ) {
       // Find a different unit to interact with
       const otherUnits = units.filter(u => u.id !== randomUnit.id);
       if (otherUnits.length > 0) {
-        targetUnit = otherUnits[Math.floor(Math.random() * otherUnits.length)];
-        targetUnitName = targetUnit.name || 'another unit';
+        targetUnit = MathUtils.getRandomFromArray(otherUnits);
+        targetUnitName = targetUnit.name;
       }
     }
 
     // Create description by replacing placeholders
     description = selectedAction.description
-      .replace('{{unitName}}', unitName || 'Unknown Unit')
-      .replace('{{unitType}}', unitType || 'entity')
+      .replace('{{unitName}}', unitName)
+      .replace('{{unitType}}', unitType)
       .replace('{{targetUnitName}}', targetUnitName);
 
     // Create action payload based on action type
-    let payload: any = {
-      description,
-      unitType: unitType || 'entity',
-      health,
-      mana,
-      effects: selectedAction.effects,
-      targetUnit: targetUnit ? targetUnit.id : null
-    };
 
-    // Process the action payload to handle random value generation
-    const targetUnitForPayload = targetUnit || null; // The target unit if available
-    const allUnits = this.unitController.getUnits(); // Use sync method to get units
-
-    payload = {
-      ...payload,
-      ...ActionProcessor.processActionPayload(selectedAction.payload || {}, targetUnitForPayload, allUnits)
-    };
-
-    action = {
-      type: selectedAction.type,
-      player: unitName || 'Unknown',
-      payload,
+    return {
       turn,
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      action: {
+        ...selectedAction,
+        description,
+        player: unitName, // Add the unit's name as the player
+        payload: selectedAction.payload || {}, // Ensure payload exists
+      },
     };
-
-    return action;
   }
 
   /**
@@ -248,16 +265,11 @@ export class StoryTeller {
   /**
    * Saves a diary entry about the current turn
    */
-  public saveDiaryEntry(action: GameAction, turn: number): void {
-    const diaryEntry = {
+  public saveDiaryEntry(executedAction: ExecutedAction, turn: number): void {
+    const diaryEntry: DiaryEntry = {
       turn,
       timestamp: new Date().toISOString(),
-      action: {
-        type: action.type,
-        player: action.player,
-        description: action.payload.description
-      },
-      summary: action.payload.description
+      action: executedAction.action,
     };
 
     DataManager.saveDiaryEntry(diaryEntry);
@@ -267,15 +279,18 @@ export class StoryTeller {
   /**
    * Gets the diary entries
    */
-  public getDiary(): any[] {
+  public getDiary(): DiaryEntry[] {
     return [...this.diary];
   }
 
   /**
    * Creates a description of the action
    */
-  private describeAction(action: GameAction): string {
-    return action.payload?.description || `${action.type} action by ${action.player || 'unknown'}`;
+  private describeAction(action: Action): string {
+    return (
+      action.description ||
+      `${action.type} action by ${action.player || 'unknown'}`
+    );
   }
 
   /**

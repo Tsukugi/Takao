@@ -4,9 +4,9 @@
 export interface GameState {
   turn: number;
   players: Player[];
-  board?: any; // Implementation-specific board representation
+  board?: unknown; // Implementation-specific board representation
   resources?: ResourceMap;
-  [key: string]: any; // Allow additional properties
+  [key: string]: unknown; // Allow additional properties
 }
 
 /**
@@ -17,7 +17,7 @@ export interface Player {
   name: string;
   resources: ResourceMap;
   position?: { x: number; y: number };
-  [key: string]: any; // Allow additional properties
+  [key: string]: unknown; // Allow additional properties
 }
 
 /**
@@ -30,12 +30,37 @@ export interface ResourceMap {
 /**
  * Represents an action that can be taken in the game
  */
-export interface GameAction {
+export interface Action {
+  player: string; // Player name or ID
   type: string;
-  player: string;
-  payload: any;
+  description: string;
+  payload?: ActionPayload;
+  effects?: EffectDefinition[];
+}
+
+/**
+ * Represents an effect definition for actions
+ */
+export interface EffectDefinition {
+  target: 'unit' | 'self' | 'target' | 'all' | 'ally' | 'enemy';
+  property: string;
+  operation: 'add' | 'subtract' | 'multiply' | 'divide' | 'set';
+  value: EffectValue;
+  permanent: boolean;
+  condition?: string;
+}
+
+/**
+ * Represents action-specific payload data
+ */
+export interface ActionPayload {
+  [key: string]: string | number | RandomValue | object;
+}
+
+export interface ExecutedAction {
   turn: number;
   timestamp: number;
+  action: Action;
 }
 
 /**
@@ -43,7 +68,98 @@ export interface GameAction {
  */
 export interface Turn {
   number: number;
-  actions: GameAction[];
+  actions: Action[];
   stateBefore: GameState;
   stateAfter: GameState;
+}
+
+/**
+ * Interface representing a unit's property snapshot
+ */
+export interface PropertySnapshot {
+  [propertyName: string]: unknown;
+}
+
+/**
+ * Interface for tracking a unit's complete state
+ */
+export interface UnitSnapshot {
+  id: string;
+  name: string;
+  type: string;
+  properties: PropertySnapshot;
+}
+
+/**
+ * Interface for representing a stat change
+ */
+export interface StatChange {
+  unitId: string;
+  unitName: string;
+  propertyName: string;
+  oldValue: unknown;
+  newValue: unknown;
+}
+
+/**
+ * Represents value specification for an effect
+ */
+export interface EffectValue {
+  type: 'static' | 'calculation' | 'variable' | 'random';
+  value?: number;
+  expression?: string;
+  variable?: string;
+  min?: number;
+  max?: number;
+}
+
+/**
+ * Represents a random value definition
+ */
+export interface RandomValue {
+  type: 'random';
+  min: number;
+  max: number;
+}
+
+/**
+ * Represents names data structure from names.json
+ */
+export interface NamesData {
+  male?: string[];
+  female?: string[];
+}
+
+/**
+ * Represents action status requirements
+ */
+export interface ActionStatusRequirements {
+  health?: string;
+  mana?: string;
+}
+
+/**
+ * Represents the structure of actions.json
+ */
+export interface ActionsData {
+  actions: {
+    low_health: Action[];
+    healthy: Action[];
+    default: Action[];
+  };
+  special?: Action[];
+}
+
+export interface DiaryEntry {
+  turn: number;
+  timestamp: string;
+  action: Action;
+}
+
+/**
+ * Interface representing an action processor result
+ */
+export interface ActionProcessingResult {
+  success: boolean;
+  errorMessage?: string;
 }

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { ActionProcessor } from '../src/utils/ActionProcessor';
-import { DataManager } from '../src/utils/DataManager';
+import { Action, EffectDefinition } from '../src/types';
+import { BaseUnit } from '@atsu/atago';
 
 // Mock the DataManager
 vi.mock('../src/utils/DataManager', () => ({
@@ -10,6 +11,7 @@ vi.mock('../src/utils/DataManager', () => ({
         low_health: [
           {
             type: 'search',
+            player: 'unknown',
             description: '{{unitName}} searches for healing herbs.',
             effects: [
               {
@@ -18,13 +20,14 @@ vi.mock('../src/utils/DataManager', () => ({
                 operation: 'add',
                 value: { type: 'static', value: 15 },
                 permanent: false,
-              },
+              } as EffectDefinition,
             ],
           },
         ],
         healthy: [
           {
             type: 'explore',
+            player: 'unknown',
             description: '{{unitName}} explores the area confidently.',
             effects: [
               {
@@ -33,13 +36,14 @@ vi.mock('../src/utils/DataManager', () => ({
                 operation: 'add',
                 value: { type: 'static', value: 5 },
                 permanent: false,
-              },
+              } as EffectDefinition,
             ],
           },
         ],
         default: [
           {
             type: 'rest',
+            player: 'unknown',
             description: '{{unitName}} takes a moment to rest.',
             effects: [
               {
@@ -48,61 +52,14 @@ vi.mock('../src/utils/DataManager', () => ({
                 operation: 'add',
                 value: { type: 'static', value: 8 },
                 permanent: false,
-              },
+              } as EffectDefinition,
               {
                 target: 'self',
                 property: 'mana',
                 operation: 'add',
                 value: { type: 'static', value: 5 },
                 permanent: false,
-              },
-            ],
-          },
-          {
-            type: 'patrol',
-            description: '{{unitName}} patrols the area vigilantly.',
-            effects: [
-              {
-                target: 'self',
-                property: 'awareness',
-                operation: 'add',
-                value: { type: 'static', value: 3 },
-                permanent: false,
-              },
-            ],
-          },
-          {
-            type: 'attack',
-            description:
-              '{{unitName}} attacks {{targetUnitName}} aggressively.',
-            effects: [
-              {
-                target: 'target',
-                property: 'health',
-                operation: 'subtract',
-                value: { type: 'static', value: 15 },
-                permanent: false,
-              },
-              {
-                target: 'self',
-                property: 'mana',
-                operation: 'subtract',
-                value: { type: 'static', value: 5 },
-                permanent: false,
-              },
-            ],
-          },
-          {
-            type: 'support',
-            description: '{{unitName}} supports {{targetUnitName}}.',
-            effects: [
-              {
-                target: 'target',
-                property: 'health',
-                operation: 'add',
-                value: { type: 'static', value: 12 },
-                permanent: false,
-              },
+              } as EffectDefinition,
             ],
           },
         ],
@@ -111,71 +68,19 @@ vi.mock('../src/utils/DataManager', () => ({
     })),
   },
 }));
-
-// Mock unit implementation that mimics BaseUnit interface
-class MockUnit {
-  id: string;
-  name: string;
-  type: string;
-  properties: any;
-
-  constructor(id: string, name: string, type: string, properties: any = {}) {
-    this.id = id;
-    this.name = name;
-    this.type = type;
-    this.properties = properties;
-  }
-
-  getPropertyValue(propName: string) {
-    const prop = this.properties[propName];
-    if (prop && typeof prop === 'object' && 'value' in prop) {
-      return (prop as any).value;
-    }
-    return prop || 0;
-  }
-
-  setProperty(propName: string, value: any) {
-    if (
-      this.properties[propName] &&
-      typeof this.properties[propName] === 'object' &&
-      'value' in this.properties[propName]
-    ) {
-      (this.properties[propName] as any).value = value;
-    } else {
-      this.properties[propName] = { name: propName, value, baseValue: value };
-    }
-  }
-
-  setBaseProperty(propName: string, value: any) {
-    if (
-      this.properties[propName] &&
-      typeof this.properties[propName] === 'object' &&
-      'baseValue' in this.properties[propName]
-    ) {
-      (this.properties[propName] as any).baseValue = value;
-    } else {
-      this.properties[propName] = {
-        name: propName,
-        value: this.properties[propName]?.value || value,
-        baseValue: value,
-      };
-    }
-  }
-}
-
 describe('ActionProcessor', () => {
-  let mockUnits: any[];
+  let mockUnits: BaseUnit[];
 
   beforeEach(() => {
     mockUnits = [
-      new MockUnit('unit-1', 'Warrior', 'warrior', {
+      new BaseUnit('unit-1', 'Warrior', 'warrior', {
         health: { name: 'health', value: 100, baseValue: 100 },
         mana: { name: 'mana', value: 50, baseValue: 50 },
         attack: { name: 'attack', value: 20, baseValue: 20 },
         defense: { name: 'defense', value: 15, baseValue: 15 },
         awareness: { name: 'awareness', value: 10, baseValue: 10 },
       }),
-      new MockUnit('unit-2', 'Archer', 'archer', {
+      new BaseUnit('unit-2', 'Archer', 'archer', {
         health: { name: 'health', value: 80, baseValue: 80 },
         mana: { name: 'mana', value: 30, baseValue: 30 },
         attack: { name: 'attack', value: 25, baseValue: 25 },
@@ -187,12 +92,11 @@ describe('ActionProcessor', () => {
 
   describe('executeActionEffect', () => {
     it('executes rest action effect properly', async () => {
-      const action = {
+      const action: Action = {
         type: 'rest',
         player: 'Warrior',
         payload: {}, // The effects will come from the mock DataManager
-        turn: 1,
-        timestamp: Date.now(),
+        description: 'Warrior takes a moment to rest.',
       };
 
       const initialStates: Record<string, string> = {};
@@ -212,12 +116,27 @@ describe('ActionProcessor', () => {
     });
 
     it('executes attack action effect properly', async () => {
-      const action = {
+      const action: Action = {
         type: 'attack',
         player: 'Warrior',
         payload: { targetUnit: 'unit-2' },
-        turn: 1,
-        timestamp: Date.now(),
+        effects: [
+          {
+            target: 'self',
+            property: 'mana',
+            operation: 'subtract',
+            value: { type: 'static', value: 5 },
+            permanent: false,
+          } as EffectDefinition,
+          {
+            target: 'unit',
+            property: 'health',
+            operation: 'subtract',
+            value: { type: 'static', value: 15 },
+            permanent: false,
+          } as EffectDefinition,
+        ],
+        description: 'Warrior attacks Archer, costing mana and dealing damage.',
       };
 
       const initialStates: Record<string, string> = {};
@@ -234,21 +153,29 @@ describe('ActionProcessor', () => {
       expect(result.success).toBe(true);
 
       // Attacker (Warrior) mana should decrease
-      const attacker = mockUnits.find((u: any) => u.name === 'Warrior');
-      expect(attacker.getPropertyValue('mana')).toBe(45); // 50 - 5
+      const attacker = mockUnits.find(u => u.name === 'Warrior');
+      expect(attacker?.getPropertyValue('mana')).toBe(45); // 50 - 5
 
       // Target (Archer) health should decrease
-      const target = mockUnits.find((u: any) => u.name === 'Archer');
-      expect(target.getPropertyValue('health')).toBe(65); // 80 - 15
+      const target = mockUnits.find(u => u.name === 'Archer');
+      expect(target?.getPropertyValue('health')).toBe(65); // 80 - 15
     });
 
     it('executes support action effect properly', async () => {
-      const action = {
+      const action: Action = {
         type: 'support',
         player: 'Warrior',
         payload: { targetUnit: 'unit-2' }, // Supporting the archer
-        turn: 1,
-        timestamp: Date.now(),
+        description: 'Warrior supports Archer',
+        effects: [
+          {
+            target: 'unit', // Target unit (Archer) gets health
+            property: 'health',
+            operation: 'add',
+            value: { type: 'static', value: 12 },
+            permanent: false,
+          } as EffectDefinition,
+        ],
       };
 
       const initialStates: Record<string, string> = {};
@@ -264,22 +191,17 @@ describe('ActionProcessor', () => {
 
       expect(result.success).toBe(true);
 
-      // Warrior mana might change depending on the effect definition
-      const attacker = mockUnits.find((u: any) => u.name === 'Warrior');
-      expect(attacker).toBeDefined(); // Ensure warrior exists
-
       // Target (Archer) health should increase
-      const target = mockUnits.find((u: any) => u.name === 'Archer');
-      expect(target.getPropertyValue('health')).toBe(92); // 80 + 12
+      const target = mockUnits.find(u => u.name === 'Archer');
+      expect(target?.getPropertyValue('health')).toBe(92); // 80 + 12
     });
 
     it('handles actions with no effects defined', async () => {
-      const action = {
+      const action: Action = {
         type: 'unknown_action',
         player: 'Warrior',
         payload: {},
-        turn: 1,
-        timestamp: Date.now(),
+        description: 'Warrior performs unknown action',
       };
 
       const initialStates: Record<string, string> = {};
@@ -297,12 +219,11 @@ describe('ActionProcessor', () => {
     });
 
     it('handles invalid action gracefully', async () => {
-      const action = {
+      const action: Action = {
         type: 'attack',
         player: 'NonExistentUnit',
         payload: { targetUnit: 'non-existent' },
-        turn: 1,
-        timestamp: Date.now(),
+        description: 'NonExistentUnit attacks non-existent target',
       };
 
       const initialStates: Record<string, string> = {};
@@ -401,18 +322,25 @@ describe('ActionProcessor', () => {
 
   describe('getDefaultAction', () => {
     it('returns a default action template', () => {
-      const defaultAction = ActionProcessor.getDefaultAction();
+      // Create a mock unit to satisfy the method signature
+      const mockUnit: BaseUnit = new BaseUnit('unit-3', 'TestUnit', 'tester', {
+        health: { name: 'health', value: 100, baseValue: 100 },
+        mana: { name: 'mana', value: 50, baseValue: 50 },
+      });
+
+      const defaultAction = ActionProcessor.getDefaultAction(mockUnit);
 
       expect(defaultAction).toHaveProperty('type');
       expect(defaultAction).toHaveProperty('description');
-      expect(defaultAction).toHaveProperty('effect');
+      expect(defaultAction).toHaveProperty('payload');
       expect(defaultAction).toHaveProperty('effects');
       expect(Array.isArray(defaultAction.effects)).toBe(true);
 
       expect(defaultAction.type).toBe('idle');
       expect(defaultAction.description).toContain(
-        '{{unitName}} the {{unitType}} waits for instructions.'
+        'TestUnit idles, doing nothing of note.'
       );
+      expect(defaultAction.player).toBe('TestUnit');
     });
   });
 });
