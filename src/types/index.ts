@@ -6,7 +6,6 @@ export interface GameState {
   players: Player[];
   board?: unknown; // Implementation-specific board representation
   resources?: ResourceMap;
-  [key: string]: unknown; // Allow additional properties
 }
 
 /**

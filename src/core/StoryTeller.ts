@@ -4,7 +4,9 @@ import { DataManager } from '../utils/DataManager';
 import { StatTracker } from '../utils/StatTracker';
 import { ActionProcessor } from '../utils/ActionProcessor';
 import { MathUtils } from '../utils/Math';
+import { ConditionParser } from '../utils/ConditionParser';
 import { BaseUnit } from '@atsu/atago';
+import { isString } from '../types/typeGuards';
 
 /**
  * Represents the StoryTeller that generates narrative actions based on unit states
@@ -91,17 +93,10 @@ export class StoryTeller {
     // If no units exist, create a default action
     if (units.length === 0) {
       // Return a default narrative action instead of throwing
-      return {
-        turn,
-        timestamp: Date.now(),
-        action: {
-          type: 'idle',
-          player: 'narrator',
-          description:
-            'No units available for action. World continues its quiet existence.',
-          payload: {},
-        },
-      };
+      return ActionProcessor.getDefaultExecutedAction(
+        new BaseUnit('default-unit', 'DefaultUnit', 'unknown', {}),
+        turn
+      );
     }
 
     // Choose a random unit to center the story around
@@ -144,47 +139,13 @@ export class StoryTeller {
         for (const [property, condition] of Object.entries(
           payload.requiredStatus
         )) {
-          const unitValue = randomUnit?.getPropertyValue(property);
+          const unitValue = randomUnit.getPropertyValue(property);
 
           // Evaluate condition (e.g., "health <= 30")
-          if (typeof condition === 'string' && unitValue !== undefined) {
-            if (condition.includes('<=')) {
-              const parts = condition.split('<=')[1];
-              if (parts) {
-                const threshold = parseFloat(parts.trim());
-                if (isNaN(threshold) || unitValue > threshold) {
-                  meetsStatus = false;
-                  break;
-                }
-              }
-            } else if (condition.includes('>=')) {
-              const parts = condition.split('>=')[1];
-              if (parts) {
-                const threshold = parseFloat(parts.trim());
-                if (isNaN(threshold) || unitValue < threshold) {
-                  meetsStatus = false;
-                  break;
-                }
-              }
-            } else if (condition.includes('<')) {
-              const parts = condition.split('<')[1];
-              if (parts) {
-                const threshold = parseFloat(parts.trim());
-                if (isNaN(threshold) || unitValue >= threshold) {
-                  meetsStatus = false;
-                  break;
-                }
-              }
-            } else if (condition.includes('>')) {
-              const parts = condition.split('>')[1];
-              if (parts) {
-                const threshold = parseFloat(parts.trim());
-                if (isNaN(threshold) || unitValue <= threshold) {
-                  meetsStatus = false;
-                  break;
-                }
-              }
-            }
+          if (!isString(condition)) continue;
+          if (!ConditionParser.evaluateCondition(condition, unitValue)) {
+            meetsStatus = false;
+            break;
           }
         }
         if (!meetsStatus) continue;
@@ -211,10 +172,7 @@ export class StoryTeller {
     }
 
     // Select a random action from available actions
-    const randomIndex = Math.floor(Math.random() * availableActions.length);
-    const selectedAction =
-      availableActions[randomIndex] ||
-      ActionProcessor.getDefaultAction(randomUnit);
+    const selectedAction = MathUtils.getRandomFromArray(availableActions);
 
     // For interaction-type actions, select another unit to interact with
     let targetUnit = null;
