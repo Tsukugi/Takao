@@ -12,7 +12,10 @@
             "target": "self",
             "property": "health",
             "operation": "add",
-            "value": { "type": "static", "value": 15 },
+            "value": {
+              "type": "static",
+              "value": 15
+            },
             "permanent": false
           }
         ]
@@ -26,16 +29,22 @@
         "effects": [
           {
             "target": "self",
-            "property": "health", 
+            "property": "health",
             "operation": "add",
-            "value": { "type": "static", "value": 20 },
+            "value": {
+              "type": "static",
+              "value": 20
+            },
             "permanent": false
           },
           {
             "target": "self",
             "property": "mana",
-            "operation": "add", 
-            "value": { "type": "static", "value": 10 },
+            "operation": "add",
+            "value": {
+              "type": "static",
+              "value": 10
+            },
             "permanent": false
           }
         ]
@@ -52,14 +61,20 @@
             "target": "self",
             "property": "health",
             "operation": "add",
-            "value": { "type": "variable", "variable": "healthRestore" },
+            "value": {
+              "type": "variable",
+              "variable": "healthRestore"
+            },
             "permanent": false
           },
           {
             "target": "self",
             "property": "mana",
             "operation": "add",
-            "value": { "type": "variable", "variable": "manaRestore" },
+            "value": {
+              "type": "variable",
+              "variable": "manaRestore"
+            },
             "permanent": false
           }
         ]
@@ -75,9 +90,12 @@
         "effects": [
           {
             "target": "self",
-            "property": "experience", 
+            "property": "experience",
             "operation": "add",
-            "value": { "type": "static", "value": 3 },
+            "value": {
+              "type": "static",
+              "value": 3
+            },
             "permanent": false
           }
         ]
@@ -91,9 +109,12 @@
         "effects": [
           {
             "target": "self",
-            "property": "awareness", 
+            "property": "awareness",
             "operation": "add",
-            "value": { "type": "static", "value": 5 },
+            "value": {
+              "type": "static",
+              "value": 5
+            },
             "permanent": false
           }
         ]
@@ -116,9 +137,12 @@
         "effects": [
           {
             "target": "self",
-            "property": "resources", 
+            "property": "resources",
             "operation": "add",
-            "value": { "type": "variable", "variable": "resourceGain" },
+            "value": {
+              "type": "variable",
+              "variable": "resourceGain"
+            },
             "permanent": false
           }
         ]
@@ -135,8 +159,11 @@
           {
             "target": "self",
             "property": "awareness",
-            "operation": "add", 
-            "value": { "type": "static", "value": 2 },
+            "operation": "add",
+            "value": {
+              "type": "static",
+              "value": 2
+            },
             "permanent": false
           }
         ]
@@ -151,26 +178,39 @@
             "max": 12
           },
           "manaRestore": {
-            "type": "random", 
+            "type": "random",
             "min": 3,
             "max": 8
           }
         },
-        "manaRequirement": 0,
         "effects": [
           {
             "target": "self",
             "property": "health",
             "operation": "add",
-            "value": { "type": "variable", "variable": "healthRestore" },
+            "value": {
+              "type": "variable",
+              "variable": "healthRestore"
+            },
             "permanent": false
           },
           {
-            "target": "self", 
+            "target": "self",
             "property": "mana",
             "operation": "add",
-            "value": { "type": "variable", "variable": "manaRestore" },
+            "value": {
+              "type": "variable",
+              "variable": "manaRestore"
+            },
             "permanent": false
+          }
+        ],
+        "requirements": [
+          {
+            "type": "comparison",
+            "property": "mana",
+            "operator": ">=",
+            "value": 0
           }
         ]
       },
@@ -189,21 +229,34 @@
             "max": 5
           }
         },
-        "manaRequirement": 0,
         "effects": [
           {
             "target": "self",
             "property": "mana",
             "operation": "add",
-            "value": { "type": "variable", "variable": "manaRestore" },
+            "value": {
+              "type": "variable",
+              "variable": "manaRestore"
+            },
             "permanent": false
           },
           {
             "target": "self",
             "property": "health",
             "operation": "add",
-            "value": { "type": "variable", "variable": "healthRestore" },
+            "value": {
+              "type": "variable",
+              "variable": "healthRestore"
+            },
             "permanent": false
+          }
+        ],
+        "requirements": [
+          {
+            "type": "comparison",
+            "property": "mana",
+            "operator": ">=",
+            "value": 0
           }
         ]
       },
@@ -222,24 +275,40 @@
             "max": 10
           }
         },
-        "manaRequirement": 10,
-        "requiredStatus": {
-          "health": "<=30"
-        },
         "effects": [
           {
             "target": "unit",
             "property": "health",
             "operation": "subtract",
-            "value": { "type": "variable", "variable": "damage" },
+            "value": {
+              "type": "variable",
+              "variable": "damage"
+            },
             "permanent": false
           },
           {
             "target": "self",
             "property": "mana",
             "operation": "subtract",
-            "value": { "type": "variable", "variable": "cost" },
+            "value": {
+              "type": "variable",
+              "variable": "cost"
+            },
             "permanent": false
+          }
+        ],
+        "requirements": [
+          {
+            "type": "comparison",
+            "property": "mana",
+            "operator": ">=",
+            "value": 10
+          },
+          {
+            "type": "comparison",
+            "property": "health",
+            "operator": "<=",
+            "value": 30
           }
         ]
       },
@@ -253,24 +322,40 @@
             "max": 25
           }
         },
-        "manaRequirement": 0,
-        "requiredStatus": {
-          "mana": "<=20"
-        },
         "effects": [
           {
             "target": "self",
             "property": "mana",
             "operation": "add",
-            "value": { "type": "variable", "variable": "manaBonus" },
+            "value": {
+              "type": "variable",
+              "variable": "manaBonus"
+            },
             "permanent": false
           },
           {
             "target": "self",
             "property": "health",
             "operation": "add",
-            "value": { "type": "static", "value": 3 },
+            "value": {
+              "type": "static",
+              "value": 3
+            },
             "permanent": false
+          }
+        ],
+        "requirements": [
+          {
+            "type": "comparison",
+            "property": "mana",
+            "operator": ">=",
+            "value": 0
+          },
+          {
+            "type": "comparison",
+            "property": "mana",
+            "operator": "<=",
+            "value": 20
           }
         ]
       },
@@ -294,14 +379,20 @@
             "target": "self",
             "property": "attack",
             "operation": "add",
-            "value": { "type": "variable", "variable": "attackBoost" },
+            "value": {
+              "type": "variable",
+              "variable": "attackBoost"
+            },
             "permanent": true
           },
           {
-            "target": "self", 
+            "target": "self",
             "property": "defense",
             "operation": "add",
-            "value": { "type": "variable", "variable": "defenseBoost" },
+            "value": {
+              "type": "variable",
+              "variable": "defenseBoost"
+            },
             "permanent": true
           }
         ]
@@ -311,7 +402,7 @@
         "description": "{{unitName}} the {{unitType}} interacts with {{targetUnitName}} to share knowledge.",
         "payload": {
           "experienceGain": {
-            "type": "random", 
+            "type": "random",
             "min": 5,
             "max": 10
           },
@@ -322,14 +413,20 @@
             "target": "self",
             "property": "knowledge",
             "operation": "add",
-            "value": { "type": "variable", "variable": "experienceGain" },
+            "value": {
+              "type": "variable",
+              "variable": "experienceGain"
+            },
             "permanent": false
           },
           {
             "target": "unit",
-            "property": "knowledge", 
+            "property": "knowledge",
             "operation": "add",
-            "value": { "type": "variable", "variable": "experienceGain" },
+            "value": {
+              "type": "variable",
+              "variable": "experienceGain"
+            },
             "permanent": false
           }
         ]
@@ -349,7 +446,10 @@
             "target": "self",
             "property": "defense",
             "operation": "add",
-            "value": { "type": "variable", "variable": "defenseBoost" },
+            "value": {
+              "type": "variable",
+              "variable": "defenseBoost"
+            },
             "permanent": true
           }
         ]
@@ -365,21 +465,34 @@
           },
           "manaCost": 5
         },
-        "manaRequirement": 5,
         "effects": [
           {
             "target": "unit",
             "property": "health",
             "operation": "subtract",
-            "value": { "type": "variable", "variable": "damage" },
+            "value": {
+              "type": "variable",
+              "variable": "damage"
+            },
             "permanent": false
           },
           {
             "target": "self",
             "property": "mana",
             "operation": "subtract",
-            "value": { "type": "variable", "variable": "manaCost" },
+            "value": {
+              "type": "variable",
+              "variable": "manaCost"
+            },
             "permanent": false
+          }
+        ],
+        "requirements": [
+          {
+            "type": "comparison",
+            "property": "mana",
+            "operator": ">=",
+            "value": 5
           }
         ]
       },
@@ -394,14 +507,24 @@
           },
           "targetUnit": "random_target"
         },
-        "manaRequirement": 8,
         "effects": [
           {
             "target": "unit",
             "property": "health",
             "operation": "add",
-            "value": { "type": "variable", "variable": "healing" },
+            "value": {
+              "type": "variable",
+              "variable": "healing"
+            },
             "permanent": false
+          }
+        ],
+        "requirements": [
+          {
+            "type": "comparison",
+            "property": "mana",
+            "operator": ">=",
+            "value": 8
           }
         ]
       },
@@ -421,14 +544,20 @@
             "target": "self",
             "property": "resources",
             "operation": "add",
-            "value": { "type": "variable", "variable": "resourceExchange" },
+            "value": {
+              "type": "variable",
+              "variable": "resourceExchange"
+            },
             "permanent": false
           },
           {
-            "target": "unit", 
+            "target": "unit",
             "property": "resources",
             "operation": "add",
-            "value": { "type": "variable", "variable": "resourceExchange" },
+            "value": {
+              "type": "variable",
+              "variable": "resourceExchange"
+            },
             "permanent": false
           }
         ]
@@ -443,14 +572,24 @@
             "max": 15
           }
         },
-        "manaRequirement": 10,
         "effects": [
           {
             "target": "self",
             "property": "wisdom",
             "operation": "add",
-            "value": { "type": "variable", "variable": "wisdomGain" },
+            "value": {
+              "type": "variable",
+              "variable": "wisdomGain"
+            },
             "permanent": true
+          }
+        ],
+        "requirements": [
+          {
+            "type": "comparison",
+            "property": "mana",
+            "operator": ">=",
+            "value": 10
           }
         ]
       },
@@ -464,14 +603,24 @@
             "max": 8
           }
         },
-        "manaRequirement": 15,
         "effects": [
           {
             "target": "self",
             "property": "defense",
             "operation": "add",
-            "value": { "type": "variable", "variable": "defenseBoost" },
+            "value": {
+              "type": "variable",
+              "variable": "defenseBoost"
+            },
             "permanent": true
+          }
+        ],
+        "requirements": [
+          {
+            "type": "comparison",
+            "property": "mana",
+            "operator": ">=",
+            "value": 15
           }
         ]
       },
@@ -491,7 +640,10 @@
             "target": "self",
             "property": "diplomacy",
             "operation": "add",
-            "value": { "type": "variable", "variable": "diplomacyGain" },
+            "value": {
+              "type": "variable",
+              "variable": "diplomacyGain"
+            },
             "permanent": false
           }
         ]
@@ -506,14 +658,24 @@
             "max": 12
           }
         },
-        "manaRequirement": 12,
         "effects": [
           {
             "target": "self",
             "property": "stealth",
             "operation": "add",
-            "value": { "type": "variable", "variable": "stealthBoost" },
+            "value": {
+              "type": "variable",
+              "variable": "stealthBoost"
+            },
             "permanent": false
+          }
+        ],
+        "requirements": [
+          {
+            "type": "comparison",
+            "property": "mana",
+            "operator": ">=",
+            "value": 12
           }
         ]
       },
@@ -523,14 +685,24 @@
         "payload": {
           "manaCost": 25
         },
-        "manaRequirement": 25,
         "effects": [
           {
             "target": "self",
             "property": "mana",
             "operation": "subtract",
-            "value": { "type": "variable", "variable": "manaCost" },
+            "value": {
+              "type": "variable",
+              "variable": "manaCost"
+            },
             "permanent": false
+          }
+        ],
+        "requirements": [
+          {
+            "type": "comparison",
+            "property": "mana",
+            "operator": ">=",
+            "value": 25
           }
         ]
       },
@@ -545,14 +717,24 @@
           },
           "targetUnit": "random_target"
         },
-        "manaRequirement": 15,
         "effects": [
           {
             "target": "unit",
             "property": "morale",
             "operation": "add",
-            "value": { "type": "variable", "variable": "moraleBoost" },
+            "value": {
+              "type": "variable",
+              "variable": "moraleBoost"
+            },
             "permanent": false
+          }
+        ],
+        "requirements": [
+          {
+            "type": "comparison",
+            "property": "mana",
+            "operator": ">=",
+            "value": 15
           }
         ]
       }
@@ -566,29 +748,45 @@
         "manaCost": 40,
         "healthRestore": 20
       },
-      "manaRequirement": 40,
       "targetStatus": "dead",
       "effects": [
         {
           "target": "unit",
           "property": "status",
           "operation": "set",
-          "value": { "type": "static", "value": "alive" },
+          "value": {
+            "type": "static",
+            "value": "alive"
+          },
           "permanent": false
         },
         {
           "target": "unit",
           "property": "health",
           "operation": "set",
-          "value": { "type": "variable", "variable": "healthRestore" },
+          "value": {
+            "type": "variable",
+            "variable": "healthRestore"
+          },
           "permanent": false
         },
         {
           "target": "self",
           "property": "mana",
           "operation": "subtract",
-          "value": { "type": "variable", "variable": "manaCost" },
+          "value": {
+            "type": "variable",
+            "variable": "manaCost"
+          },
           "permanent": false
+        }
+      ],
+      "requirements": [
+        {
+          "type": "comparison",
+          "property": "mana",
+          "operator": ">=",
+          "value": 40
         }
       ]
     },
@@ -599,22 +797,35 @@
         "healingBonus": 15,
         "manaBonus": 10
       },
-      "manaRequirement": 20,
       "targetStatus": "dead",
       "effects": [
         {
           "target": "allies",
           "property": "health",
           "operation": "add",
-          "value": { "type": "variable", "variable": "healingBonus" },
+          "value": {
+            "type": "variable",
+            "variable": "healingBonus"
+          },
           "permanent": false
         },
         {
           "target": "allies",
           "property": "mana",
           "operation": "add",
-          "value": { "type": "variable", "variable": "manaBonus" },
+          "value": {
+            "type": "variable",
+            "variable": "manaBonus"
+          },
           "permanent": false
+        }
+      ],
+      "requirements": [
+        {
+          "type": "comparison",
+          "property": "mana",
+          "operator": ">=",
+          "value": 20
         }
       ]
     }

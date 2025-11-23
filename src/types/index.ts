@@ -33,6 +33,7 @@ export interface Action {
   player: string; // Player name or ID
   type: string;
   description: string;
+  requirements?: Requirement[];
   payload?: ActionPayload;
   effects?: EffectDefinition[];
 }
@@ -47,6 +48,19 @@ export interface EffectDefinition {
   value: EffectValue;
   permanent: boolean;
   condition?: string;
+}
+
+/**
+ * Represents a requirement object that can be either a value requirement or a comparison requirement
+ */
+export interface Requirement {
+  type: string; // E.g. 'comparison', etc.
+  value: number;
+}
+
+export interface ComparisonRequirement extends Requirement {
+  property: string; // E.g. 'health', 'mana', etc. Only used for comparison requirements
+  operator: string; // E.g. '>=', '<=', '==', etc. Only used for comparison requirements
 }
 
 /**
@@ -110,14 +124,6 @@ export interface RandomValue {
 export interface NamesData {
   male?: string[];
   female?: string[];
-}
-
-/**
- * Represents action status requirements
- */
-export interface ActionStatusRequirements {
-  health?: string;
-  mana?: string;
 }
 
 /**

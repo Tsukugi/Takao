@@ -6,7 +6,7 @@ import { ActionProcessor } from '../utils/ActionProcessor';
 import { MathUtils } from '../utils/Math';
 import { ConditionParser } from '../utils/ConditionParser';
 import { BaseUnit } from '@atsu/atago';
-import { isString } from '../types/typeGuards';
+import { isComparison } from '../types/typeGuards';
 
 /**
  * Represents the StoryTeller that generates narrative actions based on unit states
@@ -105,7 +105,6 @@ export class StoryTeller {
     // Get properties of the unit to create a meaningful story
     const unitName = randomUnit.name;
     const unitType = randomUnit.type;
-    const mana = randomUnit.getPropertyValue('mana');
 
     // Create a story action based on unit properties using JSON data
     let description = '';
@@ -122,33 +121,23 @@ export class StoryTeller {
 
     // Filter actions based on unit requirements (health, mana, etc.)
     for (const action of allActions) {
-      // Check if action has a payload, if not, provide empty object
-      const payload = action.payload || {};
-
-      // Check mana requirement
-      if (
-        payload.manaRequirement !== undefined &&
-        payload.manaRequirement > mana
-      ) {
-        continue; // Skip if unit doesn't have enough mana
-      }
-
-      // Check required status conditions
-      if (payload.requiredStatus) {
-        let meetsStatus = true;
-        for (const [property, condition] of Object.entries(
-          payload.requiredStatus
-        )) {
-          const unitValue = randomUnit.getPropertyValue(property);
-
-          // Evaluate condition (e.g., "health <= 30")
-          if (!isString(condition)) continue;
-          if (!ConditionParser.evaluateCondition(condition, unitValue)) {
-            meetsStatus = false;
-            break;
+      // Check all requirements
+      if (action.requirements) {
+        let meetsAllRequirements = true;
+        for (const requirement of action.requirements) {
+          if (isComparison(requirement)) {
+            // Check property comparison requirement
+            const unitValue = randomUnit.getPropertyValue(requirement.property);
+            const conditionString = `${requirement.property} ${requirement.operator} ${requirement.value}`;
+            if (
+              !ConditionParser.evaluateCondition(conditionString, unitValue)
+            ) {
+              meetsAllRequirements = false;
+              break;
+            }
           }
         }
-        if (!meetsStatus) continue;
+        if (!meetsAllRequirements) continue;
       }
 
       // Add action to available list

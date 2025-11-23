@@ -1,4 +1,4 @@
-import type { RandomValue } from './index';
+import type { ComparisonRequirement, RandomValue, Requirement } from './index';
 
 export const isRandomValue = (value: unknown): value is RandomValue =>
   typeof value === 'object' &&
@@ -13,3 +13,16 @@ export const isString = (value: unknown): value is string =>
 
 export const isNumber = (value: unknown): value is number =>
   typeof value === 'number';
+
+export const isComparison = (
+  value: unknown
+): value is ComparisonRequirement => {
+  if (!isObject(value)) {
+    return false;
+  }
+  const req = value as Requirement;
+  if (typeof req.type !== 'string' || typeof req.value !== 'number') {
+    return false;
+  }
+  return req.type === 'comparison';
+};
