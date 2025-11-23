@@ -109,18 +109,11 @@ export class StoryTeller {
     // Create a story action based on unit properties using JSON data
     let description = '';
 
-    // Get available actions based on unit status and requirements
+    // Get available actions based on unit requirements only
     let availableActions: Action[] = [];
 
-    // Combine actions from all categories
-    const allActions = [
-      ...this.actionsData.actions.low_health,
-      ...this.actionsData.actions.healthy,
-      ...this.actionsData.actions.default,
-    ];
-
     // Filter actions based on unit requirements (health, mana, etc.)
-    for (const action of allActions) {
+    for (const action of this.actionsData) {
       // Check all requirements
       if (action.requirements) {
         let meetsAllRequirements = true;
@@ -144,20 +137,9 @@ export class StoryTeller {
       availableActions.push(action);
     }
 
-    // Add special actions if applicable (though they might require specific conditions)
-    if (this.actionsData.special) {
-      // For now, add all special actions, but in a more advanced version,
-      // we could have additional filtering logic here
-      availableActions = [...availableActions, ...this.actionsData.special];
-    }
-
-    // If no actions are available based on requirements, fallback to default actions
+    // If no actions are available based on requirements, use all actions
     if (availableActions.length === 0) {
-      availableActions = [
-        ...this.actionsData.actions.low_health,
-        ...this.actionsData.actions.healthy,
-        ...this.actionsData.actions.default,
-      ];
+      availableActions = [...this.actionsData];
     }
 
     // Select a random action from available actions

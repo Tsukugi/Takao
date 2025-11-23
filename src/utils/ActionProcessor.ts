@@ -25,13 +25,8 @@ export class ActionProcessor {
       // Load action definitions from DataManager
       const actionsData = DataManager.loadActions();
 
-      // Combine all action categories to find the specific action
-      const allActions = [
-        ...(actionsData.actions.low_health || []),
-        ...(actionsData.actions.healthy || []),
-        ...(actionsData.actions.default || []),
-        ...(actionsData.special || []),
-      ];
+      // Since actionsData is now a flat array, use it directly
+      const allActions = actionsData;
 
       // Find the specific action definition by type
       const actionDef = allActions.find(a => a.type === action.type);

@@ -6,66 +6,57 @@ import { BaseUnit } from '@atsu/atago';
 // Mock the DataManager
 vi.mock('../src/utils/DataManager', () => ({
   DataManager: {
-    loadActions: vi.fn(() => ({
-      actions: {
-        low_health: [
+    loadActions: vi.fn(() => [
+      {
+        type: 'search',
+        player: 'unknown',
+        description: '{{unitName}} searches for healing herbs.',
+        effects: [
           {
-            type: 'search',
-            player: 'unknown',
-            description: '{{unitName}} searches for healing herbs.',
-            effects: [
-              {
-                target: 'self',
-                property: 'health',
-                operation: 'add',
-                value: { type: 'static', value: 15 },
-                permanent: false,
-              } as EffectDefinition,
-            ],
-          },
-        ],
-        healthy: [
-          {
-            type: 'explore',
-            player: 'unknown',
-            description: '{{unitName}} explores the area confidently.',
-            effects: [
-              {
-                target: 'self',
-                property: 'awareness',
-                operation: 'add',
-                value: { type: 'static', value: 5 },
-                permanent: false,
-              } as EffectDefinition,
-            ],
-          },
-        ],
-        default: [
-          {
-            type: 'rest',
-            player: 'unknown',
-            description: '{{unitName}} takes a moment to rest.',
-            effects: [
-              {
-                target: 'self',
-                property: 'health',
-                operation: 'add',
-                value: { type: 'static', value: 8 },
-                permanent: false,
-              } as EffectDefinition,
-              {
-                target: 'self',
-                property: 'mana',
-                operation: 'add',
-                value: { type: 'static', value: 5 },
-                permanent: false,
-              } as EffectDefinition,
-            ],
-          },
+            target: 'self',
+            property: 'health',
+            operation: 'add',
+            value: { type: 'static', value: 15 },
+            permanent: false,
+          } as EffectDefinition,
         ],
       },
-      special: [],
-    })),
+      {
+        type: 'explore',
+        player: 'unknown',
+        description: '{{unitName}} explores the area confidently.',
+        effects: [
+          {
+            target: 'self',
+            property: 'awareness',
+            operation: 'add',
+            value: { type: 'static', value: 5 },
+            permanent: false,
+          } as EffectDefinition,
+        ],
+      },
+      {
+        type: 'rest',
+        player: 'unknown',
+        description: '{{unitName}} takes a moment to rest.',
+        effects: [
+          {
+            target: 'self',
+            property: 'health',
+            operation: 'add',
+            value: { type: 'static', value: 8 },
+            permanent: false,
+          } as EffectDefinition,
+          {
+            target: 'self',
+            property: 'mana',
+            operation: 'add',
+            value: { type: 'static', value: 5 },
+            permanent: false,
+          } as EffectDefinition,
+        ],
+      },
+    ]),
   },
 }));
 describe('ActionProcessor', () => {

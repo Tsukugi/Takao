@@ -17,37 +17,29 @@ describe('DataManager', () => {
       fs.mkdirSync(TEST_DATA_DIR, { recursive: true });
     }
 
-    // Create test files with sample data
-    const actionsData = {
-      actions: {
-        low_health: [
-          {
-            type: 'search',
-            description: '{{unitName}} searches for health.',
-            effect: 'health + 10',
-          },
-        ],
-        healthy: [
-          {
-            type: 'explore',
-            description: '{{unitName}} explores.',
-            effect: 'experience + 5',
-          },
-        ],
-        default: [
-          {
-            type: 'patrol',
-            description: '{{unitName}} patrols.',
-            effect: 'awareness + 5',
-          },
-          {
-            type: 'rest',
-            description: '{{unitName}} rests.',
-            effect: 'health + 5',
-          },
-        ],
+    // Create test files with sample data - flat array structure to match ActionsData = Action[]
+    const actionsData = [
+      {
+        type: 'search',
+        description: '{{unitName}} searches for health.',
+        effect: 'health + 10',
       },
-    };
+      {
+        type: 'explore',
+        description: '{{unitName}} explores.',
+        effect: 'experience + 5',
+      },
+      {
+        type: 'patrol',
+        description: '{{unitName}} patrols.',
+        effect: 'awareness + 5',
+      },
+      {
+        type: 'rest',
+        description: '{{unitName}} rests.',
+        effect: 'health + 5',
+      },
+    ];
 
     const namesData = {
       male: ['Bob', 'Eric'],
@@ -105,13 +97,14 @@ describe('DataManager', () => {
 
     const actionsData = DataManager.loadActions();
 
-    expect(actionsData).toHaveProperty('actions');
-    expect(actionsData.actions).toHaveProperty('low_health');
-    expect(actionsData.actions).toHaveProperty('healthy');
-    expect(actionsData.actions).toHaveProperty('default');
-    expect(actionsData.actions.default).toHaveLength(2);
-    expect(actionsData.actions.default[0].type).toBe('patrol');
-    expect(actionsData.actions.default[1].type).toBe('rest');
+    // actionsData should now be a flat array of Actions
+    expect(Array.isArray(actionsData)).toBe(true);
+    expect(actionsData).toHaveLength(4); // 1 low_health + 1 healthy + 2 default = 4
+    const actionTypes = actionsData.map(action => action.type);
+    expect(actionTypes).toContain('search');
+    expect(actionTypes).toContain('explore');
+    expect(actionTypes).toContain('patrol');
+    expect(actionTypes).toContain('rest');
 
     // Restore original path
     DataManager.ACTIONS_FILE = originalActionsFile;

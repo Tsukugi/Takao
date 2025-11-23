@@ -54,243 +54,219 @@ vi.mock('../src/utils/DataManager', async () => {
         warriors: ['WarriorName'],
         archers: ['ArcherName'],
       })),
-      loadActions: vi.fn(() => ({
-        actions: {
-          low_health: [
+      loadActions: vi.fn(() => [
+        {
+          type: 'search',
+          description:
+            '{{unitName}} the {{unitType}} searches for healing.',
+          payload: {},
+          effects: [
             {
-              type: 'search',
-              description:
-                '{{unitName}} the {{unitType}} searches for healing.',
-              payload: {},
-              effects: [
-                {
-                  target: 'self',
-                  property: 'health',
-                  operation: 'add',
-                  value: { type: 'static', value: 15 },
-                  permanent: false,
-                },
-              ],
-            },
-            {
-              type: 'retreat',
-              description: '{{unitName}} the {{unitType}} retreats to recover.',
-              payload: {},
-              effects: [
-                {
-                  target: 'self',
-                  property: 'health',
-                  operation: 'add',
-                  value: { type: 'static', value: 20 },
-                  permanent: false,
-                },
-                {
-                  target: 'self',
-                  property: 'mana',
-                  operation: 'add',
-                  value: { type: 'static', value: 10 },
-                  permanent: false,
-                },
-              ],
-            },
-          ],
-          healthy: [
-            {
-              type: 'explore',
-              description:
-                '{{unitName}} the {{unitType}} explores confidently.',
-              payload: {},
-              effects: [
-                {
-                  target: 'self',
-                  property: 'experience',
-                  operation: 'add',
-                  value: { type: 'static', value: 3 },
-                  permanent: false,
-                },
-              ],
-            },
-            {
-              type: 'patrol',
-              description: '{{unitName}} the {{unitType}} patrols vigilantly.',
-              payload: {},
-              effects: [
-                {
-                  target: 'self',
-                  property: 'awareness',
-                  operation: 'add',
-                  value: { type: 'static', value: 2 },
-                  permanent: false,
-                },
-              ],
-            },
-          ],
-          default: [
-            {
-              type: 'patrol',
-              description: '{{unitName}} the {{unitType}} patrols vigilantly.',
-              payload: {},
-              effects: [
-                {
-                  target: 'self',
-                  property: 'awareness',
-                  operation: 'add',
-                  value: { type: 'static', value: 2 },
-                  permanent: false,
-                },
-              ],
-            },
-            {
-              type: 'rest',
-              description:
-                '{{unitName}} the {{unitType}} takes a moment to rest.',
-              payload: {},
-              effects: [
-                {
-                  target: 'self',
-                  property: 'health',
-                  operation: 'add',
-                  value: { type: 'static', value: 8 },
-                  permanent: false,
-                },
-                {
-                  target: 'self',
-                  property: 'mana',
-                  operation: 'add',
-                  value: { type: 'static', value: 5 },
-                  permanent: false,
-                },
-              ],
-            },
-            {
-              type: 'train',
-              description: '{{unitName}} the {{unitType}} practices skills.',
-              payload: {},
-              effects: [
-                {
-                  target: 'self',
-                  property: 'attack',
-                  operation: 'add',
-                  value: { type: 'static', value: 3 },
-                  permanent: true,
-                },
-              ],
-            },
-            {
-              type: 'gather',
-              description: '{{unitName}} the {{unitType}} gathers resources.',
-              payload: {},
-              effects: [
-                {
-                  target: 'self',
-                  property: 'resources',
-                  operation: 'add',
-                  value: { type: 'static', value: 6 },
-                  permanent: false,
-                },
-              ],
-            },
-            {
-              type: 'interact',
-              description:
-                '{{unitName}} the {{unitType}} interacts with {{targetUnitName}}.',
-              payload: {},
-              effects: [
-                {
-                  target: 'self',
-                  property: 'knowledge',
-                  operation: 'add',
-                  value: { type: 'static', value: 5 },
-                  permanent: false,
-                },
-                {
-                  target: 'target',
-                  property: 'knowledge',
-                  operation: 'add',
-                  value: { type: 'static', value: 5 },
-                  permanent: false,
-                },
-              ],
-            },
-            {
-              type: 'attack',
-              description:
-                '{{unitName}} the {{unitType}} attacks {{targetUnitName}}.',
-              payload: {},
-              effects: [
-                {
-                  target: 'target',
-                  property: 'health',
-                  operation: 'subtract',
-                  value: { type: 'static', value: 15 },
-                  permanent: false,
-                },
-                {
-                  target: 'self',
-                  property: 'mana',
-                  operation: 'subtract',
-                  value: { type: 'static', value: 5 },
-                  permanent: false,
-                },
-              ],
-            },
-            {
-              type: 'support',
-              description:
-                '{{unitName}} the {{unitType}} supports {{targetUnitName}}.',
-              payload: {},
-              effects: [
-                {
-                  target: 'target',
-                  property: 'health',
-                  operation: 'add',
-                  value: { type: 'static', value: 12 },
-                  permanent: false,
-                },
-              ],
-            },
-            {
-              type: 'trade',
-              description:
-                '{{unitName}} the {{unitType}} trades with {{targetUnitName}}.',
-              payload: {},
-              effects: [
-                {
-                  target: 'self',
-                  property: 'resources',
-                  operation: 'add',
-                  value: { type: 'static', value: 3 },
-                  permanent: false,
-                },
-                {
-                  target: 'target',
-                  property: 'resources',
-                  operation: 'add',
-                  value: { type: 'static', value: 3 },
-                  permanent: false,
-                },
-              ],
+              target: 'self',
+              property: 'health',
+              operation: 'add',
+              value: { type: 'static', value: 15 },
+              permanent: false,
             },
           ],
         },
-        special: [
-          {
-            type: 'resurrect',
-            description:
-              '{{unitName}} the {{unitType}} resurrects {{targetUnitName}}.',
-            payload: {},
-            effects: [
-              {
-                target: 'target',
-                property: 'status',
-                operation: 'set',
-                value: { type: 'static', value: 'alive' },
-                permanent: false,
-              },
-            ],
-          },
-        ],
-      })),
+        {
+          type: 'retreat',
+          description: '{{unitName}} the {{unitType}} retreats to recover.',
+          payload: {},
+          effects: [
+            {
+              target: 'self',
+              property: 'health',
+              operation: 'add',
+              value: { type: 'static', value: 20 },
+              permanent: false,
+            },
+            {
+              target: 'self',
+              property: 'mana',
+              operation: 'add',
+              value: { type: 'static', value: 10 },
+              permanent: false,
+            },
+          ],
+        },
+        {
+          type: 'explore',
+          description:
+            '{{unitName}} the {{unitType}} explores confidently.',
+          payload: {},
+          effects: [
+            {
+              target: 'self',
+              property: 'experience',
+              operation: 'add',
+              value: { type: 'static', value: 3 },
+              permanent: false,
+            },
+          ],
+        },
+        {
+          type: 'patrol',
+          description: '{{unitName}} the {{unitType}} patrols vigilantly.',
+          payload: {},
+          effects: [
+            {
+              target: 'self',
+              property: 'awareness',
+              operation: 'add',
+              value: { type: 'static', value: 2 },
+              permanent: false,
+            },
+          ],
+        },
+        {
+          type: 'rest',
+          description:
+            '{{unitName}} the {{unitType}} takes a moment to rest.',
+          payload: {},
+          effects: [
+            {
+              target: 'self',
+              property: 'health',
+              operation: 'add',
+              value: { type: 'static', value: 8 },
+              permanent: false,
+            },
+            {
+              target: 'self',
+              property: 'mana',
+              operation: 'add',
+              value: { type: 'static', value: 5 },
+              permanent: false,
+            },
+          ],
+        },
+        {
+          type: 'train',
+          description: '{{unitName}} the {{unitType}} practices skills.',
+          payload: {},
+          effects: [
+            {
+              target: 'self',
+              property: 'attack',
+              operation: 'add',
+              value: { type: 'static', value: 3 },
+              permanent: true,
+            },
+          ],
+        },
+        {
+          type: 'gather',
+          description: '{{unitName}} the {{unitType}} gathers resources.',
+          payload: {},
+          effects: [
+            {
+              target: 'self',
+              property: 'resources',
+              operation: 'add',
+              value: { type: 'static', value: 6 },
+              permanent: false,
+            },
+          ],
+        },
+        {
+          type: 'interact',
+          description:
+            '{{unitName}} the {{unitType}} interacts with {{targetUnitName}}.',
+          payload: {},
+          effects: [
+            {
+              target: 'self',
+              property: 'knowledge',
+              operation: 'add',
+              value: { type: 'static', value: 5 },
+              permanent: false,
+            },
+            {
+              target: 'target',
+              property: 'knowledge',
+              operation: 'add',
+              value: { type: 'static', value: 5 },
+              permanent: false,
+            },
+          ],
+        },
+        {
+          type: 'attack',
+          description:
+            '{{unitName}} the {{unitType}} attacks {{targetUnitName}}.',
+          payload: {},
+          effects: [
+            {
+              target: 'target',
+              property: 'health',
+              operation: 'subtract',
+              value: { type: 'static', value: 15 },
+              permanent: false,
+            },
+            {
+              target: 'self',
+              property: 'mana',
+              operation: 'subtract',
+              value: { type: 'static', value: 5 },
+              permanent: false,
+            },
+          ],
+        },
+        {
+          type: 'support',
+          description:
+            '{{unitName}} the {{unitType}} supports {{targetUnitName}}.',
+          payload: {},
+          effects: [
+            {
+              target: 'target',
+              property: 'health',
+              operation: 'add',
+              value: { type: 'static', value: 12 },
+              permanent: false,
+            },
+          ],
+        },
+        {
+          type: 'trade',
+          description:
+            '{{unitName}} the {{unitType}} trades with {{targetUnitName}}.',
+          payload: {},
+          effects: [
+            {
+              target: 'self',
+              property: 'resources',
+              operation: 'add',
+              value: { type: 'static', value: 3 },
+              permanent: false,
+            },
+            {
+              target: 'target',
+              property: 'resources',
+              operation: 'add',
+              value: { type: 'static', value: 3 },
+              permanent: false,
+            },
+          ],
+        },
+        {
+          type: 'resurrect',
+          description:
+            '{{unitName}} the {{unitType}} resurrects {{targetUnitName}}.',
+          payload: {},
+          effects: [
+            {
+              target: 'target',
+              property: 'status',
+              operation: 'set',
+              value: { type: 'static', value: 'alive' },
+              permanent: false,
+            },
+          ],
+        },
+      ]),
       loadDiary: vi.fn(() => []),
       loadUnits: vi.fn(() => []),
       saveUnits: vi.fn(),
@@ -314,97 +290,88 @@ describe('StoryTeller', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    (DataManager.loadActions as any).mockReturnValue({
-      actions: {
-        low_health: [
+    (DataManager.loadActions as any).mockReturnValue([
+      {
+        type: 'search',
+        description: '{{unitName}} the {{unitType}} searches for healing.',
+        effects: [
           {
-            type: 'search',
-            description: '{{unitName}} the {{unitType}} searches for healing.',
-            effects: [
-              {
-                target: 'self',
-                property: 'health',
-                operation: 'add',
-                value: { type: 'static', value: 15 },
-                permanent: false,
-              },
-            ],
-          },
-          {
-            type: 'retreat',
-            description: '{{unitName}} the {{unitType}} retreats to recover.',
-            effects: [
-              {
-                target: 'self',
-                property: 'health',
-                operation: 'add',
-                value: { type: 'static', value: 20 },
-                permanent: false,
-              },
-              {
-                target: 'self',
-                property: 'mana',
-                operation: 'add',
-                value: { type: 'static', value: 10 },
-                permanent: false,
-              },
-            ],
-          },
-        ],
-        healthy: [
-          {
-            type: 'explore',
-            description: '{{unitName}} the {{unitType}} explores confidently.',
-            effects: [
-              {
-                target: 'self',
-                property: 'experience',
-                operation: 'add',
-                value: { type: 'static', value: 3 },
-                permanent: false,
-              },
-            ],
-          },
-        ],
-        default: [
-          {
-            type: 'patrol',
-            description: '{{unitName}} the {{unitType}} patrols vigilantly.',
-            effects: [
-              {
-                target: 'self',
-                property: 'awareness',
-                operation: 'add',
-                value: { type: 'static', value: 2 },
-                permanent: false,
-              },
-            ],
-          },
-          {
-            type: 'rest',
-            description:
-              '{{unitName}} the {{unitType}} takes a moment to rest.',
-            effects: [
-              {
-                target: 'self',
-                property: 'health',
-                operation: 'add',
-                value: { type: 'static', value: 8 },
-                permanent: false,
-              },
-              {
-                target: 'self',
-                property: 'mana',
-                operation: 'add',
-                value: { type: 'static', value: 5 },
-                permanent: false,
-              },
-            ],
+            target: 'self',
+            property: 'health',
+            operation: 'add',
+            value: { type: 'static', value: 15 },
+            permanent: false,
           },
         ],
       },
-      special: [],
-    });
+      {
+        type: 'retreat',
+        description: '{{unitName}} the {{unitType}} retreats to recover.',
+        effects: [
+          {
+            target: 'self',
+            property: 'health',
+            operation: 'add',
+            value: { type: 'static', value: 20 },
+            permanent: false,
+          },
+          {
+            target: 'self',
+            property: 'mana',
+            operation: 'add',
+            value: { type: 'static', value: 10 },
+            permanent: false,
+          },
+        ],
+      },
+      {
+        type: 'explore',
+        description: '{{unitName}} the {{unitType}} explores confidently.',
+        effects: [
+          {
+            target: 'self',
+            property: 'experience',
+            operation: 'add',
+            value: { type: 'static', value: 3 },
+            permanent: false,
+          },
+        ],
+      },
+      {
+        type: 'patrol',
+        description: '{{unitName}} the {{unitType}} patrols vigilantly.',
+        effects: [
+          {
+            target: 'self',
+            property: 'awareness',
+            operation: 'add',
+            value: { type: 'static', value: 2 },
+            permanent: false,
+          },
+        ],
+      },
+      {
+        type: 'rest',
+        description:
+          '{{unitName}} the {{unitType}} takes a moment to rest.',
+        effects: [
+          {
+            target: 'self',
+            property: 'health',
+            operation: 'add',
+            value: { type: 'static', value: 8 },
+            permanent: false,
+          },
+          {
+            target: 'self',
+            property: 'mana',
+            operation: 'add',
+            value: { type: 'static', value: 5 },
+            permanent: false,
+          },
+        ],
+      },
+    ]);
     (DataManager.loadDiary as any).mockReturnValue([]);
 
     storyTeller = new StoryTeller(mockUnitController as any);

@@ -129,14 +129,7 @@ export interface NamesData {
 /**
  * Represents the structure of actions.json
  */
-export interface ActionsData {
-  actions: {
-    low_health: Action[];
-    healthy: Action[];
-    default: Action[];
-  };
-  special?: Action[];
-}
+export type ActionsData = Action[];
 
 export interface DiaryEntry {
   turn: number;
