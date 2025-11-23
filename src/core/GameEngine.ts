@@ -16,7 +16,7 @@ export class GameEngine {
   private turnManager: TurnManager;
   private isRunning: boolean = false;
   private sessionTurnCount: number = 0;
-  private maxTurnsPerSession: number = 10;
+  private maxTurnsPerSession: number = 50;
 
   constructor() {
     this.unitController = new UnitController();

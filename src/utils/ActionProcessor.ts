@@ -156,46 +156,44 @@ export class ActionProcessor {
       targetUnit
     );
 
+    // Use setProperty for temporary changes - only if method exists
+    const currentValue = targetUnit.getPropertyValue(effect.property) || 0;
+    let newValue: number;
+
+    switch (effect.operation) {
+      case 'add':
+        newValue = currentValue + valueToApply;
+        break;
+      case 'subtract':
+        newValue = Math.max(0, currentValue - valueToApply); // Prevent negative values
+        break;
+      case 'multiply':
+        newValue = Math.round(currentValue * valueToApply);
+        break;
+      case 'divide':
+        newValue = Math.round(currentValue / valueToApply);
+        break;
+      case 'set':
+        newValue = valueToApply;
+        break;
+      default:
+        newValue = currentValue + valueToApply; // Default to add if operation is unrecognized
+    }
+
+    // Ensure health doesn't exceed maximum (if it's a health property)
+    if (effect.property === 'health') {
+      newValue = Math.min(100, Math.max(0, newValue));
+    } else if (effect.property === 'mana') {
+      newValue = Math.min(100, Math.max(0, newValue));
+    } else {
+      newValue = Math.max(0, newValue);
+    }
+
     // Apply the effect based on whether it's permanent or temporary
     if (effect.permanent) {
-      targetUnit.setBaseProperty(effect.property, valueToApply);
+      targetUnit.setBaseProperty(effect.property, newValue);
     } else {
-      // Use setProperty for temporary changes - only if method exists
-      const currentValue = targetUnit.getPropertyValue(effect.property) || 0;
-      let newValue: number;
-
-      switch (effect.operation) {
-        case 'add':
-          newValue = currentValue + valueToApply;
-          break;
-        case 'subtract':
-          newValue = Math.max(0, currentValue - valueToApply); // Prevent negative values
-          break;
-        case 'multiply':
-          newValue = Math.round(currentValue * valueToApply);
-          break;
-        case 'divide':
-          newValue = Math.round(currentValue / valueToApply);
-          break;
-        case 'set':
-          newValue = valueToApply;
-          break;
-        default:
-          newValue = currentValue + valueToApply; // Default to add if operation is unrecognized
-      }
-
-      // Ensure health doesn't exceed maximum (if it's a health property)
-      if (effect.property === 'health') {
-        newValue = Math.min(100, Math.max(0, newValue));
-      } else if (effect.property === 'mana') {
-        newValue = Math.min(100, Math.max(0, newValue));
-      } else {
-        newValue = Math.max(0, newValue);
-      }
-
-      if (typeof targetUnit.setProperty === 'function') {
-        targetUnit.setProperty(effect.property, newValue);
-      }
+      targetUnit.setProperty(effect.property, newValue);
     }
   }
 
