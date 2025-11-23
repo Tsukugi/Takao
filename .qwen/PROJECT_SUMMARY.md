@@ -1,89 +1,41 @@
-# Takao Game Engine - Project Summary
+# Project Summary
 
-## Overview
-Takao is a turn-based game engine for console games with AI integration that connects to the Atago library. The engine generates narrative-driven stories based on unit states and actions, with persistent game state across sessions. The system is fully data-driven using JSON configuration files.
+## Overall Goal
+Maintain and enhance the Takao game engine, a sophisticated turn-based system with AI integration that connects to the Atago library, supporting complex action processing and narrative generation.
 
-## Core Features
+## Key Knowledge
+- **Technology Stack**: TypeScript, Node.js, Vitest for testing, tsup for building
+- **Build Commands**: `npm run build` (tsup), `npm run test` (tests), `npm run lint` (ESLint)
+- **Architecture Components**:
+  - GameEngine: Main orchestrator connecting all components
+  - GameLoop: Handles timing and scheduling of turns
+  - StoryTeller: Generates narrative elements and manages story flow
+  - TurnManager: Manages turn-based mechanics and game state transitions
+  - UnitController: Interfaces with Atago library to control AI units
+  - ActionProcessor: Processes and executes game actions with requirement validation
+  - ConditionParser: Evaluates conditions in actions for applicability
+  - DataManager: Handles data persistence and retrieval
+  - StatTracker: Monitors changes to unit statistics
+- **Test Coverage**: 58 passing tests across 8 test files including integration tests
+- **Type System**: Comprehensive TypeScript interfaces for game state, actions, and effects
 
-### 1. Turn-Based Game Engine
-- Manages game state, turn scheduling, and action processing
-- Supports configurable turn intervals
-- Handles game loop and turn management system
+## Recent Actions
+- [COMPLETE] Fixed TypeScript errors in TurnManager by removing unused currentPlayerIndex variable
+- [COMPLETE] Updated type definitions to support complex game state while preserving interface simplicity
+- [COMPLETE] Maintained all functionality while resolving type conflicts
+- [COMPLETE] All tests passing (58/58), TypeScript compilation successful, linting passes
+- [UPDATED] README.md to reflect current architecture and components
+- [UPDATED] PROJECT_SUMMARY.md with current state
 
-### 2. Unit Controller (Atago Integration)
-- Manages game units using the Atago library
-- Creates and manages units with properties (health, mana, attack, defense)
-- Assigns unique UUIDs to prevent duplicate units
-- Loads/saves unit states to/from JSON files
+## Current Plan
+- [DONE] Resolve TypeScript compilation errors
+- [DONE] Maintain type safety while preserving functionality
+- [DONE] Ensure all tests continue to pass
+- [DONE] Update documentation to reflect current architecture
+- [DONE] Verify linting and build processes work correctly
+- [CONTINUING] Maintain code quality and architecture best practices
 
-### 3. StoryTeller System
-- Generates narrative actions based on unit states
-- Uses action templates from JSON configuration with dynamic parameters
-- Creates rich story content with meaningful unit interactions
-- Saves narrative history to diary entries
+---
 
-### 4. Extensive Data Persistence
-- **actions.json**: Defines all possible actions with descriptions, effects, and configurable min/max value ranges
-- **names.json**: Comprehensive catalog of categorized names (warriors, archers, mages, general)
-- **diary.json**: Narrative history of all turns (runtime, git-ignored)
-- **units.json**: Current state of all game units (runtime, git-ignored)
-- **Templates**: Template files provided as reference for developers
-
-### 5. Dynamic Action System
-- **JSON-Defined Actions**: Action parameters configurable via JSON (min/max ranges for random values)
-- **14+ Action Types**:
-  - Combat: `attack`, `defend`
-  - Support: `support`, `rest`, `meditate`
-  - Exploration: `explore`, `scout`, `hunt`
-  - Interactions: `interact`, `trade`, `inspire`
-  - Development: `train`, `study`, `practice`
-  - Resources: `gather`, `hunt`, `collect`
-- **Range-Based Parameters**: Action values (damage, healing, etc.) defined with adjustable min/max ranges in JSON
-- **Action Effects**: Real-time property modifications on units
-- **Entity Interactions**: Actions can affect multiple units simultaneously
-
-### 6. Automated Name System
-- **Categorized Names**: Names organized by unit type (warriors, archers, mages, etc.)
-- **Automatic Naming**: Units automatically receive names from the catalog
-- **Immersive Narratives**: Dynamic unit names create more engaging story content
-- **Configurable Catalogs**: Easy to add new names to specific categories
-
-### 7. Continuity Features
-- **Turn Continuation**: Game sessions continue from where the previous session ended (e.g., turns 1-10, then 11-20, then 21-30, etc.)
-- **State Persistence**: Unit properties and names preserved between sessions
-- **Narrative History**: Complete diary of all actions across sessions
-- **Property Preservation**: All unit stats maintained across sessions
-
-### 8. Developer Experience
-- Template files for reference structures
-- Comprehensive README documentation
-- Clean separation of tracked templates vs runtime data
-- Full TypeScript type safety with all errors resolved
-- Modern tooling (tsup, ESLint, Prettier, Vitest)
-- JSON-driven configuration for easy customization
-
-## Architecture
-- **GameEngine**: Main orchestrator connecting all components
-- **UnitController**: Manages Atago-based game units with names from catalog
-- **StoryTeller**: Generates narrative actions using JSON-defined parameters
-- **DataManager**: Handles JSON file operations
-- **TurnManager**: Manages turn-based mechanics
-- **GameLoop**: Handles timing of turns
-
-## Technology Stack
-- TypeScript with strict typing and verbatimModuleSyntax
-- Node.js runtime
-- Atago library integration for unit system
-- Modern build tools (tsup) with proper node platform configuration
-- Git for version control with proper file separation
-
-## Key Improvements
-- **All TypeScript errors resolved**: Complete type safety with proper import handling
-- **JSON-configured actions**: Parameters now use min/max ranges from JSON files
-- **Automatic unit naming**: Units receive names from categorized catalog
-- **Configurable value ranges**: Action effects use configurable min/max values
-- **Enhanced narrative**: More immersive stories with varied unit names
-- **Robust data persistence**: Proper JSON loading/saving with error handling
-
-## Usage
-The engine can be started with `npm start` and will continue from the last turn number, preserving all unit states and narrative history between sessions. Action parameters and unit names are fully configurable through JSON files.
+## Summary Metadata
+**Update time**: 2025-11-23T21:32:00.000Z

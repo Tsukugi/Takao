@@ -1,5 +1,5 @@
 import { GameEngine } from './core/GameEngine';
-import type { GameState, Player } from './types';
+import type { GameState } from './types';
 
 /**
  * Represents a simple example game using the game engine
@@ -17,33 +17,9 @@ class ExampleGame {
    * Creates the initial game state
    */
   private createInitialState(): GameState {
-    const players: Player[] = [
-      {
-        id: 'player1',
-        name: 'AI Player 1',
-        resources: { gold: 100, wood: 50, food: 80 },
-      },
-      {
-        id: 'player2',
-        name: 'AI Player 2',
-        resources: { gold: 100, wood: 50, food: 80 },
-      },
-    ];
-
     return {
       turn: 0,
-      players,
-      board: {
-        width: 10,
-        height: 10,
-        entities: [],
-      },
-      resources: {
-        gold: 0,
-        wood: 0,
-        food: 0,
-      },
-    };
+    } as GameState;
   }
 
   /**

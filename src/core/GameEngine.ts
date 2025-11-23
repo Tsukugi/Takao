@@ -23,7 +23,7 @@ export class GameEngine {
     this.storyTeller = new StoryTeller(this.unitController);
     this.gameLoop = new GameLoop();
     // We'll initialize turnManager in the initialize method with a default value
-    this.turnManager = new TurnManager({ turn: 0, players: [] });
+    this.turnManager = new TurnManager({ turn: 0 });
   }
 
   /**

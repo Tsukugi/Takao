@@ -7,14 +7,10 @@ export class TurnManager {
   private gameState: GameState;
   private currentTurn: number = 0;
   private history: Turn[] = [];
-  private players: string[] = [];
-  private currentPlayerIndex: number = 0;
 
   constructor(initialState: GameState) {
     this.gameState = { ...initialState };
     this.currentTurn = initialState.turn || 0;
-    this.players = initialState.players?.map(player => player.id) || [];
-    this.currentPlayerIndex = 0;
   }
 
   /**
@@ -73,8 +69,6 @@ export class TurnManager {
    */
   public endTurn(): void {
     this.currentTurn++;
-    this.currentPlayerIndex =
-      (this.currentPlayerIndex + 1) % this.players.length;
 
     // Update the game state with the new turn
     this.gameState.turn = this.currentTurn;
@@ -85,15 +79,6 @@ export class TurnManager {
    */
   public getCurrentTurn(): number {
     return this.currentTurn;
-  }
-
-  /**
-   * Gets the current player
-   */
-  public getCurrentPlayer(): string {
-    if (this.players.length === 0) return '';
-    const player = this.players[this.currentPlayerIndex];
-    return player || '';
   }
 
   /**
@@ -109,6 +94,5 @@ export class TurnManager {
   public reset(): void {
     this.currentTurn = 0;
     this.history = [];
-    this.currentPlayerIndex = 0;
   }
 }

@@ -3,27 +3,6 @@
  */
 export interface GameState {
   turn: number;
-  players: Player[];
-  board?: unknown; // Implementation-specific board representation
-  resources?: ResourceMap;
-}
-
-/**
- * Represents a player in the game
- */
-export interface Player {
-  id: string;
-  name: string;
-  resources: ResourceMap;
-  position?: { x: number; y: number };
-  [key: string]: unknown; // Allow additional properties
-}
-
-/**
- * Represents a map of resources
- */
-export interface ResourceMap {
-  [resourceName: string]: number;
 }
 
 /**

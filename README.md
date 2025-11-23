@@ -1,14 +1,17 @@
 # Takao Game Engine
 
-A basic turn-based game engine for console games with AI integration that connects to the Atago library.
+A sophisticated game engine for console games with AI integration that connects to the Atago library, supporting complex turn-based mechanics and action processing.
 
 ## Overview
 
-The Takao Game Engine is designed to facilitate turn-based console games where AI agents make decisions each turn. The engine provides:
-- A flexible turn-based system
-- Integration with AI libraries (specifically designed to work with Atago)
-- A modular architecture that supports various game types
-- Typesafe interfaces for game state management
+The Takao Game Engine is designed to facilitate complex console games with AI-controlled units that make intelligent decisions each turn. The engine provides:
+- Advanced turn-based system with history tracking
+- Deep AI integration with the Atago library for intelligent unit behavior
+- Comprehensive action processing with requirement validation and effect execution
+- Flexible stat tracking and narrative generation
+- Condition-based action filtering and story telling
+- Data management and persistence capabilities
+- Modular architecture supporting various game types
 
 ## Project Structure
 
@@ -17,11 +20,19 @@ src/
 ├── core/          # Core engine components
 │   ├── GameEngine.ts
 │   ├── GameLoop.ts
+│   ├── StoryTeller.ts
 │   └── TurnManager.ts
 ├── ai/            # AI controller interface
-│   └── AIController.ts
+│   └── UnitController.ts
+├── utils/         # Utility components
+│   ├── ActionProcessor.ts
+│   ├── ConditionParser.ts
+│   ├── DataManager.ts
+│   ├── Math.ts
+│   └── StatTracker.ts
 ├── types/         # Type definitions
-│   └── index.ts
+│   ├── index.ts
+│   └── typeGuards.ts
 └── index.ts       # Entry point with example game
 ```
 
@@ -57,11 +68,11 @@ npm run build
 
 ## Integration with Atago
 
-The engine is designed to work with the Atago library for AI decision making. The `AIController` class handles communication with the Atago library and translates its outputs into game actions.
+The engine is designed to work with the Atago library for AI decision making. The `UnitController` class handles communication with the Atago library and manages AI-controlled units that make intelligent decisions each turn.
 
 To integrate with your specific Atago implementation:
-1. Update the import in `src/ai/AIController.ts` to point to your actual Atago library
-2. Modify the `getAction` method to properly interface with your Atago API
+1. Update the import in `src/ai/UnitController.ts` to point to your actual Atago library
+2. Modify the unit initialization and action methods to properly interface with your Atago API
 3. Adjust the action processing in the `GameEngine` if needed
 
 ## Creating Your Own Game
@@ -81,11 +92,26 @@ The main orchestrator that connects all components and manages the game flow.
 ### GameLoop
 Handles the timing and scheduling of turns.
 
+### StoryTeller
+Generates narrative elements and manages the story flow of the game, coordinating with AI units to create engaging scenarios.
+
 ### TurnManager
 Manages the turn-based mechanics and game state transitions.
 
-### AIController
-Interfaces with the Atago library to get actions for each turn.
+### UnitController
+Interfaces with the Atago library to control AI units and manage their behavior.
+
+### ActionProcessor
+Processes and executes game actions with requirement validation and effect application.
+
+### ConditionParser
+Evaluates conditions in actions to determine their applicability in the current game state.
+
+### DataManager
+Handles data persistence and retrieval for game states and saved information.
+
+### StatTracker
+Monitors and tracks changes to unit statistics throughout the game.
 
 ## License
 
