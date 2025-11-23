@@ -1,4 +1,5 @@
-import type { PropertySnapshot, StatChange } from '../types';
+import type { BaseUnit, IPropertyCollection } from '@atsu/atago';
+import type { StatChange } from '../types';
 
 /**
  * Utility class for tracking and comparing unit stats
@@ -7,10 +8,10 @@ export class StatTracker {
   /**
    * Takes a snapshot of units' properties
    */
-  public static takeSnapshot(
-    units: { id: string; properties: PropertySnapshot }[]
-  ): { [unitId: string]: PropertySnapshot } {
-    const snapshot: { [unitId: string]: PropertySnapshot } = {};
+  public static takeSnapshot(units: BaseUnit[]): {
+    [unitId: string]: IPropertyCollection;
+  } {
+    const snapshot: Record<string, IPropertyCollection> = {};
 
     for (const unit of units) {
       // Deep copy the properties to capture the state
@@ -26,8 +27,8 @@ export class StatTracker {
    * Compares unit snapshots and finds stat changes
    */
   public static compareSnapshots(
-    initialStates: { [unitId: string]: PropertySnapshot },
-    units: { id: string; name: string; properties: PropertySnapshot }[]
+    initialStates: Record<string, IPropertyCollection>,
+    units: BaseUnit[]
   ): StatChange[] {
     const changes: StatChange[] = [];
 
@@ -45,47 +46,18 @@ export class StatTracker {
         const initialPropInfo = initialProperties[propName];
         const currentPropInfo = unit.properties[propName];
 
-        let initialValue: unknown;
-        let newValue: unknown;
-
-        // Extract value from initial property info (could be object with value field or raw value)
-        if (
-          initialPropInfo &&
-          typeof initialPropInfo === 'object' &&
-          initialPropInfo !== null &&
-          'value' in initialPropInfo
-        ) {
-          const typedInitialPropInfo = initialPropInfo as { value?: unknown };
-          initialValue = typedInitialPropInfo.value;
-        } else {
-          initialValue = initialPropInfo;
-        }
-
-        // Extract value from current property info (could be object with value field or raw value)
-        if (
-          currentPropInfo &&
-          typeof currentPropInfo === 'object' &&
-          currentPropInfo !== null &&
-          'value' in currentPropInfo
-        ) {
-          const typedCurrentPropInfo = currentPropInfo as { value?: unknown };
-          newValue = typedCurrentPropInfo.value;
-        } else {
-          newValue = currentPropInfo;
+        if (initialPropInfo === undefined || currentPropInfo === undefined) {
+          continue; // Skip if property doesn't exist in either state
         }
 
         // Only log if values are defined and different
-        if (
-          initialValue !== undefined &&
-          newValue !== undefined &&
-          initialValue !== newValue
-        ) {
+        if (initialPropInfo.value !== currentPropInfo.value) {
           changes.push({
             unitId: unit.id,
             unitName: unit.name,
             propertyName: propName,
-            oldValue: initialValue,
-            newValue: newValue,
+            oldValue: initialPropInfo.value,
+            newValue: currentPropInfo.value,
           });
         }
       }

@@ -73,23 +73,6 @@ export interface Turn {
 }
 
 /**
- * Interface representing a unit's property snapshot
- */
-export interface PropertySnapshot {
-  [propertyName: string]: unknown;
-}
-
-/**
- * Interface for tracking a unit's complete state
- */
-export interface UnitSnapshot {
-  id: string;
-  name: string;
-  type: string;
-  properties: PropertySnapshot;
-}
-
-/**
  * Interface for representing a stat change
  */
 export interface StatChange {

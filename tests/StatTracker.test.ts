@@ -98,15 +98,11 @@ describe('StatTracker', () => {
       testUnits[0].properties.health.value = 90;
       testUnits[1].properties.mana.value = 35;
 
-      const newUnit = {
-        id: 'unit-3',
-        name: 'NewUnit',
-        type: 'mage',
-        properties: {
-          health: { name: 'health', value: 60, baseValue: 60 },
-          mana: { name: 'mana', value: 100, baseValue: 100 },
-        },
-      };
+      const newUnit = new BaseUnit('unit-3', 'TestMage', 'mage', {
+        health: { name: 'health', value: 60, baseValue: 60 },
+        mana: { name: 'mana', value: 100, baseValue: 100 },
+        status: { name: 'status', value: 'alive', baseValue: 'alive' },
+      });
       const extendedUnits = [...testUnits, newUnit];
 
       const changes = StatTracker.compareSnapshots(

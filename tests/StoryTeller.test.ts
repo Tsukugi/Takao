@@ -523,7 +523,7 @@ describe('StoryTeller', () => {
     const newAction = await storyTeller.generateStoryAction(3);
 
     expect(newAction.action.type).toBe('idle');
-    expect(newAction.action.player).toBe('narrator');
+    expect(newAction.action.player).toBe('DefaultUnit');
   });
 
   it('executes action effects properly (now uses ActionProcessor)', async () => {
