@@ -45,6 +45,13 @@ export class GameLoop {
   }
 
   /**
+   * Gets the interval between turns (in milliseconds)
+   */
+  public getTurnInterval(): number {
+    return this.turnInterval;
+  }
+
+  /**
    * Gets whether the game loop is currently running
    */
   public getRunning(): boolean {

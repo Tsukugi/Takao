@@ -1,22 +1,22 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { UnitController } from '../src/ai/UnitController';
 import { DataManager } from '../src/utils/DataManager';
+import { GameState } from '../src/types';
 
 // Mock the Atago library
 vi.mock('@atsu/atago', async () => {
-  const actual = await vi.importActual('fs');
   return {
     BaseUnit: class {
       id: string;
       name: string;
       type: string;
-      properties: any;
+      properties: Record<string, { name: string; value: any; baseValue: any }>;
 
       constructor(
         id: string,
         name: string,
         type: string,
-        initialProperties: any = {}
+        initialProperties = {}
       ) {
         this.id = id;
         this.name = name;
@@ -48,7 +48,7 @@ vi.mock('@atsu/atago', async () => {
 vi.mock('../src/utils/DataManager', async () => {
   const actual = await vi.importActual('../src/utils/DataManager');
   return {
-    ...(actual as any),
+    ...actual,
     DataManager: {
       loadNames: vi.fn(() => ({
         male: ['WarriorName', 'BraveWarrior'],
@@ -147,9 +147,9 @@ describe('UnitController', () => {
     const gameState = { turn: 0, players: [] };
     await unitController.initialize(gameState);
 
-    const newState = {
+    const newState: Partial<GameState> = {
       turn: 5,
-      players: [{ id: 'player1', name: 'NewPlayer' }],
+      players: [{ id: 'player1', name: 'NewPlayer', resources: {} }],
     };
     await unitController.updateGameState(newState);
 

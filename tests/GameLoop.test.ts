@@ -30,7 +30,7 @@ describe('GameLoop', () => {
 
   it('sets turn interval correctly', () => {
     gameLoop.setTurnInterval(3000);
-    expect((gameLoop as any).turnInterval).toBe(3000);
+    expect(gameLoop.getTurnInterval()).toBe(3000);
   });
 
   it('starts the game loop correctly', () => {

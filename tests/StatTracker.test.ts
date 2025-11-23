@@ -1,33 +1,25 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { StatTracker } from '../src/utils/StatTracker';
+import { StatChange } from '../src/types';
+import { BaseUnit } from '@atsu/atago';
 
 describe('StatTracker', () => {
-  let testUnits: any[];
+  let testUnits: BaseUnit[];
 
   beforeEach(() => {
     testUnits = [
-      {
-        id: 'unit-1',
-        name: 'TestWarrior',
-        type: 'warrior',
-        properties: {
-          health: { name: 'health', value: 100, baseValue: 100 },
-          mana: { name: 'mana', value: 50, baseValue: 50 },
-          attack: { name: 'attack', value: 20, baseValue: 20 },
-          status: { name: 'status', value: 'alive', baseValue: 'alive' },
-        },
-      },
-      {
-        id: 'unit-2',
-        name: 'TestArcher',
-        type: 'archer',
-        properties: {
-          health: { name: 'health', value: 80, baseValue: 80 },
-          mana: { name: 'mana', value: 30, baseValue: 30 },
-          defense: { name: 'defense', value: 15, baseValue: 15 },
-          status: { name: 'status', value: 'alive', baseValue: 'alive' },
-        },
-      },
+      new BaseUnit('unit-1', 'TestWarrior', 'warrior', {
+        health: { name: 'health', value: 100, baseValue: 100 },
+        mana: { name: 'mana', value: 50, baseValue: 50 },
+        attack: { name: 'attack', value: 20, baseValue: 20 },
+        status: { name: 'status', value: 'alive', baseValue: 'alive' },
+      }),
+      new BaseUnit('unit-2', 'TestArcher', 'archer', {
+        health: { name: 'health', value: 80, baseValue: 80 },
+        mana: { name: 'mana', value: 30, baseValue: 30 },
+        defense: { name: 'defense', value: 15, baseValue: 15 },
+        status: { name: 'status', value: 'alive', baseValue: 'alive' },
+      }),
     ];
   });
 
@@ -136,12 +128,24 @@ describe('StatTracker', () => {
 
   describe('formatStatChanges', () => {
     it('formats stat changes as readable strings', () => {
-      const changes = [
-        { propertyName: 'health', oldValue: 100, newValue: 85 },
-        { propertyName: 'mana', oldValue: 50, newValue: 45 },
+      const changes: StatChange[] = [
+        {
+          propertyName: 'health',
+          oldValue: 100,
+          newValue: 85,
+          unitId: 'unit-1',
+          unitName: 'TestWarrior',
+        },
+        {
+          propertyName: 'mana',
+          oldValue: 50,
+          newValue: 45,
+          unitId: 'unit-1',
+          unitName: 'TestWarrior',
+        },
       ];
 
-      const formatted = StatTracker.formatStatChanges(changes as any);
+      const formatted = StatTracker.formatStatChanges(changes);
 
       expect(formatted).toEqual(['health: 100 -> 85', 'mana: 50 -> 45']);
     });
@@ -179,24 +183,18 @@ describe('StatTracker', () => {
         },
       ];
 
-      const grouped = StatTracker.groupChangesByUnit(changes as any);
+      const grouped = StatTracker.groupChangesByUnit(changes);
 
       expect(grouped.size).toBe(2);
       expect(grouped.get('unit-1')).toHaveLength(2);
       expect(grouped.get('unit-2')).toHaveLength(1);
 
       const unit1Changes = grouped.get('unit-1')!;
-      expect(unit1Changes.some((c: any) => c.propertyName === 'health')).toBe(
-        true
-      );
-      expect(unit1Changes.some((c: any) => c.propertyName === 'attack')).toBe(
-        true
-      );
+      expect(unit1Changes.some(c => c.propertyName === 'health')).toBe(true);
+      expect(unit1Changes.some(c => c.propertyName === 'attack')).toBe(true);
 
       const unit2Changes = grouped.get('unit-2')!;
-      expect(unit2Changes.some((c: any) => c.propertyName === 'mana')).toBe(
-        true
-      );
+      expect(unit2Changes.some(c => c.propertyName === 'mana')).toBe(true);
     });
 
     it('handles empty changes array', () => {
