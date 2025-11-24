@@ -125,6 +125,30 @@ export class ActionProcessor {
         }
         break;
 
+      case 'world':
+        // Handle new unit creation - add to newUnitsList for processing by StoryTeller
+        if (effect.operation === 'create' && effect.property === 'unit') {
+          let newUnitType = 'warrior'; // default type
+
+          if (effect.value.type === 'variable' && effect.value.variable) {
+            const variableValue = action.payload?.[effect.value.variable];
+            if (variableValue && typeof variableValue === 'string') {
+              newUnitType = variableValue;
+            }
+          } else if (effect.value.type === 'static' && effect.value.value) {
+            newUnitType = effect.value.value.toString();
+          }
+
+          console.log(
+            `New unit of type ${newUnitType} should be added to the game!`
+          );
+        } else {
+          console.error(
+            `Invalid operation for 'new' target in action ${action.type}`
+          );
+        }
+        return; // Return early since we're handling new unit creation
+
       default:
         // Default to self
         targetUnit = units.find(unit => unit.name === action.player);

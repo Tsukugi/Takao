@@ -819,5 +819,32 @@
         "value": 20
       }
     ]
+  },
+  {
+    "type": "unit_join",
+    "description": "{{unitName}} finds a new ally to join their cause.",
+    "payload": {
+      "newUnitType": "warrior"
+    },
+    "effects": [
+      {
+        "target": "new",
+        "property": "unit",
+        "operation": "create",
+        "value": {
+          "type": "variable",
+          "variable": "newUnitType"
+        },
+        "permanent": true
+      }
+    ],
+    "requirements": [
+      {
+        "type": "comparison",
+        "property": "diplomacy",
+        "operator": ">=",
+        "value": 25
+      }
+    ]
   }
 ]

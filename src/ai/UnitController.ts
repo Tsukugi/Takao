@@ -139,4 +139,113 @@ export class UnitController {
   public getUnits(): BaseUnit[] {
     return [...this.gameUnits];
   }
+
+  /**
+   * Adds a new unit to the game
+   */
+  public async addNewUnit(): Promise<void> {
+    // Generate a random name for the new unit
+    const isMale = Math.random() > 0.5;
+    const newUnitName = this.getRandomName(isMale);
+
+    // Generate fully random stats with correlations between them
+    // Health ranges from 60-120 depending on other stats
+    const baseHealth = Math.floor(Math.random() * 60) + 60; // 60-120
+
+    // Mana ranges from 20-70 depending on other stats
+    const baseMana = Math.floor(Math.random() * 50) + 20; // 20-70
+
+    // Attack is base stat with some randomness
+    const baseAttack = Math.floor(Math.random() * 25) + 10; // 10-35
+
+    // Defense is correlated to attack (higher attack often means higher defense), with some variation
+    const baseDefense = Math.max(
+      5,
+      Math.floor(baseAttack * (0.4 + Math.random() * 0.4))
+    ); // Correlated to attack (±20%)
+
+    // Generate other stats with some correlations
+    const baseWisdom = Math.floor(Math.random() * 15) + 5; // 5-20
+    const baseAwareness = Math.floor(Math.random() * 10) + 2; // 2-12
+    const baseStealth = Math.floor(Math.random() * 20) + 5; // 5-25
+    const baseDiplomacy = Math.floor(Math.random() * 10) + 5; // 5-15
+    const baseKnowledge = Math.floor(Math.random() * 15) + 5; // 5-20
+
+    // Create the new unit with correlated random stats
+    const newUnit = new BaseUnit(randomUUID(), newUnitName, 'adventurer', {
+      health: { name: 'health', value: baseHealth, baseValue: baseHealth },
+      mana: { name: 'mana', value: baseMana, baseValue: baseMana },
+      attack: { name: 'attack', value: baseAttack, baseValue: baseAttack },
+      defense: {
+        name: 'defense',
+        value: baseDefense,
+        baseValue: baseDefense,
+      },
+      status: { name: 'status', value: 'alive', baseValue: 'alive' },
+      maxHealth: {
+        name: 'maxHealth',
+        value: baseHealth,
+        baseValue: baseHealth,
+      },
+      maxMana: { name: 'maxMana', value: baseMana, baseValue: baseMana },
+      // Add other properties with reasonable ranges
+      resources: {
+        name: 'resources',
+        value: Math.floor(Math.random() * 15) + 5,
+        baseValue: 5,
+        modifiers: [],
+        readonly: false,
+      },
+      experience: {
+        name: 'experience',
+        value: Math.floor(Math.random() * 10),
+        baseValue: 0,
+        modifiers: [],
+        readonly: false,
+      },
+      wisdom: {
+        name: 'wisdom',
+        value: baseWisdom,
+        baseValue: baseWisdom,
+        modifiers: [],
+        readonly: false,
+      },
+      awareness: {
+        name: 'awareness',
+        value: baseAwareness,
+        baseValue: baseAwareness,
+        modifiers: [],
+        readonly: false,
+      },
+      stealth: {
+        name: 'stealth',
+        value: baseStealth,
+        baseValue: baseStealth,
+        modifiers: [],
+        readonly: false,
+      },
+      diplomacy: {
+        name: 'diplomacy',
+        value: baseDiplomacy,
+        baseValue: baseDiplomacy,
+        modifiers: [],
+        readonly: false,
+      },
+      knowledge: {
+        name: 'knowledge',
+        value: baseKnowledge,
+        baseValue: baseKnowledge,
+        modifiers: [],
+        readonly: false,
+      },
+    });
+
+    // Add the new unit to the game units array
+    this.gameUnits.push(newUnit);
+
+    console.log(`New unit ${newUnitName} (${newUnit.id}) has joined the game!`);
+
+    // Save the updated units to the data manager
+    DataManager.saveUnits(this.gameUnits);
+  }
 }

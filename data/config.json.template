@@ -1,0 +1,30 @@
+{
+  "maxTurnsPerSession": 50,
+  "overrideAvailableActions": [
+    "attack",
+    "defend",
+    "train",
+    "craft",
+    "rest",
+    "hunt",
+    "trade",
+    "negotiate",
+    "summon",
+    "resurrect",
+    "meditate",
+    "explore",
+    "search",
+    "patrol",
+    "scout",
+    "stealth",
+    "last_rites",
+    "conserve_mana",
+    "interact",
+    "support",
+    "study",
+    "retreat",
+    "desperate_attack",
+    "inspire",
+    "unit_join"
+  ]
+}

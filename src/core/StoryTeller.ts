@@ -1,6 +1,7 @@
 import { UnitController } from '../ai/UnitController';
 import type { Action, ExecutedAction, ActionsData, DiaryEntry } from '../types';
 import { DataManager } from '../utils/DataManager';
+import { ConfigManager } from '../utils/ConfigManager';
 import { StatTracker } from '../utils/StatTracker';
 import { ActionProcessor } from '../utils/ActionProcessor';
 import { MathUtils } from '../utils/Math';
@@ -47,6 +48,11 @@ export class StoryTeller {
         `Failed to execute action effect: ${result.errorMessage || 'Unknown error'}`
       );
       return storyAction; // Return early if execution fails
+    }
+
+    // Handle new units if any were created
+    if (storyAction.action.type === 'unit_join') {
+      await this.unitController.addNewUnit();
     }
 
     // Get stat changes by comparing snapshots
@@ -101,7 +107,7 @@ export class StoryTeller {
 
     // Filter out dead units - only consider alive units for taking actions
     const aliveUnits = units.filter(unit => {
-      const statusProperty = unit.properties.status;
+      const statusProperty = unit.properties?.status;
       return !statusProperty || statusProperty.value !== 'dead';
     });
 
@@ -123,11 +129,23 @@ export class StoryTeller {
     // Create a story action based on unit properties using JSON data
     let description = '';
 
-    // Get available actions based on unit requirements only
+    // Get available actions based on unit requirements and config settings
     let availableActions: Action[] = [];
 
-    // Filter actions based on unit requirements (health, mana, etc.)
+    // Get override actions from config
+    const overrideActionList =
+      ConfigManager.getConfig().overrideAvailableActions;
+
+    // Filter actions based on unit requirements (health, mana, etc.) and config
     for (const action of this.actionsData) {
+      // If overrideAvailableActions is specified, only use those actions
+      if (
+        overrideActionList &&
+        overrideActionList.length > 0 &&
+        !overrideActionList.includes(action.type)
+      )
+        continue;
+
       // Check all requirements
       if (action.requirements) {
         let meetsAllRequirements = true;

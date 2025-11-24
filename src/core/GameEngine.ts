@@ -3,6 +3,7 @@ import { GameLoop } from './GameLoop';
 import { TurnManager } from './TurnManager';
 import { StoryTeller } from './StoryTeller';
 import { DataManager } from '../utils/DataManager';
+import { ConfigManager } from '../utils/ConfigManager';
 import type { GameState } from '../types';
 
 /**
@@ -16,7 +17,8 @@ export class GameEngine {
   private turnManager: TurnManager;
   private isRunning: boolean = false;
   private sessionTurnCount: number = 0;
-  private maxTurnsPerSession: number = 50;
+  private maxTurnsPerSession: number =
+    ConfigManager.getConfig().maxTurnsPerSession;
 
   constructor() {
     this.unitController = new UnitController();

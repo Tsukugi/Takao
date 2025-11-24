@@ -21,9 +21,16 @@ export interface Action {
  * Represents an effect definition for actions
  */
 export interface EffectDefinition {
-  target: 'unit' | 'self' | 'target' | 'all' | 'ally' | 'enemy';
+  target: 'unit' | 'self' | 'target' | 'world' | 'all' | 'ally' | 'enemy';
   property: string;
-  operation: 'add' | 'subtract' | 'multiply' | 'divide' | 'set';
+  operation:
+    | 'add'
+    | 'subtract'
+    | 'multiply'
+    | 'divide'
+    | 'set'
+    | 'create'
+    | 'remove';
   value: EffectValue;
   permanent: boolean;
   condition?: string;
