@@ -46,6 +46,7 @@
     "vitest": "^1.6.1"
   },
   "dependencies": {
-    "@atsu/atago": "file:../Atago"
+    "@atsu/atago": "file:../Atago",
+    "@atsu/choukai": "file:../Choukai"
   }
 }
