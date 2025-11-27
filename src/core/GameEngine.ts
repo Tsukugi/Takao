@@ -1,4 +1,5 @@
 import { UnitController } from '../ai/UnitController';
+import { WorldController } from '../ai/WorldController';
 import { GameLoop } from './GameLoop';
 import { TurnManager } from './TurnManager';
 import { StoryTeller } from './StoryTeller';
@@ -13,6 +14,7 @@ import type { GameState } from '../types';
 export class GameEngine {
   private gameLoop: GameLoop;
   private unitController: UnitController;
+  private worldController: WorldController;
   private storyTeller: StoryTeller;
   private turnManager: TurnManager;
   private isRunning: boolean = false;
@@ -22,6 +24,7 @@ export class GameEngine {
 
   constructor() {
     this.unitController = new UnitController();
+    this.worldController = new WorldController();
     this.storyTeller = new StoryTeller(this.unitController);
     this.gameLoop = new GameLoop();
     // We'll initialize turnManager in the initialize method with a default value
@@ -33,8 +36,10 @@ export class GameEngine {
    */
   public async initialize(gameState: GameState): Promise<void> {
     console.log('Initializing game engine...');
-    // Initialize the game state
+    // Initialize the controllers
     await this.unitController.initialize(gameState);
+    await this.worldController.initialize();
+
     // Create a new story teller with the initialized controller
     this.storyTeller = new StoryTeller(this.unitController);
 
@@ -115,6 +120,11 @@ export class GameEngine {
     console.log('Stopping game engine...');
     this.isRunning = false;
     this.gameLoop.stop();
+
+    // Save the current world state
+    this.worldController.saveWorld().catch(error => {
+      console.error('Error saving world state:', error);
+    });
   }
 
   /**

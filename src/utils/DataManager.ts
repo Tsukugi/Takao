@@ -2,6 +2,9 @@ import type { BaseUnit } from '@atsu/atago';
 import * as fs from 'fs';
 import * as path from 'path';
 import type { NamesData, ActionsData, DiaryEntry } from '../types';
+import type { Map as ChoukaiMap, World as ChoukaiWorld } from '@atsu/choukai';
+import { MapSerializer } from './MapSerializer';
+import { WorldSerializer } from './WorldSerializer';
 
 /**
  * Utility class for managing JSON data files
@@ -12,6 +15,8 @@ export class DataManager {
   public static NAMES_FILE = path.join(DataManager.DATA_DIR, 'names.json');
   public static UNITS_FILE = path.join(DataManager.DATA_DIR, 'units.json');
   public static DIARY_FILE = path.join(DataManager.DATA_DIR, 'diary.json');
+  public static MAPS_FILE = path.join(DataManager.DATA_DIR, 'maps.json');
+  public static WORLD_FILE = path.join(DataManager.DATA_DIR, 'world.json');
 
   /**
    * Loads action templates from the actions.json file
@@ -128,5 +133,49 @@ export class DataManager {
     if (!fs.existsSync(this.DATA_DIR)) {
       fs.mkdirSync(this.DATA_DIR, { recursive: true });
     }
+  }
+
+  /**
+   * Saves maps to the maps.json file
+   */
+  public static saveMaps(maps: ChoukaiMap[]): void {
+    const serializedMaps = MapSerializer.serializeMany(maps);
+    fs.writeFileSync(this.MAPS_FILE, JSON.stringify(serializedMaps, null, 2));
+  }
+
+  /**
+   * Loads maps from the maps.json file
+   * If file doesn't exist, returns an empty array
+   */
+  public static loadMaps(): ChoukaiMap[] {
+    if (!fs.existsSync(this.MAPS_FILE)) {
+      return [];
+    }
+
+    const content = fs.readFileSync(this.MAPS_FILE, 'utf-8');
+    const serializedMaps = JSON.parse(content);
+    return MapSerializer.deserializeMany(serializedMaps);
+  }
+
+  /**
+   * Saves world to the world.json file
+   */
+  public static saveWorld(world: ChoukaiWorld): void {
+    const serializedWorld = WorldSerializer.serialize(world);
+    fs.writeFileSync(this.WORLD_FILE, JSON.stringify(serializedWorld, null, 2));
+  }
+
+  /**
+   * Loads world from the world.json file
+   * If file doesn't exist, returns null
+   */
+  public static loadWorld(): ChoukaiWorld | null {
+    if (!fs.existsSync(this.WORLD_FILE)) {
+      return null;
+    }
+
+    const content = fs.readFileSync(this.WORLD_FILE, 'utf-8');
+    const serializedWorld = JSON.parse(content);
+    return WorldSerializer.deserialize(serializedWorld);
   }
 }
