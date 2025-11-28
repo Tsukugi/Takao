@@ -7,37 +7,36 @@ import { DataManager } from '../utils/DataManager';
  * to manage game worlds, maps and their positioning systems
  */
 export class WorldController {
-  private world: ChoukaiWorld | null = null;
-  private initialized: boolean = false;
+  private world: ChoukaiWorld;
+
+  constructor() {
+    this.world = this.initializeWorld();
+  }
 
   /**
    * Initializes the World controller with the game world
    */
-  public async initialize(): Promise<void> {
+  private initializeWorld(): ChoukaiWorld {
     // Try to load existing world from file
     const loadedWorld = DataManager.loadWorld();
 
     if (loadedWorld) {
       // Use the loaded world
-      this.world = loadedWorld;
-      console.log(`Loaded world with ${this.world.getAllMaps().length} maps from saved state`);
+      console.log(
+        `Loaded world with ${loadedWorld.getAllMaps().length} maps from saved state`
+      );
+      return loadedWorld;
     } else {
       // Create a new world instance
-      this.world = new ChoukaiWorld();
       console.log('Initialized new world with Choukai library');
+      return new ChoukaiWorld();
     }
-
-    this.initialized = true;
-    console.log('WorldController initialized');
   }
 
   /**
    * Gets the current world instance
    */
-  public getWorld(): ChoukaiWorld | null {
-    if (!this.initialized) {
-      throw new Error('WorldController not initialized');
-    }
+  public getWorld(): ChoukaiWorld {
     return this.world;
   }
 
@@ -45,10 +44,6 @@ export class WorldController {
    * Creates a new map and adds it to the world
    */
   public createMap(width: number, height: number, name: string): boolean {
-    if (!this.initialized || !this.world) {
-      throw new Error('WorldController not initialized');
-    }
-
     const newMap = new ChoukaiMap(width, height, name);
     return this.world.addMap(newMap);
   }
@@ -56,15 +51,11 @@ export class WorldController {
   /**
    * Gets a map by name from the world
    */
-  public getMap(name: string): ChoukaiMap | null {
-    if (!this.initialized || !this.world) {
-      throw new Error('WorldController not initialized');
-    }
-
+  public getMap(name: string): ChoukaiMap {
     try {
       return this.world.getMap(name);
     } catch {
-      return null; // Map doesn't exist
+      throw new Error('Map not found in the world');
     }
   }
 
@@ -72,10 +63,6 @@ export class WorldController {
    * Gets all maps in the world
    */
   public getAllMaps(): ChoukaiMap[] {
-    if (!this.initialized || !this.world) {
-      throw new Error('WorldController not initialized');
-    }
-    
     return this.world.getAllMaps();
   }
 
@@ -83,18 +70,7 @@ export class WorldController {
    * Saves the current world state to file
    */
   public async saveWorld(): Promise<void> {
-    if (!this.initialized || !this.world) {
-      throw new Error('WorldController not initialized');
-    }
-
     DataManager.saveWorld(this.world);
     console.log('World saved to file');
-  }
-
-  /**
-   * Gets whether the world controller is initialized
-   */
-  public getInitialized(): boolean {
-    return this.initialized;
   }
 }

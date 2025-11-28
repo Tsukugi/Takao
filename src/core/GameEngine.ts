@@ -38,7 +38,6 @@ export class GameEngine {
     console.log('Initializing game engine...');
     // Initialize the controllers
     await this.unitController.initialize(gameState);
-    await this.worldController.initialize();
 
     // Create a new story teller with the initialized controller
     this.storyTeller = new StoryTeller(this.unitController);
