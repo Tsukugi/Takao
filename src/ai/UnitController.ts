@@ -143,7 +143,7 @@ export class UnitController {
   /**
    * Adds a new unit to the game
    */
-  public async addNewUnit(): Promise<void> {
+  public async addNewUnit(): Promise<BaseUnit> {
     // Generate a random name for the new unit
     const isMale = Math.random() > 0.5;
     const newUnitName = this.getRandomName(isMale);
@@ -247,5 +247,7 @@ export class UnitController {
 
     // Save the updated units to the data manager
     DataManager.saveUnits(this.gameUnits);
+
+    return newUnit;
   }
 }

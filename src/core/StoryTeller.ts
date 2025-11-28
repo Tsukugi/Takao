@@ -14,7 +14,7 @@ import { ConditionParser } from '../utils/ConditionParser';
 import { BaseUnit } from '@atsu/atago';
 import { isComparison } from '../types/typeGuards';
 import { MapGenerator } from '../utils/MapGenerator';
-import { World, Map as ChoukaiMap } from '@atsu/choukai';
+import { World, Map as ChoukaiMap, Position } from '@atsu/choukai';
 import { WorldManager } from '../utils/WorldManager';
 import { GateSystem, type GateConnection } from '../utils/GateSystem';
 
@@ -70,7 +70,30 @@ export class StoryTeller {
 
     // Handle new units if any were created
     if (storyAction.action.type === 'unit_join') {
-      await this.unitController.addNewUnit();
+      const newUnit = await this.unitController.addNewUnit();
+
+      // Add the new unit to the world
+      if (newUnit) {
+        // Place the new unit at a default position (we could make this more sophisticated)
+        const mainMap = this.world.getAllMaps()[0];
+        if (mainMap) {
+          const x = Math.floor(Math.random() * mainMap.width);
+          const y = Math.floor(Math.random() * mainMap.height);
+
+          this.world.setUnitPosition(
+            newUnit.id,
+            mainMap.name,
+            new Position(x, y)
+          );
+
+          // Also set the position as a property of the unit for future reference
+          newUnit.setProperty('position', {
+            unitId: newUnit.id,
+            mapId: mainMap.name,
+            position: new Position(x, y),
+          });
+        }
+      }
     }
 
     // Get stat changes by comparing snapshots

@@ -10,6 +10,7 @@ import { MapRenderer } from './utils/MapRenderer';
 import { WorldManager } from './utils/WorldManager';
 import { Position, World, type IUnitPosition } from '@atsu/choukai';
 import { isUnitPosition } from './types/typeGuards';
+import { MathUtils } from './utils/Math';
 
 export class TakaoImpl {
   private gameLoop: GameLoop;
@@ -125,25 +126,79 @@ export class TakaoImpl {
   public async runTurn(turn: number): Promise<void> {
     console.log(`\n--- Turn ${turn} ---`);
 
-    // Generate story action using the storyteller
-    const storyAction = await this.storyTeller.generateStoryAction(turn);
-    console.log(`Story Action: ${storyAction.action.description}`);
-    console.log(`Narrative: Turn ${turn}: ${storyAction.action.description}`);
+    // Get all units
+    const allUnits = this.unitController.getUnits();
+    const world = this.storyTeller.getWorld();
+
+    // Each turn: every unit gets one action and one movement
+    // First, generate story actions for the turn (number of actions = number of units)
+    for (let i = 0; i < allUnits.length; i++) {
+      const storyAction = await this.storyTeller.generateStoryAction(turn);
+      console.log(`Action ${i + 1}: ${storyAction.action.description}`);
+    }
+
+    // Then, ensure each unit moves
+    for (const unit of allUnits) {
+      try {
+        const unitPos = world.getUnitPosition(unit.id);
+        if (unitPos) {
+          // Simple movement: move one step in a random direction
+          const directions = [
+            { x: 0, y: -1 }, // North
+            { x: 1, y: 0 }, // East
+            { x: 0, y: 1 }, // South
+            { x: -1, y: 0 }, // West
+          ];
+
+          // Select a random direction
+          const randomDirection = MathUtils.getRandomFromArray(directions);
+          // Get map dimensions to properly constrain movement
+          const currentMap = world.getMap(unitPos.mapId);
+          const maxX = currentMap ? currentMap.width - 1 : 19;
+          const maxY = currentMap ? currentMap.height - 1 : 14;
+
+          const newX = Math.max(
+            0,
+            Math.min(unitPos.position.x + randomDirection.x, maxX)
+          );
+          const newY = Math.max(
+            0,
+            Math.min(unitPos.position.y + randomDirection.y, maxY)
+          );
+
+          const moved = await this.storyTeller.moveUnitToPosition(
+            unit.id,
+            newX,
+            newY
+          );
+          if (moved) {
+            console.log(`${unit.name} moves to (${newX}, ${newY})`);
+          } else {
+            console.log(`${unit.name} failed to move`);
+          }
+        }
+      } catch (error) {
+        console.log(`${unit.name} could not move: ${(error as Error).message}`);
+      }
+    }
 
     // Render the current state of all maps
     console.log('\nCurrent Map State:');
-    const world = this.storyTeller.getWorld();
     const maps = world.getAllMaps();
 
+    // Create mapping from unit ID to unit name for rendering
+    const unitNameMap: Record<string, string> = {};
+    for (const unit of allUnits) {
+      unitNameMap[unit.id] = unit.name;
+    }
+
     for (const map of maps) {
-      console.log(MapRenderer.renderCompact(map));
+      console.log(MapRenderer.renderCompact(map, unitNameMap));
       console.log('');
     }
 
     // Show unit positions (retrieved from unit properties rather than world)
     console.log('Unit Positions:');
-    const allUnits = this.unitController.getUnits();
-
     for (const unit of allUnits) {
       // Try to get position from the unit's own properties first
       const unitPosition = unit.getPropertyValue('position');
@@ -227,17 +282,24 @@ export class TakaoImpl {
     console.log('\nFinal Map State:');
     const world = this.storyTeller.getWorld();
     const maps = world.getAllMaps();
+    const allUnits = this.unitController.getUnits();
+
+    // Create mapping from unit ID to unit name for rendering
+    const unitNameMap: Record<string, string> = {};
+    for (const unit of allUnits) {
+      unitNameMap[unit.id] = unit.name;
+    }
 
     for (const map of maps) {
-      console.log(MapRenderer.renderCompact(map));
+      console.log(MapRenderer.renderCompact(map, unitNameMap));
       console.log('');
     }
 
     // Show final unit positions (retrieved from unit properties rather than world)
     console.log('Final Unit Positions:');
-    const allUnits = this.unitController.getUnits();
+    const finalAllUnits = this.unitController.getUnits();
 
-    for (const unit of allUnits) {
+    for (const unit of finalAllUnits) {
       // Try to get position from the unit's own properties first
       const unitPosition = unit.getPropertyValue('position');
       if (unitPosition && isUnitPosition(unitPosition)) {

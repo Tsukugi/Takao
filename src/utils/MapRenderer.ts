@@ -10,6 +10,7 @@ export interface MapRendererConfig {
   showUnits: boolean;
   showTerrain: boolean;
   compactView: boolean;
+  useColors?: boolean;
 }
 
 export class MapRenderer {
@@ -17,7 +18,7 @@ export class MapRenderer {
     grass: '.',
     water: '~',
     mountain: '^',
-    forest: 'T',
+    forest: 't',
     desert: '#',
     road: '=',
     plains: '.',
@@ -26,12 +27,29 @@ export class MapRenderer {
     sand: '-',
   };
 
+  private static readonly TERRAIN_COLORS: Record<string, string> = {
+    grass: '\x1b[90m', // bright black (gray)
+    water: '\x1b[34m', // blue
+    mountain: '\x1b[37m', // white
+    forest: '\x1b[32m', // green
+    desert: '\x1b[33m', // yellow
+    road: '\x1b[90m', // gray
+    plains: '\x1b[36m', // cyan
+    swamp: '\x1b[35m', // magenta
+    snow: '\x1b[97m', // bright white
+    sand: '\x1b[93m', // bright yellow
+  };
+
+  private static readonly UNIT_COLOR = '\x1b[92m'; // bright green
+  private static readonly RESET_COLOR = '\x1b[0m'; // reset
+
   private static readonly DEFAULT_CONFIG: MapRendererConfig = {
     showCoordinates: true,
     cellWidth: 1,
     showUnits: true,
     showTerrain: true,
     compactView: true,
+    useColors: true,
   };
 
   /**
@@ -39,6 +57,7 @@ export class MapRenderer {
    */
   public static render(
     map: GameMap,
+    unitNames?: Record<string, string>, // Optional mapping from unit ID to unit name
     config?: Partial<MapRendererConfig>
   ): string {
     const finalConfig = { ...this.DEFAULT_CONFIG, ...config };
@@ -77,8 +96,16 @@ export class MapRenderer {
         if (finalConfig.showUnits) {
           const unitId = map.getUnitAt(x, y);
           if (unitId) {
-            // Use first character of unit ID or a special symbol
-            cellContent = unitId.charAt(0).toUpperCase();
+            // Use first character of unit name if available, otherwise use first character of ID
+            if (unitNames && unitNames[unitId]) {
+              cellContent = unitNames[unitId].charAt(0).toUpperCase();
+            } else {
+              cellContent = unitId.charAt(0).toUpperCase();
+            }
+            // Apply unit color if enabled
+            if (finalConfig.useColors) {
+              cellContent = `${this.UNIT_COLOR}${cellContent}${this.RESET_COLOR}`;
+            }
           }
         }
 
@@ -88,6 +115,14 @@ export class MapRenderer {
             this.TERRAIN_SYMBOLS[
               terrain as keyof typeof this.TERRAIN_SYMBOLS
             ] || '?';
+          // Apply terrain color if enabled
+          if (finalConfig.useColors) {
+            const terrainColor =
+              this.TERRAIN_COLORS[
+                terrain as keyof typeof this.TERRAIN_COLORS
+              ] || this.TERRAIN_COLORS.grass;
+            cellContent = `${terrainColor}${cellContent}${this.RESET_COLOR}`;
+          }
         }
 
         // Pad the cell content to the desired width
@@ -112,18 +147,25 @@ export class MapRenderer {
   /**
    * Renders a compact version of the map (default format)
    */
-  public static renderCompact(map: GameMap): string {
-    return this.render(map, { compactView: true });
+  public static renderCompact(
+    map: GameMap,
+    unitNames?: Record<string, string>
+  ): string {
+    return this.render(map, unitNames, { compactView: true, useColors: true });
   }
 
   /**
    * Renders a detailed version of the map with coordinates
    */
-  public static renderDetailed(map: GameMap): string {
-    return this.render(map, {
+  public static renderDetailed(
+    map: GameMap,
+    unitNames?: Record<string, string>
+  ): string {
+    return this.render(map, unitNames, {
       compactView: false,
       showCoordinates: true,
       cellWidth: 2,
+      useColors: true,
     });
   }
 
