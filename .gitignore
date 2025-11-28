@@ -64,7 +64,12 @@ node_modules/@atsu/atago/
 data/diary.json
 data/units.json
 data/config.json
+data/world.json
 
-# Backup files
+# Backup and temporary files
 *.backup
 *.bak
+*.tmp
+data/*backup
+data/*.backup
+data/*.tmp

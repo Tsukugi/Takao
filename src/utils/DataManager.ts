@@ -1,10 +1,11 @@
-import type { BaseUnit } from '@atsu/atago';
 import * as fs from 'fs';
 import * as path from 'path';
+import { BaseUnit } from '@atsu/atago';
 import type { NamesData, ActionsData, DiaryEntry } from '../types';
 import type { Map as ChoukaiMap, World as ChoukaiWorld } from '@atsu/choukai';
 import { MapSerializer } from './MapSerializer';
 import { WorldSerializer } from './WorldSerializer';
+import { isUnitPosition } from '../types/typeGuards';
 
 /**
  * Utility class for managing JSON data files
@@ -90,7 +91,34 @@ export class DataManager {
     }
 
     const content = fs.readFileSync(this.UNITS_FILE, 'utf-8');
-    return JSON.parse(content);
+    const unitData = JSON.parse(content) as BaseUnit[];
+
+    // Reconstruct BaseUnit instances properly
+    return unitData.map(unit => {
+      // Create the base unit
+      const baseUnit = new BaseUnit(
+        unit.id,
+        unit.name,
+        unit.type,
+        unit.properties
+      );
+
+      // Special handling for position properties
+      if (baseUnit.getProperty('position')) {
+        const positionValue = baseUnit.getPropertyValue('position');
+
+        // Check if it's already in the expected IUnitPosition format
+        if (isUnitPosition(positionValue)) {
+          baseUnit.setProperty('position', positionValue);
+        } else {
+          throw new Error(
+            `Invalid position format for unit ${baseUnit.name} (${baseUnit.id})`
+          );
+        }
+      }
+
+      return baseUnit;
+    });
   }
 
   /**

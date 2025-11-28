@@ -1,3 +1,4 @@
+import type { IPosition, IUnitPosition } from '@atsu/choukai';
 import type { ComparisonRequirement, RandomValue, Requirement } from './index';
 
 export const isRandomValue = (value: unknown): value is RandomValue =>
@@ -26,3 +27,19 @@ export const isComparison = (
   }
   return req.type === 'comparison';
 };
+
+export const isPosition = (value: unknown): value is IPosition =>
+  typeof value === 'object' &&
+  value !== null &&
+  typeof (value as { x: unknown }).x === 'number' &&
+  typeof (value as { y: unknown }).y === 'number';
+
+export const isUnitPosition = (value: unknown): value is IUnitPosition =>
+  typeof value === 'object' &&
+  value !== null &&
+  typeof (value as IUnitPosition).unitId === 'string' &&
+  typeof (value as IUnitPosition).mapId === 'string' &&
+  typeof (value as IUnitPosition).position === 'object' &&
+  (value as IUnitPosition).position !== null &&
+  typeof (value as IUnitPosition).position.x === 'number' &&
+  typeof (value as IUnitPosition).position.y === 'number';

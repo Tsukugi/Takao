@@ -117,4 +117,117 @@ describe('ConfigManager', () => {
 
     expect(firstCall).toBe(secondCall);
   });
+
+  it('loads map generation configuration from config.json', () => {
+    // Use the actual config file
+    const config = ConfigManager.getConfig();
+
+    expect(config.mapGeneration).toBeDefined();
+    expect(config.mapGeneration?.defaultMapWidth).toBe(25); // From our config.json
+    expect(config.mapGeneration?.defaultMapHeight).toBe(25); // From our config.json
+    expect(config.mapGeneration?.waterFrequency).toBe(0.08); // From our config.json
+    expect(config.mapGeneration?.createRoadsBetweenMaps).toBe(true); // From our config.json
+  });
+
+  it('gets only map generation configuration', () => {
+    const mapConfig = ConfigManager.getMapGenerationConfig();
+
+    expect(mapConfig.defaultMapWidth).toBe(25);
+    expect(mapConfig.defaultMapHeight).toBe(25);
+    expect(mapConfig.waterFrequency).toBe(0.08);
+    expect(mapConfig.createRoadsBetweenMaps).toBe(true);
+  });
+
+  it('uses default map generation config when not specified in config.json', () => {
+    // Create a temporary config file without mapGeneration
+    const tempConfigPath = path.resolve('data', 'temp_config.json');
+    const originalConfigPath = path.resolve('data', 'config.json');
+
+    if (fs.existsSync(originalConfigPath)) {
+      originalConfig = fs.readFileSync(originalConfigPath, 'utf8');
+    }
+
+    try {
+      // Write config without mapGeneration
+      const tempConfig = { maxTurnsPerSession: 15 };
+      fs.writeFileSync(tempConfigPath, JSON.stringify(tempConfig));
+
+      // Rename the files to use our temp config
+      if (fs.existsSync(originalConfigPath)) {
+        fs.renameSync(originalConfigPath, originalConfigPath + '.backup');
+      }
+      fs.renameSync(tempConfigPath, originalConfigPath);
+
+      // Reset and reload config
+      ConfigManager.resetConfig();
+      const config = ConfigManager.getConfig();
+
+      // When mapGeneration is not specified, it should be undefined in the partial config
+      // but getMapGenerationConfig() should still provide defaults
+      expect(config.mapGeneration).toBeUndefined();
+
+      // However, getMapGenerationConfig should still provide defaults
+      ConfigManager.resetConfig(); // Reset first to reload with original config
+      const mapConfig = ConfigManager.getMapGenerationConfig();
+      expect(mapConfig.defaultMapWidth).toBe(20); // Should use default
+      expect(mapConfig.defaultMapHeight).toBe(20); // Should use default
+      expect(config.maxTurnsPerSession).toBe(15); // From custom config
+    } finally {
+      // Restore original config file
+      if (fs.existsSync(originalConfigPath)) {
+        fs.unlinkSync(originalConfigPath);
+      }
+      if (fs.existsSync(originalConfigPath + '.backup')) {
+        fs.renameSync(originalConfigPath + '.backup', originalConfigPath);
+      }
+      if (fs.existsSync(tempConfigPath)) {
+        fs.unlinkSync(tempConfigPath);
+      }
+
+      // Reset config again
+      ConfigManager.resetConfig();
+    }
+  });
+
+  it('handles invalid JSON in config.json gracefully for map generation', () => {
+    const tempConfigPath = path.resolve('data', 'temp_config_invalid.json');
+    const originalConfigPath = path.resolve('data', 'config.json');
+
+    if (fs.existsSync(originalConfigPath)) {
+      originalConfig = fs.readFileSync(originalConfigPath, 'utf8');
+    }
+
+    try {
+      // Write invalid config
+      fs.writeFileSync(tempConfigPath, '{ invalid json');
+
+      // Rename the files to use our invalid config
+      if (fs.existsSync(originalConfigPath)) {
+        fs.renameSync(originalConfigPath, originalConfigPath + '.backup');
+      }
+      fs.renameSync(tempConfigPath, originalConfigPath);
+
+      // Reset and reload config
+      ConfigManager.resetConfig();
+      const config = ConfigManager.getConfig();
+
+      // Should fall back to defaults
+      expect(config.mapGeneration?.defaultMapWidth).toBe(20);
+      expect(config.mapGeneration?.defaultMapHeight).toBe(20);
+    } finally {
+      // Restore original config file
+      if (fs.existsSync(originalConfigPath)) {
+        fs.unlinkSync(originalConfigPath);
+      }
+      if (fs.existsSync(originalConfigPath + '.backup')) {
+        fs.renameSync(originalConfigPath + '.backup', originalConfigPath);
+      }
+      if (fs.existsSync(tempConfigPath)) {
+        fs.unlinkSync(tempConfigPath);
+      }
+
+      // Reset config again
+      ConfigManager.resetConfig();
+    }
+  });
 });

@@ -75,12 +75,12 @@ export interface Turn {
 /**
  * Interface for representing a stat change
  */
-export interface StatChange {
+export interface StatChange<T = unknown> {
   unitId: string;
   unitName: string;
   propertyName: string;
-  oldValue: unknown;
-  newValue: unknown;
+  oldValue: T;
+  newValue: T;
 }
 
 /**

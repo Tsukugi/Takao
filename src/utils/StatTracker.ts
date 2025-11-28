@@ -1,5 +1,6 @@
 import type { BaseUnit, IPropertyCollection } from '@atsu/atago';
 import type { StatChange } from '../types';
+import { isUnitPosition } from '../types/typeGuards';
 
 /**
  * Utility class for tracking and comparing unit stats
@@ -73,12 +74,26 @@ export class StatTracker {
     const formattedChanges: string[] = [];
 
     for (const change of changes) {
+      const formattedOldValue = StatTracker.formatValue(change.oldValue);
+      const formattedNewValue = StatTracker.formatValue(change.newValue);
       formattedChanges.push(
-        `${change.propertyName}: ${change.oldValue} -> ${change.newValue}`
+        `${change.propertyName}: ${formattedOldValue} -> ${formattedNewValue}`
       );
     }
 
     return formattedChanges;
+  }
+
+  /**
+   * Formats a value for display, handling special cases like positions
+   */
+  private static formatValue(value: unknown): string {
+    if (isUnitPosition(value))
+      return `${value.mapId} (${value.position.x}, ${value.position.y})`;
+
+    if (typeof value === 'object') return JSON.stringify(value);
+
+    return String(value);
   }
 
   /**

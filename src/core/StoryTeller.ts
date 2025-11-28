@@ -1,3 +1,8 @@
+/**
+ * Extended StoryTeller that can manage maps in addition to narrative generation
+ * Uses MapGenerator to create and manage game world maps that players can move between
+ */
+
 import { UnitController } from '../ai/UnitController';
 import type { Action, ExecutedAction, ActionsData, DiaryEntry } from '../types';
 import { DataManager } from '../utils/DataManager';
@@ -8,21 +13,34 @@ import { MathUtils } from '../utils/Math';
 import { ConditionParser } from '../utils/ConditionParser';
 import { BaseUnit } from '@atsu/atago';
 import { isComparison } from '../types/typeGuards';
+import { MapGenerator } from '../utils/MapGenerator';
+import { World, Map as ChoukaiMap } from '@atsu/choukai';
+import { WorldManager } from '../utils/WorldManager';
+import { GateSystem, type GateConnection } from '../utils/GateSystem';
 
 /**
  * Represents the StoryTeller that generates narrative actions based on unit states
+ * and can also manage world maps and unit movement between maps
  */
 export class StoryTeller {
   private unitController: UnitController;
   private actionsData: ActionsData;
   private storyHistory: string[] = [];
   private diary: DiaryEntry[] = [];
+  private mapGenerator: MapGenerator;
+  private world: World;
+  private gateSystem: GateSystem;
 
   constructor(unitController: UnitController) {
     this.unitController = unitController;
     this.actionsData = DataManager.loadActions();
     this.diary = DataManager.loadDiary(); // Load existing diary entries
     DataManager.ensureDataDirectory(); // Ensure data directory exists
+
+    // Initialize map generation capabilities
+    this.mapGenerator = new MapGenerator();
+    this.world = WorldManager.createWorld();
+    this.gateSystem = new GateSystem();
   }
 
   /**
@@ -216,11 +234,169 @@ export class StoryTeller {
   }
 
   /**
+   * Moves a unit to a specific position on the current map
+   */
+  public async moveUnitToPosition(
+    unitId: string,
+    targetX: number,
+    targetY: number
+  ): Promise<boolean> {
+    try {
+      const unitPos = this.world.getUnitPosition(unitId);
+
+      // Check if there's a gate at the target position - if so, perform gate transition instead of regular move
+      if (this.gateSystem.hasGate(unitPos.mapId, targetX, targetY)) {
+        // Perform gate transition
+        await this.handleMapTransition(unitId, unitPos.mapId, targetX, targetY);
+        return true; // Transition was attempted
+      }
+
+      // Validate the target position is within map bounds
+      const currentMap = this.world.getMap(unitPos.mapId);
+      if (
+        targetX < 0 ||
+        targetX >= currentMap.width ||
+        targetY < 0 ||
+        targetY >= currentMap.height
+      ) {
+        console.error(
+          `Target position (${targetX}, ${targetY}) is out of bounds (${currentMap.width}x${currentMap.height})`
+        );
+        return false;
+      }
+
+      // Try to move the unit to the target position
+      const moved = this.world.moveUnit(unitId, targetX, targetY);
+
+      return moved;
+    } catch (error) {
+      console.error(
+        `Failed to move unit to position: ${(error as Error).message}`
+      );
+      return false;
+    }
+  }
+
+  /**
+   * Handles map transitions when a unit reaches a gate
+   */
+  private async handleMapTransition(
+    unitId: string,
+    currentMapId: string,
+    x: number,
+    y: number
+  ): Promise<void> {
+    // Check if there's a gate at the current position
+    if (this.gateSystem.hasGate(currentMapId, x, y)) {
+      const gate = this.gateSystem.getDestination(currentMapId, x, y);
+
+      if (gate) {
+        // Attempt to move the unit through the gate to the destination map
+        try {
+          // Update the unit's position in the world to the new map and position
+          // This handles both the internal world tracking and the map-level tracking
+          const updateSuccess = this.world.setUnitPosition(
+            unitId,
+            gate.mapTo,
+            gate.positionTo
+          );
+
+          if (updateSuccess) {
+            console.log(
+              `Unit ${unitId} moved through gate from ${currentMapId}(${x},${y}) to ${gate.mapTo}(${gate.positionTo.x},${gate.positionTo.y})`
+            );
+          } else {
+            console.error(`Failed to move unit ${unitId} through gate`);
+          }
+        } catch (error) {
+          console.error(
+            `Error during gate transition for unit ${unitId}: ${(error as Error).message}`
+          );
+        }
+      }
+    }
+  }
+
+  /**
+   * Creates a map using the MapGenerator
+   */
+  public createMap(name: string, width?: number, height?: number): ChoukaiMap {
+    return this.mapGenerator.generateMap(name, width, height);
+  }
+
+  /**
+   * Creates a world with interconnected maps
+   */
+  public createWorldWithMaps(mapNames: string[]): World {
+    return this.mapGenerator.generateWorldWithMaps(mapNames);
+  }
+
+  /**
+   * Gets the current world instance
+   */
+  public getWorld(): World {
+    return this.world;
+  }
+
+  /**
+   * Adds a gate connection between two maps
+   */
+  public addGate(gate: GateConnection): boolean {
+    return this.gateSystem.addGate(gate);
+  }
+
+  /**
+   * Removes a gate connection by name
+   */
+  public removeGate(gateName: string): boolean {
+    return this.gateSystem.removeGate(gateName);
+  }
+
+  /**
+   * Checks if there's a gate at a specific position on a map
+   */
+  public hasGate(mapId: string, x: number, y: number): boolean {
+    return this.gateSystem.hasGate(mapId, x, y);
+  }
+
+  /**
+   * Gets the destination gate connection for a position on a map
+   */
+  public getGateDestination(
+    mapId: string,
+    x: number,
+    y: number
+  ): GateConnection | undefined {
+    return this.gateSystem.getDestination(mapId, x, y);
+  }
+
+  /**
+   * Gets all gates for a specific map
+   */
+  public getGatesForMap(mapId: string): GateConnection[] {
+    return this.gateSystem.getGatesForMap(mapId);
+  }
+
+  /**
+   * Gets all gates in the system
+   */
+  public getAllGates(): GateConnection[] {
+    return this.gateSystem.getAllGates();
+  }
+
+  /**
    * Saves the current unit states to JSON
    */
   public saveUnits(): void {
     const units = this.unitController.getUnits();
     DataManager.saveUnits(units);
+  }
+
+  /**
+   * Saves the current world state to JSON
+   */
+  public saveWorld(): void {
+    DataManager.saveWorld(this.world);
   }
 
   /**

@@ -8,6 +8,7 @@ The following files are generated during runtime and contain game session data:
 
 - `diary.json` - Stores the narrative history of actions taken
 - `units.json` - Stores the current state of game units
+- `world.json` - Stores the current state of maps and world configuration
 
 These files are automatically created and updated during gameplay, and are excluded from Git via `.gitignore`.
 
@@ -17,6 +18,7 @@ The following template files show the expected structure:
 
 - `diary.template.json` - Shows the structure for diary entries
 - `units.template.json` - Shows the structure for unit data
+- `world.template.json` - Shows the structure for world and map data
 - `actions.json` - Defines all possible actions (tracked in Git)
 - `names.json` - Contains names catalog for units (tracked in Git)
 
@@ -40,7 +42,7 @@ The following template files show the expected structure:
 ```json
 {
   "id": "example-unit-uuid-1234-5678-9012",
-  "name": "ExampleWarrior", 
+  "name": "ExampleWarrior",
   "type": "warrior",
   "properties": {
     "health": {
@@ -49,13 +51,13 @@ The following template files show the expected structure:
       "baseValue": 100
     },
     "mana": {
-      "name": "mana", 
+      "name": "mana",
       "value": 50,
       "baseValue": 50
     },
     "attack": {
       "name": "attack",
-      "value": 20, 
+      "value": 20,
       "baseValue": 20
     },
     "defense": {
@@ -64,5 +66,38 @@ The following template files show the expected structure:
       "baseValue": 15
     }
   }
+}
+```
+
+### World Structure
+```json
+{
+  "maps": [
+    {
+      "name": "ExampleMap",
+      "width": 20,
+      "height": 20,
+      "cells": [
+        [
+          {
+            "terrain": "grass",
+            "properties": {
+              "movementCost": 1
+            }
+          }
+        ]
+      ]
+    }
+  ],
+  "unitPositions": [
+    {
+      "unitId": "example-unit-uuid-1234-5678-9012",
+      "mapId": "ExampleMap",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    }
+  ]
 }
 ```
