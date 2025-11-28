@@ -34,9 +34,9 @@ export class TakaoImpl {
     await this.unitController.initialize({ turn: 0 });
 
     // Create initial maps
-    const mainMap = this.storyTeller.createMap('Main Continent', 20, 15);
-    const forestMap = this.storyTeller.createMap('Dark Forest', 15, 10);
-    const mountainMap = this.storyTeller.createMap('High Mountains', 12, 8);
+    const mainMap = this.storyTeller.createMap('Main Continent', 50, 15);
+    const forestMap = this.storyTeller.createMap('Dark Forest', 35, 10);
+    const mountainMap = this.storyTeller.createMap('High Mountains', 42, 8);
 
     // Add maps to world
     const world = this.storyTeller.getWorld();
@@ -182,8 +182,7 @@ export class TakaoImpl {
       }
     }
 
-    // Render the current state of all maps
-    console.log('\nCurrent Map State:');
+    // Render the current state of all maps using fixed display
     const maps = world.getAllMaps();
 
     // Create mapping from unit ID to unit name for rendering
@@ -192,41 +191,37 @@ export class TakaoImpl {
       unitNameMap[unit.id] = unit.name;
     }
 
-    for (const map of maps) {
-      console.log(MapRenderer.renderCompact(map, unitNameMap));
-      console.log('');
-    }
-
-    // Show unit positions (retrieved from unit properties rather than world)
-    console.log('Unit Positions:');
+    // Create mapping from unit ID to position information
+    const unitPositionMap: Record<string, IUnitPosition> = {};
     for (const unit of allUnits) {
       // Try to get position from the unit's own properties first
       const unitPosition = unit.getPropertyValue('position');
       if (unitPosition && isUnitPosition(unitPosition)) {
         // Position is in IUnitPosition format: {unitId, mapId, position: Position}
-        console.log(
-          `  ${unit.name} (${unit.id.substring(0, 8)}...) is at ${unitPosition.mapId} (${unitPosition.position.x}, ${unitPosition.position.y})`
-        );
+        unitPositionMap[unit.id] = {
+          unitId: unit.id,
+          mapId: unitPosition.mapId,
+          position: unitPosition.position,
+        };
       } else {
         // If unit doesn't have position property, check world position
         try {
           const worldPosition = world.getUnitPosition(unit.id);
           if (worldPosition) {
-            console.log(
-              `  ${unit.name} (${unit.id.substring(0, 8)}...) is at ${worldPosition.mapId} (${worldPosition.position.x}, ${worldPosition.position.y})`
-            );
-          } else {
-            console.log(
-              `  ${unit.name} (${unit.id.substring(0, 8)}...) position not set`
-            );
+            unitPositionMap[unit.id] = {
+              unitId: unit.id,
+              mapId: worldPosition.mapId,
+              position: worldPosition.position,
+            };
           }
         } catch {
-          console.log(
-            `  ${unit.name} (${unit.id.substring(0, 8)}...) not in world yet`
-          );
+          // If position is not found, we'll skip adding it to the map
         }
       }
     }
+
+    // Using fixed display for all maps together with unit positions
+    MapRenderer.renderMultipleMapsFixed(maps, unitNameMap, unitPositionMap);
 
     console.log('\n' + '='.repeat(50));
   }
@@ -278,7 +273,7 @@ export class TakaoImpl {
   private showFinalState(): void {
     console.log('\nFinal Game State:');
 
-    // Show final map rendering
+    // Show final map rendering with fixed display
     console.log('\nFinal Map State:');
     const world = this.storyTeller.getWorld();
     const maps = world.getAllMaps();
@@ -290,43 +285,37 @@ export class TakaoImpl {
       unitNameMap[unit.id] = unit.name;
     }
 
-    for (const map of maps) {
-      console.log(MapRenderer.renderCompact(map, unitNameMap));
-      console.log('');
-    }
-
-    // Show final unit positions (retrieved from unit properties rather than world)
-    console.log('Final Unit Positions:');
-    const finalAllUnits = this.unitController.getUnits();
-
-    for (const unit of finalAllUnits) {
+    // Create mapping from unit ID to position information
+    const unitPositionMap: Record<string, IUnitPosition> = {};
+    for (const unit of allUnits) {
       // Try to get position from the unit's own properties first
       const unitPosition = unit.getPropertyValue('position');
       if (unitPosition && isUnitPosition(unitPosition)) {
         // Position is in IUnitPosition format: {unitId, mapId, position: Position}
-        console.log(
-          `  ${unit.name} (${unit.id.substring(0, 8)}...) is at ${unitPosition.mapId} (${unitPosition.position.x}, ${unitPosition.position.y})`
-        );
+        unitPositionMap[unit.id] = {
+          unitId: unit.id,
+          mapId: unitPosition.mapId,
+          position: unitPosition.position,
+        };
       } else {
         // If unit doesn't have position property, check world position
         try {
           const worldPosition = world.getUnitPosition(unit.id);
           if (worldPosition) {
-            console.log(
-              `  ${unit.name} (${unit.id.substring(0, 8)}...) is at ${worldPosition.mapId} (${worldPosition.position.x}, ${worldPosition.position.y})`
-            );
-          } else {
-            console.log(
-              `  ${unit.name} (${unit.id.substring(0, 8)}...) position not set`
-            );
+            unitPositionMap[unit.id] = {
+              unitId: unit.id,
+              mapId: worldPosition.mapId,
+              position: worldPosition.position,
+            };
           }
         } catch {
-          console.log(
-            `  ${unit.name} (${unit.id.substring(0, 8)}...) not in world yet`
-          );
+          // If position is not found, we'll skip adding it to the map
         }
       }
     }
+
+    // Using fixed display for all maps together with unit positions
+    MapRenderer.renderMultipleMapsFixed(maps, unitNameMap, unitPositionMap);
 
     // Show gate connections
     console.log('\nGate Connections:');

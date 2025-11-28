@@ -51,6 +51,11 @@ export class StatTracker {
           continue; // Skip if property doesn't exist in either state
         }
 
+        // Skip position changes since they're now visible in the fixed display
+        if (propName === 'position') {
+          continue;
+        }
+
         // Only log if values are defined and different
         if (initialPropInfo.value !== currentPropInfo.value) {
           changes.push({
