@@ -2,8 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { BaseUnit } from '@atsu/atago';
 import type { NamesData, ActionsData, DiaryEntry } from '../types';
-import type { Map as ChoukaiMap, World as ChoukaiWorld } from '@atsu/choukai';
-import { MapSerializer } from './MapSerializer';
+import type { World as ChoukaiWorld } from '@atsu/choukai';
 import { WorldSnapshotSerializer } from './WorldSnapshotSerializer';
 import { isUnitPosition } from '../types/typeGuards';
 
@@ -16,7 +15,6 @@ export class DataManager {
   public static NAMES_FILE = path.join(DataManager.DATA_DIR, 'names.json');
   public static UNITS_FILE = path.join(DataManager.DATA_DIR, 'units.json');
   public static DIARY_FILE = path.join(DataManager.DATA_DIR, 'diary.json');
-  public static MAPS_FILE = path.join(DataManager.DATA_DIR, 'maps.json');
   public static WORLD_FILE = path.join(DataManager.DATA_DIR, 'world.json');
 
   /**
@@ -163,27 +161,6 @@ export class DataManager {
     }
   }
 
-  /**
-   * Saves maps to the maps.json file
-   */
-  public static saveMaps(maps: ChoukaiMap[]): void {
-    const serializedMaps = MapSerializer.serializeMany(maps);
-    fs.writeFileSync(this.MAPS_FILE, JSON.stringify(serializedMaps, null, 2));
-  }
-
-  /**
-   * Loads maps from the maps.json file
-   * If file doesn't exist, returns an empty array
-   */
-  public static loadMaps(): ChoukaiMap[] {
-    if (!fs.existsSync(this.MAPS_FILE)) {
-      return [];
-    }
-
-    const content = fs.readFileSync(this.MAPS_FILE, 'utf-8');
-    const serializedMaps = JSON.parse(content);
-    return MapSerializer.deserializeMany(serializedMaps);
-  }
 
   /**
    * Saves world to the world.json file using snapshot serialization
