@@ -4,13 +4,15 @@
  */
 
 import { TakaoImpl } from '../src/TakaoImpl';
+import { Logger } from '../src/utils/Logger';
 
 async function runTakaoEngine() {
-  console.log('Takao Engine - Integrated Features Demo');
-  console.log('=====================================\n');
+  const logger = new Logger({ prefix: 'TakaoDemo' });
+  logger.info('Takao Engine - Integrated Features Demo');
+  logger.info('=====================================\n');
 
-  // Create and initialize the Takao Engine implementation
-  const takao = new TakaoImpl();
+  // Create and initialize the Takao Engine implementation with visual-only mode
+  const takao = new TakaoImpl(); // Set to true to see only maps
   await takao.initialize();
 
   // Start the game

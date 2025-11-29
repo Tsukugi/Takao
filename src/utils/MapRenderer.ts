@@ -59,7 +59,7 @@ export class MapRenderer {
   };
 
   /**
-   * Renders a map to console-friendly string representation
+   * Renders a map to console-friendly string representation with view limiting for large maps
    */
   public static render(
     map: GameMap,
@@ -73,18 +73,24 @@ export class MapRenderer {
     lines.push(`Map: ${map.name} (${map.width}x${map.height})`);
     lines.push('');
 
+    // Limit view size to make large maps readable
+    const MAX_WIDTH = 100;
+    const MAX_HEIGHT = 40;
+    const renderWidth = Math.min(map.width, MAX_WIDTH);
+    const renderHeight = Math.min(map.height, MAX_HEIGHT);
+
     if (finalConfig.showCoordinates && !finalConfig.compactView) {
       // Add X coordinate labels
       let coordLine = finalConfig.cellWidth > 1 ? '    ' : '  ';
-      for (let x = 0; x < map.width; x++) {
+      for (let x = 0; x < renderWidth; x++) {
         const coordStr = x.toString().padStart(finalConfig.cellWidth, ' ');
         coordLine += coordStr + (finalConfig.cellWidth > 1 ? ' ' : '');
       }
       lines.push(coordLine);
     }
 
-    // Render each row
-    for (let y = 0; y < map.height; y++) {
+    // Render rows up to the limited view
+    for (let y = 0; y < renderHeight; y++) {
       let row = '';
 
       if (finalConfig.showCoordinates) {
@@ -95,7 +101,7 @@ export class MapRenderer {
         }
       }
 
-      for (let x = 0; x < map.width; x++) {
+      for (let x = 0; x < renderWidth; x++) {
         const cell = map.getCell(x, y);
         let cellContent = '';
 
@@ -145,6 +151,12 @@ export class MapRenderer {
       }
 
       lines.push(row);
+    }
+
+    // Add note if map was truncated
+    if (map.width > MAX_WIDTH || map.height > MAX_HEIGHT) {
+      const truncationNote = `... [Map view limited to ${renderWidth}x${renderHeight} of ${map.width}x${map.height}] ...`;
+      lines.push(truncationNote);
     }
 
     return lines.join('\n');

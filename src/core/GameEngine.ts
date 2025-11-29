@@ -4,7 +4,8 @@ import { GameLoop } from './GameLoop';
 import { TurnManager } from './TurnManager';
 import { StoryTeller } from './StoryTeller';
 import { DataManager } from '../utils/DataManager';
-import { ConfigManager } from '../utils/ConfigManager';
+import { ConfigManager, type FullConfig } from '../utils/ConfigManager';
+import { Logger } from '../utils/Logger';
 import type { EngineProps, GameState } from '../types';
 
 /**
@@ -17,13 +18,15 @@ export class GameEngine {
   private worldController: WorldController;
   private storyTeller: StoryTeller;
   private turnManager: TurnManager;
+  private logger: Logger;
   private isRunning: boolean = false;
   private sessionTurnCount: number = 0;
   private maxTurnsPerSession: number =
     ConfigManager.getConfig().maxTurnsPerSession;
   private props: EngineProps = this.getDefaultProps();
 
-  constructor(_props: EngineProps = {}) {
+  constructor(_props: Partial<EngineProps> = {}) {
+    this.logger = new Logger({ prefix: 'GameEngine' });
     this.unitController = new UnitController();
     this.worldController = new WorldController();
     this.storyTeller = new StoryTeller(this.unitController);
@@ -37,7 +40,7 @@ export class GameEngine {
    * Initializes the game engine with the provided game state
    */
   public async initialize(gameState: GameState): Promise<void> {
-    console.log('Initializing game engine...');
+    this.logger.info('Initializing game engine...');
     // Initialize the controllers
     await this.unitController.initialize(gameState);
 
@@ -46,22 +49,28 @@ export class GameEngine {
 
     // Load the last turn number to continue from the previous session
     const lastTurn = DataManager.getLastTurnNumber();
-    console.log(`Starting from turn: ${lastTurn + 1}`);
+    this.logger.info(`Starting from turn: ${lastTurn + 1}`);
 
     // Initialize the turn manager with the continued turn number
     const gameStateWithTurn = { ...gameState, turn: lastTurn };
     this.turnManager = new TurnManager(gameStateWithTurn);
 
-    console.log('Game engine initialized successfully.');
+    this.logger.info('Game engine initialized successfully.');
   }
 
   /**
    * Starts the game loop
    */
   public start(): void {
-    console.log('Starting game engine...');
+    this.logger.info('Starting game engine...');
     this.isRunning = true;
     this.sessionTurnCount = 0; // Reset session turn count
+
+    this.props.onStart();
+
+    // Adjust logger based on visual-only mode
+    const isVisualOnlyMode = ConfigManager.getConfig().rendering.visualOnly;
+    this.logger.setProps({ disable: isVisualOnlyMode });
 
     // Start the game loop
     this.gameLoop.start(() => this.processTurn());
@@ -73,13 +82,16 @@ export class GameEngine {
   private async processTurn(): Promise<void> {
     // Use the actual turn number from the turn manager, not the loop's turn number
     const actualTurn = this.turnManager.getCurrentTurn() + 1; // +1 because turnManager tracks the last completed turn
-    console.log(`\n--- Turn ${actualTurn} ---`);
+
+    this.props.onTurnStart(actualTurn);
+
+    this.logger.info(`\n--- Engine: Turn ${actualTurn} ---`);
 
     try {
       // Use the StoryTeller to generate a story action for this turn
       const { action } = await this.storyTeller.generateStoryAction(actualTurn);
 
-      console.log(`Story Action: ${action.description || action.type}`);
+      this.logger.info(`Story Action: ${action.description || action.type}`);
 
       // Process the action through the turn manager
       await this.turnManager.processAction(action);
@@ -87,12 +99,14 @@ export class GameEngine {
       // Show the latest story
       const latestStory = this.storyTeller.getLatestStory();
       if (latestStory) {
-        console.log(`Narrative: ${latestStory}`);
+        this.logger.info(`Narrative: ${latestStory}`);
       }
 
       // End the turn
       this.turnManager.endTurn();
       this.sessionTurnCount++; // Increment session turn count
+
+      this.props.onTurnEnd(actualTurn);
 
       // Check if game should continue
       const shouldContinue = await this.shouldContinue();
@@ -100,7 +114,7 @@ export class GameEngine {
         this.stop();
       }
     } catch (error) {
-      console.error('Error processing turn:', error);
+      this.logger.error('Error processing turn:', error);
       this.stop();
     }
   }
@@ -118,20 +132,15 @@ export class GameEngine {
    * Stops the game engine
    */
   public stop(): void {
-    console.log('Stopping game engine...');
+    this.logger.info('Stopping game engine...');
     this.isRunning = false;
     this.gameLoop.stop();
 
-    // Create mapping from unit ID to unit name for serialization
-    const units = this.unitController.getUnits();
-    const unitNameMap: Record<string, string> = {};
-    for (const unit of units) {
-      unitNameMap[unit.id] = unit.name;
-    }
+    this.props.onStop();
 
     // Save the current world state with unit names for proper rendering
-    this.worldController.saveWorld(unitNameMap).catch(error => {
-      console.error('Error saving world state:', error);
+    this.worldController.saveWorld().catch(error => {
+      this.logger.error('Error saving world state:', error);
     });
   }
 
@@ -174,5 +183,13 @@ export class GameEngine {
       onStop: () => {},
       onStart: () => {},
     };
+  }
+
+  /**
+   * Retrieves the full configuration of the game engine, used from config.json
+   * @returns FullConfig object
+   */
+  public getConfig(): FullConfig {
+    return ConfigManager.getConfig();
   }
 }

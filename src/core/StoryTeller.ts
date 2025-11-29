@@ -17,6 +17,7 @@ import { MapGenerator } from '../utils/MapGenerator';
 import { World, Map as ChoukaiMap, Position } from '@atsu/choukai';
 import { WorldManager } from '../utils/WorldManager';
 import { GateSystem, type GateConnection } from '../utils/GateSystem';
+import { Logger } from '../utils/Logger';
 
 /**
  * Represents the StoryTeller that generates narrative actions based on unit states
@@ -30,8 +31,14 @@ export class StoryTeller {
   private mapGenerator: MapGenerator;
   private world: World;
   private gateSystem: GateSystem;
+  private logger: Logger;
 
   constructor(unitController: UnitController) {
+    const isVisualOnlyMode = ConfigManager.getConfig().rendering.visualOnly;
+    this.logger = new Logger({
+      prefix: 'StoryTeller',
+      disable: isVisualOnlyMode,
+    });
     this.unitController = unitController;
     this.actionsData = DataManager.loadActions();
     this.diary = DataManager.loadDiary(); // Load existing diary entries
@@ -43,12 +50,12 @@ export class StoryTeller {
     // Load existing world from file if available, otherwise create a new one
     const loadedWorld = DataManager.loadWorld();
     if (loadedWorld) {
-      console.log(
-        `StoryTeller loaded world with ${loadedWorld.getAllMaps().length} maps from saved state`
+      this.logger.info(
+        `loaded world with ${loadedWorld.getAllMaps().length} maps from saved state`
       );
       this.world = loadedWorld;
     } else {
-      console.log('StoryTeller creating new world');
+      this.logger.info('creating new world');
       this.world = WorldManager.createWorld();
     }
 
@@ -74,7 +81,7 @@ export class StoryTeller {
       units
     );
     if (!result.success) {
-      console.error(
+      this.logger.error(
         `Failed to execute action effect: ${result.errorMessage || 'Unknown error'}`
       );
       return storyAction; // Return early if execution fails
@@ -115,15 +122,15 @@ export class StoryTeller {
       // Group changes by unit and format them
       const groupedChanges = StatTracker.groupChangesByUnit(changes);
 
-      console.log(
-        `\nStat changes for action: ${storyAction.action.type} by ${storyAction.action.player}`
+      this.logger.info(
+        `Stat changes for action: ${storyAction.action.type} by ${storyAction.action.player}`
       );
 
       for (const [unitId, unitChanges] of groupedChanges) {
         const unit = units.find(u => u.id === unitId);
         if (unit) {
           const formattedChanges = StatTracker.formatStatChanges(unitChanges);
-          console.log(
+          this.logger.info(
             `  ${unit.name} (${unit.id}): ${formattedChanges.join(', ')}`
           );
         }
@@ -294,7 +301,7 @@ export class StoryTeller {
         targetY < 0 ||
         targetY >= currentMap.height
       ) {
-        console.error(
+        this.logger.error(
           `Target position (${targetX}, ${targetY}) is out of bounds (${currentMap.width}x${currentMap.height})`
         );
         return false;
@@ -305,7 +312,7 @@ export class StoryTeller {
 
       return moved;
     } catch (error) {
-      console.error(
+      this.logger.error(
         `Failed to move unit to position: ${(error as Error).message}`
       );
       return false;
@@ -337,14 +344,14 @@ export class StoryTeller {
           );
 
           if (updateSuccess) {
-            console.log(
+            this.logger.info(
               `Unit ${unitId} moved through gate from ${currentMapId}(${x},${y}) to ${gate.mapTo}(${gate.positionTo.x},${gate.positionTo.y})`
             );
           } else {
-            console.error(`Failed to move unit ${unitId} through gate`);
+            this.logger.error(`Failed to move unit ${unitId} through gate`);
           }
         } catch (error) {
-          console.error(
+          this.logger.error(
             `Error during gate transition for unit ${unitId}: ${(error as Error).message}`
           );
         }

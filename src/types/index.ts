@@ -137,10 +137,10 @@ export interface ActionProcessingResult {
  * Engine properties and callbacks
  */
 export interface EngineProps {
-  onTurnStart?: (turnNumber: number) => void;
-  onTurnEnd?: (turnNumber: number) => void;
-  onStop?: () => void;
-  onStart?: () => void;
+  onTurnStart: (turnNumber: number) => void;
+  onTurnEnd: (turnNumber: number) => void;
+  onStop: () => void;
+  onStart: () => void;
 }
 
 /**

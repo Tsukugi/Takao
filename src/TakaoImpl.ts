@@ -9,16 +9,22 @@ import { StoryTeller } from './core/StoryTeller';
 import { UnitController } from './ai/UnitController';
 import { MapRenderer } from './utils/MapRenderer';
 import { WorldManager } from './utils/WorldManager';
+import { Logger } from './utils/Logger';
 import { Position, World, type IUnitPosition } from '@atsu/choukai';
 import { isUnitPosition } from './types/typeGuards';
 import { MathUtils } from './utils/Math';
 
 export class TakaoImpl {
   private gameEngine: GameEngine;
+  private logger: Logger;
   private isRunning: boolean = false;
 
   constructor() {
-    this.gameEngine = new GameEngine({ onTurnStart: this.runTurn.bind(this) });
+    this.logger = new Logger({ prefix: 'TakaoImpl' });
+    this.gameEngine = new GameEngine({
+      onTurnStart: this.runTurn.bind(this),
+      onStop: this.showFinalState.bind(this),
+    });
   }
 
   private get unitController(): UnitController {
@@ -33,7 +39,7 @@ export class TakaoImpl {
    * Initialize the game with initial setup
    */
   public async initialize(): Promise<void> {
-    console.log('Initializing Takao Engine...');
+    this.logger.info('Initializing Takao Engine...');
 
     // Initialize the underlying game engine
     await this.gameEngine.initialize({ turn: 0 });
@@ -45,40 +51,9 @@ export class TakaoImpl {
     const existingMaps = world.getAllMaps();
 
     if (existingMaps.length === 0) {
-      console.log('No existing maps found, creating initial maps...');
-
-      // Create initial maps since none exist
-      const mainMap = this.storyTeller.createMap('Main Continent', 200, 150);
-      const forestMap = this.storyTeller.createMap('Dark Forest', 350, 100);
-      const mountainMap = this.storyTeller.createMap('High Mountains', 420, 80);
-
-      // Add maps to world
-      world.addMap(mainMap);
-      world.addMap(forestMap);
-      world.addMap(mountainMap);
-
-      // Create gate connections between maps
-      this.storyTeller.addGate({
-        mapFrom: 'Main Continent',
-        positionFrom: { x: 0, y: 7 },
-        mapTo: 'Dark Forest',
-        positionTo: { x: 14, y: 5 },
-        name: 'MainToForestGate',
-        bidirectional: true,
-      });
-
-      this.storyTeller.addGate({
-        mapFrom: 'Main Continent',
-        positionFrom: { x: 19, y: 10 },
-        mapTo: 'High Mountains',
-        positionTo: { x: 0, y: 3 },
-        name: 'MainToMountainGate',
-        bidirectional: true,
-      });
-
-      console.log('Initial maps and gates created.');
+      this.createInitialMaps(world);
     } else {
-      console.log(
+      this.logger.info(
         `Found ${existingMaps.length} existing maps from saved state, skipping initial map creation.`
       );
     }
@@ -86,7 +61,7 @@ export class TakaoImpl {
     // Place some initial units on the maps based on configuration
     this.initializeUnitPositions(world);
 
-    console.log('Takao Engine initialized with maps, gates, and units.');
+    this.logger.info('Takao Engine initialized with maps, gates, and units.');
   }
 
   /**
@@ -144,106 +119,119 @@ export class TakaoImpl {
    * Run a single turn of the game
    */
   public async runTurn(turn: number): Promise<void> {
-    console.log(`\n--- Turn ${turn} ---`);
+    this.logger.info(`\n--- TakaoImpl Turn ${turn} ---`);
 
     // Get all units
     const allUnits = this.unitController.getUnits();
     const world = this.storyTeller.getWorld();
-
-    // Each turn: every unit gets one action and one movement
-    // First, generate story actions for the turn (number of actions = number of units)
-    for (let i = 0; i < allUnits.length; i++) {
-      const storyAction = await this.storyTeller.generateStoryAction(turn);
-      console.log(`Action ${i + 1}: ${storyAction.action.description}`);
-    }
+    const allMaps = world.getAllMaps();
+    const isVisualOnlyMode = this.gameEngine.getConfig().rendering.visualOnly;
 
     // Then, ensure each unit moves
     for (const unit of allUnits) {
       try {
         const unitPos = world.getUnitPosition(unit.id);
-        if (unitPos) {
-          // Simple movement: move one step in a random direction
-          const directions = [
-            { x: 0, y: -1 }, // North
-            { x: 1, y: 0 }, // East
-            { x: 0, y: 1 }, // South
-            { x: -1, y: 0 }, // West
-          ];
+        if (!unitPos) continue;
+        // Simple movement: move one step in a random direction
+        const directions = [
+          { x: 0, y: -1 }, // North
+          { x: 1, y: 0 }, // East
+          { x: 0, y: 1 }, // South
+          { x: -1, y: 0 }, // West
+        ];
 
-          // Select a random direction
-          const randomDirection = MathUtils.getRandomFromArray(directions);
-          // Get map dimensions to properly constrain movement
-          const currentMap = world.getMap(unitPos.mapId);
-          const maxX = currentMap ? currentMap.width - 1 : 19;
-          const maxY = currentMap ? currentMap.height - 1 : 14;
+        // Select a random direction
+        const randomDirection = MathUtils.getRandomFromArray(directions);
+        // Get map dimensions to properly constrain movement
+        const currentMap = world.getMap(unitPos.mapId);
+        const maxX = currentMap ? currentMap.width - 1 : 19;
+        const maxY = currentMap ? currentMap.height - 1 : 14;
 
-          const newX = Math.max(
-            0,
-            Math.min(unitPos.position.x + randomDirection.x, maxX)
-          );
-          const newY = Math.max(
-            0,
-            Math.min(unitPos.position.y + randomDirection.y, maxY)
-          );
+        const newX = Math.max(
+          0,
+          Math.min(unitPos.position.x + randomDirection.x, maxX)
+        );
+        const newY = Math.max(
+          0,
+          Math.min(unitPos.position.y + randomDirection.y, maxY)
+        );
 
-          const moved = await this.storyTeller.moveUnitToPosition(
-            unit.id,
-            newX,
-            newY
-          );
+        const moved = await this.storyTeller.moveUnitToPosition(
+          unit.id,
+          newX,
+          newY
+        );
+
+        if (!isVisualOnlyMode) {
           if (moved) {
-            console.log(`${unit.name} moves to (${newX}, ${newY})`);
+            this.logger.info(`${unit.name} moves to (${newX}, ${newY})`);
           } else {
-            console.log(`${unit.name} failed to move`);
+            this.logger.info(`${unit.name} failed to move`);
           }
         }
       } catch (error) {
-        console.log(`${unit.name} could not move: ${(error as Error).message}`);
+        if (!isVisualOnlyMode)
+          this.logger.info(
+            `${unit.name} could not move: ${(error as Error).message}`
+          );
       }
     }
 
-    // Render the current state of all maps using fixed display
-    const maps = world.getAllMaps();
+    if (isVisualOnlyMode) {
+      // Visual-only mode: render only the maps without other details
+      if (allMaps.length > 0) {
+        const firstMap = allMaps[0]; // Just render the first map
+        if (!firstMap) return;
 
-    // Create mapping from unit ID to unit name for rendering
-    const unitNameMap: Record<string, string> = {};
-    for (const unit of allUnits) {
-      unitNameMap[unit.id] = unit.name;
-    }
+        // Create mapping from unit ID to unit name for rendering
+        const unitNameMap: Record<string, string> = {};
+        for (const unit of allUnits) {
+          unitNameMap[unit.id] = unit.name;
+        }
 
-    // Create mapping from unit ID to position information
-    const unitPositionMap: Record<string, IUnitPosition> = {};
-    for (const unit of allUnits) {
-      // Try to get position from the unit's own properties first
-      const unitPosition = unit.getPropertyValue('position');
-      if (unitPosition && isUnitPosition(unitPosition)) {
-        // Position is in IUnitPosition format: {unitId, mapId, position: Position}
-        unitPositionMap[unit.id] = {
-          unitId: unit.id,
-          mapId: unitPosition.mapId,
-          position: unitPosition.position,
-        };
+        // Render just the first map in visual-only mode
+        //   this.logger.info('\n' + '='.repeat(60));
+        //   this.logger.info('Current Map View (Visual Mode)');
+        //   this.logger.info('============================');
+        this.logger.info(
+          MapRenderer.render(firstMap, unitNameMap, {
+            showCoordinates: false,
+            cellWidth: 1,
+            showUnits: true,
+            showTerrain: true,
+            compactView: true,
+          })
+        );
+        //  this.logger.info('\n' + '='.repeat(60));
       } else {
-        // If unit doesn't have position property, check world position
+        this.logger.info('\nNo maps to render.');
+      }
+    } else {
+      // Normal mode: show unit positions summary as before
+      this.logger.info('\nUnit Positions Summary:');
+      this.logger.info('=====================');
+
+      for (const unit of allUnits) {
         try {
-          const worldPosition = world.getUnitPosition(unit.id);
-          if (worldPosition) {
-            unitPositionMap[unit.id] = {
-              unitId: unit.id,
-              mapId: worldPosition.mapId,
-              position: worldPosition.position,
-            };
+          const unitPos = world.getUnitPosition(unit.id);
+          if (unitPos) {
+            this.logger.info(
+              `  ${unit.name} (${unit.id.substring(0, 8)}) is at ${unitPos.mapId} (${unitPos.position.x}, ${unitPos.position.y})`
+            );
+          } else {
+            this.logger.info(
+              `  ${unit.name} (${unit.id.substring(0, 8)}) position not found in world`
+            );
           }
-        } catch {
-          // If position is not found, we'll skip adding it to the map
+        } catch (error) {
+          this.logger.info(
+            `  Could not get position for ${unit.name} (${unit.id.substring(0, 8)}): ${error}`
+          );
         }
       }
+
+      this.logger.info('\n' + '='.repeat(50));
     }
-
-    // Using fixed display for all maps together with unit positions
-    MapRenderer.renderMultipleMapsFixed(maps, unitNameMap, unitPositionMap);
-
-    console.log('\n' + '='.repeat(50));
   }
 
   /**
@@ -251,7 +239,7 @@ export class TakaoImpl {
    */
   public start(): void {
     if (this.isRunning) {
-      console.log('Game is already running');
+      this.logger.info('Game is already running');
       return;
     }
 
@@ -259,7 +247,7 @@ export class TakaoImpl {
 
     // Start the underlying game engine instead of managing our own loop
     this.gameEngine.start();
-    console.log('Game started! Running...');
+    this.logger.info('Game started! Running...');
   }
 
   /**
@@ -275,17 +263,17 @@ export class TakaoImpl {
     // Stop the underlying game engine
     this.gameEngine.stop();
 
-    console.log('Game stopped.');
+    this.logger.info('Game stopped.');
   }
 
   /**
    * Show the final state of the game
    */
   private showFinalState(): void {
-    console.log('\nFinal Game State:');
+    this.logger.info('\nFinal Game State:');
 
     // Show final map rendering with fixed display
-    console.log('\nFinal Map State:');
+    this.logger.info('\nFinal Map State:');
     const world = this.storyTeller.getWorld();
     const maps = world.getAllMaps();
     const allUnits = this.unitController.getUnits();
@@ -329,13 +317,48 @@ export class TakaoImpl {
     MapRenderer.renderMultipleMapsFixed(maps, unitNameMap, unitPositionMap);
 
     // Show gate connections
-    console.log('\nGate Connections:');
+    this.logger.info('\nGate Connections:');
     const allGates = this.storyTeller.getAllGates();
     for (const gate of allGates) {
-      console.log(
+      this.logger.info(
         `  ${gate.name}: ${gate.mapFrom}(${gate.positionFrom.x},${gate.positionFrom.y}) <-> ${gate.mapTo}(${gate.positionTo.x},${gate.positionTo.y})`
       );
     }
+  }
+
+  private createInitialMaps(world: World): void {
+    this.logger.info('No existing maps found, creating initial maps...');
+
+    // Create initial maps since none exist
+    const mainMap = this.storyTeller.createMap('Main Continent', 100, 50);
+    const forestMap = this.storyTeller.createMap('Dark Forest', 100, 100);
+    const mountainMap = this.storyTeller.createMap('High Mountains', 100, 80);
+
+    // Add maps to world
+    world.addMap(mainMap);
+    world.addMap(forestMap);
+    world.addMap(mountainMap);
+
+    // Create gate connections between maps
+    this.storyTeller.addGate({
+      mapFrom: 'Main Continent',
+      positionFrom: { x: 0, y: 7 },
+      mapTo: 'Dark Forest',
+      positionTo: { x: 14, y: 5 },
+      name: 'MainToForestGate',
+      bidirectional: true,
+    });
+
+    this.storyTeller.addGate({
+      mapFrom: 'Main Continent',
+      positionFrom: { x: 19, y: 10 },
+      mapTo: 'High Mountains',
+      positionTo: { x: 0, y: 3 },
+      name: 'MainToMountainGate',
+      bidirectional: true,
+    });
+
+    this.logger.info('Initial maps and gates created.');
   }
 
   /**

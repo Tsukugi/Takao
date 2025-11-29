@@ -48,7 +48,10 @@ export interface MapGenerationConfig {
 
 // Combined configuration interface
 export interface FullConfig extends AppConfig {
-  mapGeneration?: Partial<MapGenerationConfig>;
+  mapGeneration: Partial<MapGenerationConfig>;
+  rendering: {
+    visualOnly: boolean;
+  };
 }
 
 export class ConfigManager {
@@ -81,7 +84,7 @@ export class ConfigManager {
     return this.config;
   }
 
-  private static getDefaultConfig(): FullConfig {
+  public static getDefaultConfig(): FullConfig {
     return {
       maxTurnsPerSession: 10,
       mapGeneration: {
@@ -120,6 +123,9 @@ export class ConfigManager {
         enablePerlinNoise: false,
         noiseScale: 0.1,
         seed: Date.now().toString(),
+      },
+      rendering: {
+        visualOnly: false,
       },
     };
   }

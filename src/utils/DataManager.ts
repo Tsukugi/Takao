@@ -1,10 +1,11 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { BaseUnit } from '@atsu/atago';
-import type { NamesData, ActionsData, DiaryEntry } from '../types';
 import type { World as ChoukaiWorld } from '@atsu/choukai';
+import type { NamesData, ActionsData, DiaryEntry } from '../types';
 import { WorldSnapshotSerializer } from './WorldSnapshotSerializer';
 import { isUnitPosition } from '../types/typeGuards';
+import { Logger } from './Logger';
 
 /**
  * Utility class for managing JSON data files
@@ -161,16 +162,18 @@ export class DataManager {
     }
   }
 
-
   /**
    * Saves world to the world.json file using snapshot serialization
    */
   public static saveWorld(world: ChoukaiWorld): void {
-    console.log('DataManager.saveWorld called');
+    const logger = new Logger({ prefix: 'DataManager', disable: true });
+    logger.info('DataManager.saveWorld called');
+
     const serializedWorld = WorldSnapshotSerializer.serialize(world);
-    console.log('Writing serialized world to file:', this.WORLD_FILE);
+    logger.info('Writing serialized world to file:', this.WORLD_FILE);
+
     fs.writeFileSync(this.WORLD_FILE, JSON.stringify(serializedWorld, null, 2));
-    console.log('World saved to file successfully');
+    logger.info('World saved to file successfully');
   }
 
   /**
