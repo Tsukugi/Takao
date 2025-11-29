@@ -1,3 +1,5 @@
+import type { IMapCell, IMapConfig } from '@atsu/choukai';
+
 /**
  * Represents the basic game state interface
  */
@@ -131,9 +133,23 @@ export interface ActionProcessingResult {
   errorMessage?: string;
 }
 
+/**
+ * Engine properties and callbacks
+ */
 export interface EngineProps {
   onTurnStart?: (turnNumber: number) => void;
   onTurnEnd?: (turnNumber: number) => void;
   onStop?: () => void;
   onStart?: () => void;
+}
+
+/**
+ * Serializable map data structure
+ */
+export interface SerializableMap {
+  width: number;
+  height: number;
+  name: string;
+  config?: IMapConfig;
+  cells: IMapCell[][];
 }

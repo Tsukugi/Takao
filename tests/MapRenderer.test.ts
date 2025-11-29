@@ -72,11 +72,15 @@ describe('MapRenderer', () => {
 
   it('should render with custom configuration', () => {
     testMap.setTerrain(0, 0, 'water');
-    const result = MapRenderer.render(testMap, {
-      showCoordinates: true,
-      cellWidth: 2,
-      showTerrain: true,
-    });
+    const result = MapRenderer.render(
+      testMap,
+      {},
+      {
+        showCoordinates: true,
+        cellWidth: 2,
+        showTerrain: true,
+      }
+    );
 
     expect(result).toContain(' 0|'); // Coordinates shown (with special config, may be different formatting)
     expect(result).toContain('~ .'); // Water with padding (cell width 2 creates space after)

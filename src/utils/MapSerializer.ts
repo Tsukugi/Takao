@@ -3,18 +3,7 @@
  */
 
 import { Map as ChoukaiMap } from '@atsu/choukai';
-import type { IMapCell, IMapConfig } from '@atsu/choukai';
-
-/**
- * Serializable map data structure
- */
-export interface SerializableMap {
-  width: number;
-  height: number;
-  name: string;
-  config?: IMapConfig;
-  cells: IMapCell[][];
-}
+import type { SerializableMap } from '../types';
 
 /**
  * Map serialization utilities for saving and loading maps
