@@ -39,7 +39,19 @@ export class StoryTeller {
 
     // Initialize map generation capabilities
     this.mapGenerator = new MapGenerator();
-    this.world = WorldManager.createWorld();
+
+    // Load existing world from file if available, otherwise create a new one
+    const loadedWorld = DataManager.loadWorld();
+    if (loadedWorld) {
+      console.log(
+        `StoryTeller loaded world with ${loadedWorld.getAllMaps().length} maps from saved state`
+      );
+      this.world = loadedWorld;
+    } else {
+      console.log('StoryTeller creating new world');
+      this.world = WorldManager.createWorld();
+    }
+
     this.gateSystem = new GateSystem();
   }
 

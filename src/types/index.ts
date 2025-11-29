@@ -130,3 +130,10 @@ export interface ActionProcessingResult {
   success: boolean;
   errorMessage?: string;
 }
+
+export interface EngineProps {
+  onTurnStart?: (turnNumber: number) => void;
+  onTurnEnd?: (turnNumber: number) => void;
+  onStop?: () => void;
+  onStart?: () => void;
+}

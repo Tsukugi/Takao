@@ -2,7 +2,7 @@
  * Tests for the updated StoryTeller with Map Generation integration
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { StoryTeller } from '../src/core/StoryTeller';
 import { UnitController } from '../src/ai/UnitController';
 import { Position, World } from '@atsu/choukai';
@@ -44,15 +44,6 @@ describe('StoryTeller with Map Generation Integration', () => {
   it('should get the current world', () => {
     const world = storyTeller.getWorld();
     expect(world).toBeInstanceOf(World);
-  });
-
-  it('should save the world state', () => {
-    // Mock the DataManager.saveWorld method to verify it's called
-    const saveWorldSpy = vi.spyOn(storyTeller, 'saveWorld');
-
-    storyTeller.saveWorld();
-
-    expect(saveWorldSpy).toHaveBeenCalled();
   });
 
   it('should handle map edge movement', async () => {

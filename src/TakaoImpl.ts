@@ -1,9 +1,10 @@
 /**
  * Takao Engine Implementation - Main Integration Class
  * Interconnects all features: StoryTeller, Unit Controller, Maps, Gates, Rendering
+ * Uses GameEngine internally for turn management and world saving
  */
 
-import { GameLoop } from './core/GameLoop';
+import { GameEngine } from './core/GameEngine';
 import { StoryTeller } from './core/StoryTeller';
 import { UnitController } from './ai/UnitController';
 import { MapRenderer } from './utils/MapRenderer';
@@ -13,15 +14,19 @@ import { isUnitPosition } from './types/typeGuards';
 import { MathUtils } from './utils/Math';
 
 export class TakaoImpl {
-  private gameLoop: GameLoop;
-  private storyTeller: StoryTeller;
-  private unitController: UnitController;
+  private gameEngine: GameEngine;
   private isRunning: boolean = false;
 
   constructor() {
-    this.unitController = new UnitController();
-    this.storyTeller = new StoryTeller(this.unitController);
-    this.gameLoop = new GameLoop();
+    this.gameEngine = new GameEngine({ onTurnStart: this.runTurn.bind(this) });
+  }
+
+  private get unitController(): UnitController {
+    return this.gameEngine.getUnitController();
+  }
+
+  private get storyTeller(): StoryTeller {
+    return this.gameEngine.getStoryTeller();
   }
 
   /**
@@ -30,38 +35,53 @@ export class TakaoImpl {
   public async initialize(): Promise<void> {
     console.log('Initializing Takao Engine...');
 
-    // Initialize unit controller
-    await this.unitController.initialize({ turn: 0 });
+    // Initialize the underlying game engine
+    await this.gameEngine.initialize({ turn: 0 });
 
-    // Create initial maps
-    const mainMap = this.storyTeller.createMap('Main Continent', 50, 15);
-    const forestMap = this.storyTeller.createMap('Dark Forest', 35, 10);
-    const mountainMap = this.storyTeller.createMap('High Mountains', 42, 8);
-
-    // Add maps to world
+    // Get the world instance
     const world = this.storyTeller.getWorld();
-    world.addMap(mainMap);
-    world.addMap(forestMap);
-    world.addMap(mountainMap);
 
-    // Create gate connections between maps
-    this.storyTeller.addGate({
-      mapFrom: 'Main Continent',
-      positionFrom: { x: 0, y: 7 },
-      mapTo: 'Dark Forest',
-      positionTo: { x: 14, y: 5 },
-      name: 'MainToForestGate',
-      bidirectional: true,
-    });
+    // Check if there are already saved maps in the world
+    const existingMaps = world.getAllMaps();
 
-    this.storyTeller.addGate({
-      mapFrom: 'Main Continent',
-      positionFrom: { x: 19, y: 10 },
-      mapTo: 'High Mountains',
-      positionTo: { x: 0, y: 3 },
-      name: 'MainToMountainGate',
-      bidirectional: true,
-    });
+    if (existingMaps.length === 0) {
+      console.log('No existing maps found, creating initial maps...');
+
+      // Create initial maps since none exist
+      const mainMap = this.storyTeller.createMap('Main Continent', 200, 150);
+      const forestMap = this.storyTeller.createMap('Dark Forest', 350, 100);
+      const mountainMap = this.storyTeller.createMap('High Mountains', 420, 80);
+
+      // Add maps to world
+      world.addMap(mainMap);
+      world.addMap(forestMap);
+      world.addMap(mountainMap);
+
+      // Create gate connections between maps
+      this.storyTeller.addGate({
+        mapFrom: 'Main Continent',
+        positionFrom: { x: 0, y: 7 },
+        mapTo: 'Dark Forest',
+        positionTo: { x: 14, y: 5 },
+        name: 'MainToForestGate',
+        bidirectional: true,
+      });
+
+      this.storyTeller.addGate({
+        mapFrom: 'Main Continent',
+        positionFrom: { x: 19, y: 10 },
+        mapTo: 'High Mountains',
+        positionTo: { x: 0, y: 3 },
+        name: 'MainToMountainGate',
+        bidirectional: true,
+      });
+
+      console.log('Initial maps and gates created.');
+    } else {
+      console.log(
+        `Found ${existingMaps.length} existing maps from saved state, skipping initial map creation.`
+      );
+    }
 
     // Place some initial units on the maps based on configuration
     this.initializeUnitPositions(world);
@@ -237,20 +257,8 @@ export class TakaoImpl {
 
     this.isRunning = true;
 
-    // Set up the game loop with turn-by-turn execution
-    this.gameLoop.start(async (turn: number) => {
-      await this.runTurn(turn);
-
-      // Stop after 15 turns for demonstration
-      if (turn >= 15) {
-        this.stop();
-        console.log('\nGame ended after 15 turns.');
-
-        // Show final state
-        this.showFinalState();
-      }
-    });
-
+    // Start the underlying game engine instead of managing our own loop
+    this.gameEngine.start();
     console.log('Game started! Running...');
   }
 
@@ -263,7 +271,10 @@ export class TakaoImpl {
     }
 
     this.isRunning = false;
-    this.gameLoop.stop();
+
+    // Stop the underlying game engine
+    this.gameEngine.stop();
+
     console.log('Game stopped.');
   }
 

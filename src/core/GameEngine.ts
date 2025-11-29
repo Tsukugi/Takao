@@ -5,7 +5,7 @@ import { TurnManager } from './TurnManager';
 import { StoryTeller } from './StoryTeller';
 import { DataManager } from '../utils/DataManager';
 import { ConfigManager } from '../utils/ConfigManager';
-import type { GameState } from '../types';
+import type { EngineProps, GameState } from '../types';
 
 /**
  * Represents the main game engine that manages the game state,
@@ -21,14 +21,16 @@ export class GameEngine {
   private sessionTurnCount: number = 0;
   private maxTurnsPerSession: number =
     ConfigManager.getConfig().maxTurnsPerSession;
+  private props: EngineProps = this.getDefaultProps();
 
-  constructor() {
+  constructor(_props: EngineProps = {}) {
     this.unitController = new UnitController();
     this.worldController = new WorldController();
     this.storyTeller = new StoryTeller(this.unitController);
     this.gameLoop = new GameLoop();
     // We'll initialize turnManager in the initialize method with a default value
     this.turnManager = new TurnManager({ turn: 0 });
+    this.props = { ...this.props, ..._props };
   }
 
   /**
@@ -120,8 +122,15 @@ export class GameEngine {
     this.isRunning = false;
     this.gameLoop.stop();
 
-    // Save the current world state
-    this.worldController.saveWorld().catch(error => {
+    // Create mapping from unit ID to unit name for serialization
+    const units = this.unitController.getUnits();
+    const unitNameMap: Record<string, string> = {};
+    for (const unit of units) {
+      unitNameMap[unit.id] = unit.name;
+    }
+
+    // Save the current world state with unit names for proper rendering
+    this.worldController.saveWorld(unitNameMap).catch(error => {
       console.error('Error saving world state:', error);
     });
   }
@@ -131,5 +140,39 @@ export class GameEngine {
    */
   public getRunning(): boolean {
     return this.isRunning;
+  }
+
+  /**
+   * Gets the unit controller
+   */
+  public getUnitController(): UnitController {
+    return this.unitController;
+  }
+
+  /**
+   * Gets the story teller
+   */
+  public getStoryTeller(): StoryTeller {
+    return this.storyTeller;
+  }
+
+  /**
+   * Gets the world controller
+   */
+  public getWorldController(): WorldController {
+    return this.worldController;
+  }
+
+  /**
+   * Gets the default engine properties, with empty no-op callbacks
+   * @returns default EngineProps object
+   */
+  private getDefaultProps(): EngineProps {
+    return {
+      onTurnStart: () => {},
+      onTurnEnd: () => {},
+      onStop: () => {},
+      onStart: () => {},
+    };
   }
 }

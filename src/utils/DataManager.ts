@@ -4,7 +4,7 @@ import { BaseUnit } from '@atsu/atago';
 import type { NamesData, ActionsData, DiaryEntry } from '../types';
 import type { Map as ChoukaiMap, World as ChoukaiWorld } from '@atsu/choukai';
 import { MapSerializer } from './MapSerializer';
-import { WorldSerializer } from './WorldSerializer';
+import { WorldSnapshotSerializer } from './WorldSnapshotSerializer';
 import { isUnitPosition } from '../types/typeGuards';
 
 /**
@@ -186,15 +186,18 @@ export class DataManager {
   }
 
   /**
-   * Saves world to the world.json file
+   * Saves world to the world.json file using snapshot serialization
    */
   public static saveWorld(world: ChoukaiWorld): void {
-    const serializedWorld = WorldSerializer.serialize(world);
+    console.log('DataManager.saveWorld called');
+    const serializedWorld = WorldSnapshotSerializer.serialize(world);
+    console.log('Writing serialized world to file:', this.WORLD_FILE);
     fs.writeFileSync(this.WORLD_FILE, JSON.stringify(serializedWorld, null, 2));
+    console.log('World saved to file successfully');
   }
 
   /**
-   * Loads world from the world.json file
+   * Loads world from the world.json file using snapshot deserialization
    * If file doesn't exist, returns null
    */
   public static loadWorld(): ChoukaiWorld | null {
@@ -204,6 +207,6 @@ export class DataManager {
 
     const content = fs.readFileSync(this.WORLD_FILE, 'utf-8');
     const serializedWorld = JSON.parse(content);
-    return WorldSerializer.deserialize(serializedWorld);
+    return WorldSnapshotSerializer.deserialize(serializedWorld);
   }
 }

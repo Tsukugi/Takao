@@ -2,7 +2,7 @@
  * MapRenderer class for visualizing game maps in console format
  */
 
-import { Map as GameMap, Position } from '@atsu/choukai';
+import { Map as GameMap, Position, type TerrainType } from '@atsu/choukai';
 
 export interface MapRendererConfig {
   showCoordinates: boolean;
@@ -20,7 +20,7 @@ export interface FixedDisplayState {
 }
 
 export class MapRenderer {
-  private static readonly TERRAIN_SYMBOLS: Record<string, string> = {
+  private static readonly TERRAIN_SYMBOLS: Record<TerrainType, string> = {
     grass: '.',
     water: '~',
     mountain: '^',
@@ -33,7 +33,7 @@ export class MapRenderer {
     sand: '-',
   };
 
-  private static readonly TERRAIN_COLORS: Record<string, string> = {
+  private static readonly TERRAIN_COLORS: Record<TerrainType, string> = {
     grass: '\x1b[90m', // bright black (gray)
     water: '\x1b[34m', // blue
     mountain: '\x1b[37m', // white
@@ -340,7 +340,7 @@ export class MapRenderer {
           }
 
           if (!cellContent && finalConfig?.showTerrain) {
-            const terrain = cell ? cell.terrain : 'grass';
+            const terrain: TerrainType = cell ? cell.terrain : 'grass';
             cellContent = this.TERRAIN_SYMBOLS[terrain] || '?';
             // Apply terrain color if enabled
             if (finalConfig?.useColors) {
