@@ -33,7 +33,7 @@ export class StoryTeller {
   private logger: Logger;
   private actionProcessor: ActionProcessor;
 
-  constructor(unitController: UnitController) {
+  constructor(unitController: UnitController, world?: World) {
     const isVisualOnlyMode = ConfigManager.getConfig().rendering.visualOnly;
     this.logger = new Logger({
       prefix: 'StoryTeller',
@@ -48,16 +48,24 @@ export class StoryTeller {
     // Initialize map generation capabilities
     this.mapGenerator = new MapGenerator();
 
-    // Load existing world from file if available, otherwise create a new one
-    const loadedWorld = DataManager.loadWorld();
-    if (loadedWorld) {
+    // Use provided world or create our own
+    if (world) {
+      this.world = world;
       this.logger.info(
-        `loaded world with ${loadedWorld.getAllMaps().length} maps from saved state`
+        `using provided world with ${world.getAllMaps().length} maps`
       );
-      this.world = loadedWorld;
     } else {
-      this.logger.info('creating new world');
-      this.world = new World();
+      // Load existing world from file if available, otherwise create a new one
+      const loadedWorld = DataManager.loadWorld();
+      if (loadedWorld) {
+        this.logger.info(
+          `loaded world with ${loadedWorld.getAllMaps().length} maps from saved state`
+        );
+        this.world = loadedWorld;
+      } else {
+        this.logger.info('creating new world');
+        this.world = new World();
+      }
     }
 
     this.gateSystem = new GateSystem();

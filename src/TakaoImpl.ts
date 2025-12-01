@@ -4,7 +4,7 @@
  * Uses GameEngine internally for turn management and world saving
  */
 
-import { renderGame } from '@atsu/maya';
+import { renderGame, type IGameRendererConfig } from '@atsu/maya';
 import { World, Position } from '@atsu/choukai';
 import type { BaseUnit, IUnitPosition } from '@atsu/atago';
 import { GameEngine } from './core/GameEngine';
@@ -61,7 +61,11 @@ export class TakaoImpl {
     // Place some initial units on the maps based on configuration
     this.initializeUnitPositions();
 
-    this.logger.info('Takao Engine initialized with maps, gates, and units.');
+    // DEBUG: Check how many maps are in the world
+    const finalMaps = world.getAllMaps();
+    this.logger.info(
+      `Takao Engine initialized with ${finalMaps.length} maps, gates, and units.`
+    );
   }
 
   /**
@@ -109,6 +113,45 @@ export class TakaoImpl {
         });
       }
     }
+  }
+
+  private readonly targetFrameTime: number = 1000 / 1;
+  private rendererIntervalId: NodeJS.Timeout | null = null;
+  private isRendererRunning: boolean = false;
+  private lastWorldState: {
+    world: World;
+    units: Map<string, BaseUnit>;
+  } | null = null;
+  private renderConfig: IGameRendererConfig = {};
+  private lastWorldHash: string | null = null;
+
+  /**
+   * Generate a hash to determine if the world state has changed
+   */
+  private generateWorldHash(
+    world: World,
+    units: Map<string, BaseUnit>
+  ): string {
+    // Create a simple hash based on unit positions and map states
+    const states: string[] = [];
+
+    // Add map information
+    const maps = world.getAllMaps();
+    for (const map of maps) {
+      states.push(`${map.name}:${map.width}x${map.height}`);
+    }
+
+    // Add unit positions
+    for (const [id, unit] of units) {
+      const pos = unit.getPropertyValue<IUnitPosition>('position');
+      if (pos) {
+        states.push(`${id}:${pos.mapId}:${pos.position.x},${pos.position.y}`);
+      }
+    }
+
+    // Sort to ensure consistent order
+    states.sort();
+    return states.join('|');
   }
 
   /**
@@ -177,21 +220,61 @@ export class TakaoImpl {
       }
     }
 
-    try {
-      // Prepare units mapping for Maya rendering
-      const unitsMap: Record<string, BaseUnit> = {};
-      for (const unit of allUnits) {
-        unitsMap[unit.id] = unit;
-      }
+    // Store the current world state for rendering
+    const unitsMap = new Map<string, BaseUnit>();
+    for (const unit of allUnits) {
+      unitsMap.set(unit.id, unit);
+    }
 
-      // Render the game using Maya, showing only the first map
-      const firstMap = allMaps[0];
-      await renderGame(world, unitsMap, {
-        selectedMap: firstMap?.name,
+    // Generate hash to determine if state has changed
+    const currentHash = this.generateWorldHash(world, unitsMap);
+
+    // Only update if state has changed
+    if (currentHash !== this.lastWorldHash) {
+      this.lastWorldState = {
+        world,
+        units: unitsMap,
+      };
+
+      this.renderConfig = {
+        selectedMap: allMaps[0]?.name,
         showUnitPositions: !isVisualOnlyMode,
-      });
-    } catch {
-      this.logger.error('\nNo maps to render.');
+      };
+
+      this.lastWorldHash = currentHash;
+    }
+  }
+
+  private startRenderer(): void {
+    if (this.isRendererRunning) {
+      return;
+    }
+
+    this.isRendererRunning = true;
+
+    this.rendererIntervalId = setInterval(() => {
+      if (this.lastWorldState) {
+        try {
+          // Prepare units mapping for Maya rendering from the stored Map
+          const unitsMap: Record<string, BaseUnit> = {};
+          for (const [id, unit] of this.lastWorldState.units) {
+            unitsMap[id] = unit;
+          }
+
+          // Render the game using Maya with the stored world state
+          renderGame(this.lastWorldState.world, unitsMap, this.renderConfig);
+        } catch {
+          this.logger.error('\nNo maps to render.');
+        }
+      }
+    }, this.targetFrameTime);
+  }
+
+  private stopRenderer(): void {
+    if (this.rendererIntervalId) {
+      clearInterval(this.rendererIntervalId);
+      this.rendererIntervalId = null;
+      this.isRendererRunning = false;
     }
   }
 
@@ -206,7 +289,10 @@ export class TakaoImpl {
 
     this.isRunning = true;
 
-    // Start the underlying game engine instead of managing our own loop
+    // Start the separate renderer loop for Maya
+    this.startRenderer();
+
+    // Start the underlying game engine for game logic
     this.gameEngine.start();
     this.logger.info('Game started! Running...');
   }
@@ -221,6 +307,9 @@ export class TakaoImpl {
 
     this.isRunning = false;
 
+    // Stop the renderer first
+    this.stopRenderer();
+
     // Stop the underlying game engine
     this.gameEngine.stop();
 
@@ -232,6 +321,9 @@ export class TakaoImpl {
    */
   private showFinalState(): void {
     this.logger.info('\nFinal Game State:');
+
+    // Stop the separate renderer before showing final state
+    this.stopRenderer();
 
     // Show final map rendering with fixed display
     this.logger.info('\nFinal Map State:');
@@ -266,15 +358,19 @@ export class TakaoImpl {
         `  ${gate.name}: ${gate.mapFrom}(${gate.positionFrom.x},${gate.positionFrom.y}) <-> ${gate.mapTo}(${gate.positionTo.x},${gate.positionTo.y})`
       );
     }
+
+    // Save the world state at the end
+    this.storyTeller.saveWorld();
+    this.logger.info('\nWorld saved to file.');
   }
 
   private createInitialMaps(world: World): void {
     this.logger.info('No existing maps found, creating initial maps...');
 
     // Create initial maps since none exist
-    const mainMap = this.storyTeller.createMap('Main Continent', 100, 50);
-    const forestMap = this.storyTeller.createMap('Dark Forest', 100, 100);
-    const mountainMap = this.storyTeller.createMap('High Mountains', 100, 80);
+    const mainMap = this.storyTeller.createMap('Main Continent', 80, 20);
+    const forestMap = this.storyTeller.createMap('Dark Forest', 50, 20);
+    const mountainMap = this.storyTeller.createMap('High Mountains', 40, 20);
 
     // Add maps to world
     world.addMap(mainMap);

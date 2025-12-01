@@ -67,10 +67,25 @@ export class WorldController {
   }
 
   /**
-   * Saves the current world state to file
+   * Saves the current world state to file (async)
    */
   public async saveWorld(): Promise<void> {
     DataManager.saveWorld(this.world);
     console.log('World saved to file');
+  }
+
+  /**
+   * Saves the current world state to file (synchronous)
+   */
+  public saveWorldSync(): void {
+    DataManager.saveWorld(this.world);
+    console.log('World saved to file (sync)');
+  }
+
+  /**
+   * Sets a new world instance to manage
+   */
+  public setWorld(world: ChoukaiWorld): void {
+    this.world = world;
   }
 }

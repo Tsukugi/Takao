@@ -29,7 +29,11 @@ export class GameEngine {
     this.logger = new Logger({ prefix: 'GameEngine' });
     this.unitController = new UnitController();
     this.worldController = new WorldController();
-    this.storyTeller = new StoryTeller(this.unitController);
+    // Pass the world controller's world to the StoryTeller so they share the same world
+    this.storyTeller = new StoryTeller(
+      this.unitController,
+      this.worldController.getWorld()
+    );
     this.gameLoop = new GameLoop();
     // We'll initialize turnManager in the initialize method with a default value
     this.turnManager = new TurnManager({ turn: 0 });
@@ -48,8 +52,11 @@ export class GameEngine {
     const lastTurn = DataManager.getLastTurnNumber();
     this.logger.info(`Starting from turn: ${lastTurn + 1}`);
 
-    // Create a new story teller with the initialized controller
-    this.storyTeller = new StoryTeller(this.unitController);
+    // Create a new story teller with the initialized controller and use the same world
+    this.storyTeller = new StoryTeller(
+      this.unitController,
+      this.worldController.getWorld()
+    );
 
     // Initialize the turn manager with the continued turn number
     const gameStateWithTurn = { ...gameState, turn: lastTurn };
@@ -139,9 +146,20 @@ export class GameEngine {
     this.props.onStop();
 
     // Save the current world state with unit names for proper rendering
-    this.worldController.saveWorld().catch(error => {
+    // Using a synchronous save to ensure it completes before exit
+    this.saveWorldSync();
+  }
+
+  /**
+   * Private method to save the world state synchronously
+   */
+  private saveWorldSync(): void {
+    try {
+      this.worldController.saveWorldSync();
+      this.logger.info('World state saved successfully');
+    } catch (error) {
       this.logger.error('Error saving world state:', error);
-    });
+    }
   }
 
   /**
