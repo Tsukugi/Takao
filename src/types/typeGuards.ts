@@ -1,4 +1,4 @@
-import type { IPosition, IUnitPosition } from '@atsu/choukai';
+import type { IPosition, IUnitPosition } from '@atsu/atago';
 import type { ComparisonRequirement, RandomValue, Requirement } from './index';
 
 export const isRandomValue = (value: unknown): value is RandomValue =>

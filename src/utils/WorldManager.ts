@@ -3,12 +3,9 @@
  * Provides essential utilities for world and map operations needed by the game engine
  */
 
-import {
-  Map as ChoukaiMap,
-  World,
-  Position,
-  type IUnitPosition,
-} from '@atsu/choukai';
+import { Map as ChoukaiMap, World, Position } from '@atsu/choukai';
+import type { BaseUnit, IUnitPosition } from '@atsu/atago';
+import { isUnitPosition } from '../types/typeGuards';
 
 /**
  * WorldManager class to handle world and map operations for the game
@@ -46,63 +43,68 @@ export class WorldManager {
 
   /**
    * Sets a unit's position in the world
-   * @param world - The world instance
-   * @param unitId - ID of the unit
+   * @param unit - The unit whose position is to be set
    * @param mapId - ID of the map
-   * @param position - Position to set for the unit
+   * @param position - New position to set
    * @returns True if position was set successfully, false otherwise
    */
   static setUnitPosition(
-    world: World,
-    unitId: string,
+    unit: BaseUnit,
     mapId: string,
     position: Position
   ): boolean {
     try {
-      return world.setUnitPosition(unitId, mapId, position);
+      unit.setProperty('position', { unitId: unit.id, mapId, position });
+      return true; // Position set successfully
     } catch (error) {
       console.warn(
-        `Failed to set position for unit ${unitId} on map ${mapId}: ${(error as Error).message}`
+        `Failed to set position for unit ${unit.id} on map ${mapId}: ${(error as Error).message}`
       );
       return false; // Operation failed due to missing resources
     }
   }
 
   /**
-   * Gets a unit's position from the world
-   * @param world - The world instance
-   * @param unitId - ID of the unit
+   * Gets a unit's position from the unit's property
+   * @param unit - The unit whose position is to be retrieved
    * @returns IUnitPosition object containing unitId, mapId and position
    */
-  static getUnitPosition(world: World, unitId: string): IUnitPosition {
-    try {
-      return world.getUnitPosition(unitId);
-    } catch (error) {
-      throw new Error(
-        `Failed to get position for unit ${unitId}: ${(error as Error).message}`
-      );
+  static getUnitPosition(unit: BaseUnit): IUnitPosition {
+    const positionData = unit.getPropertyValue<IUnitPosition>('position');
+    if (isUnitPosition(positionData)) {
+      return positionData;
     }
+    throw new Error(
+      `Failed to get position for unit ${unit.id}: Position data not found or invalid`
+    );
   }
 
   /**
-   * Moves a unit within the world
-   * @param world - The world instance
-   * @param unitId - ID of the unit to move
+   * Moves a unit by updating the unit's position property
+   * @param unit - The unit to move
    * @param newX - New X coordinate
    * @param newY - New Y coordinate
    * @returns True if movement was successful, false otherwise
    */
-  static moveUnit(
-    world: World,
-    unitId: string,
-    newX: number,
-    newY: number
-  ): boolean {
+  static moveUnit(unit: BaseUnit, newX: number, newY: number): boolean {
     try {
-      return world.moveUnit(unitId, newX, newY);
+      const positionData = unit.getPropertyValue<IUnitPosition>('position');
+      if (!positionData) {
+        throw new Error('Position data not found on unit');
+      }
+
+      // Create new position with updated coordinates, preserving mapId and z coordinate if exists
+      const newUnitPosition: IUnitPosition = {
+        unitId: unit.id,
+        mapId: positionData.mapId,
+        position: new Position(newX, newY, positionData.position.z),
+      };
+
+      unit.setProperty('position', newUnitPosition);
+      return true;
     } catch (error) {
       console.warn(
-        `Failed to move unit ${unitId} to position (${newX}, ${newY}): ${(error as Error).message}`
+        `Failed to move unit ${unit.id} to position (${newX}, ${newY}): ${(error as Error).message}`
       );
       return false; // Operation failed due to missing resources
     }

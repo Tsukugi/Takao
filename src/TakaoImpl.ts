@@ -8,9 +8,11 @@ import { GameEngine } from './core/GameEngine';
 import { StoryTeller } from './core/StoryTeller';
 import { UnitController } from './ai/UnitController';
 import { MapRenderer } from './utils/MapRenderer';
+import { renderGame } from '@atsu/maya';
 import { WorldManager } from './utils/WorldManager';
 import { Logger } from './utils/Logger';
-import { Position, World, type IUnitPosition } from '@atsu/choukai';
+import { World, Position } from '@atsu/choukai';
+import type { BaseUnit, IUnitPosition } from '@atsu/atago';
 import { isUnitPosition } from './types/typeGuards';
 import { MathUtils } from './utils/Math';
 
@@ -59,7 +61,7 @@ export class TakaoImpl {
     }
 
     // Place some initial units on the maps based on configuration
-    this.initializeUnitPositions(world);
+    this.initializeUnitPositions();
 
     this.logger.info('Takao Engine initialized with maps, gates, and units.');
   }
@@ -67,7 +69,7 @@ export class TakaoImpl {
   /**
    * Initialize unit positions based on configuration data
    */
-  private initializeUnitPositions(world: World): void {
+  private initializeUnitPositions(): void {
     const allUnits = this.unitController.getUnits();
     if (allUnits.length === 0) {
       return;
@@ -83,34 +85,27 @@ export class TakaoImpl {
       };
 
       // Look for position in the unit's own properties first
-      const unitPosition = unit.getPropertyValue('position');
+      const unitPosition = unit.getPropertyValue<IUnitPosition>('position');
 
       if (unitPosition && isUnitPosition(unitPosition)) {
         // If position exists in IUnitPosition format, use it
+        // Update the unit's position property with correct Position instance if needed
+        const pos = unitPosition.position;
+        const positionInstance =
+          pos instanceof Position ? pos : new Position(pos.x, pos.y, pos.z);
+
         WorldManager.setUnitPosition(
-          world,
-          unit.id,
+          unit,
           unitPosition.mapId,
-          unitPosition.position
-        );
-      } else if (unitPosition) {
-        // Fallback for other position formats
-        WorldManager.setUnitPosition(
-          world,
-          unit.id,
-          unitPosition.mapId || 'Main Continent',
-          new Position(unitPosition.x, unitPosition.y)
+          positionInstance
         );
       } else {
+        // Set the default position using the WorldManager
         WorldManager.setUnitPosition(
-          world,
-          unit.id,
+          unit,
           defaultPosition.mapId,
-          defaultPosition.position
+          new Position(defaultPosition.position.x, defaultPosition.position.y)
         );
-
-        // Set the position as a property of the unit for future reference
-        unit.setProperty('position', defaultPosition);
       }
     }
   }
@@ -118,9 +113,7 @@ export class TakaoImpl {
   /**
    * Run a single turn of the game
    */
-  public async runTurn(turn: number): Promise<void> {
-    this.logger.info(`\n--- TakaoImpl Turn ${turn} ---`);
-
+  public async runTurn(): Promise<void> {
     // Get all units
     const allUnits = this.unitController.getUnits();
     const world = this.storyTeller.getWorld();
@@ -130,7 +123,7 @@ export class TakaoImpl {
     // Then, ensure each unit moves
     for (const unit of allUnits) {
       try {
-        const unitPos = world.getUnitPosition(unit.id);
+        const unitPos = WorldManager.getUnitPosition(unit);
         if (!unitPos) continue;
         // Simple movement: move one step in a random direction
         const directions = [
@@ -177,60 +170,47 @@ export class TakaoImpl {
       }
     }
 
-    if (isVisualOnlyMode) {
-      // Visual-only mode: render only the maps without other details
+    try {
+      // Prepare units mapping for Maya rendering
+      const unitsMap: Record<string, BaseUnit> = {};
+      for (const unit of allUnits) {
+        unitsMap[unit.id] = unit;
+      }
+
+      // Render the game using Maya, showing only the first map
+      const firstMap = allMaps[0];
+      await renderGame(world, unitsMap, {
+        selectedMap: firstMap?.name,
+        showUnitPositions: !isVisualOnlyMode,
+      });
+    } catch {
+      // Fallback to console rendering if Maya rendering fails
       if (allMaps.length > 0) {
         const firstMap = allMaps[0]; // Just render the first map
         if (!firstMap) return;
 
-        // Create mapping from unit ID to unit name for rendering
-        const unitNameMap: Record<string, string> = {};
-        for (const unit of allUnits) {
-          unitNameMap[unit.id] = unit.name;
-        }
-
-        // Render just the first map in visual-only mode
-        //   this.logger.info('\n' + '='.repeat(60));
-        //   this.logger.info('Current Map View (Visual Mode)');
-        //   this.logger.info('============================');
         this.logger.info(
-          MapRenderer.render(firstMap, unitNameMap, {
-            showCoordinates: false,
-            cellWidth: 1,
-            showUnits: true,
-            showTerrain: true,
-            compactView: true,
-          })
+          MapRenderer.render(
+            firstMap,
+            allUnits.reduce(
+              (acc, unit) => {
+                acc[unit.id] = unit;
+                return acc;
+              },
+              {} as Record<string, BaseUnit>
+            ),
+            {
+              showCoordinates: false,
+              cellWidth: 1,
+              showUnits: true,
+              showTerrain: true,
+              compactView: true,
+            }
+          )
         );
-        //  this.logger.info('\n' + '='.repeat(60));
       } else {
         this.logger.info('\nNo maps to render.');
       }
-    } else {
-      // Normal mode: show unit positions summary as before
-      this.logger.info('\nUnit Positions Summary:');
-      this.logger.info('=====================');
-
-      for (const unit of allUnits) {
-        try {
-          const unitPos = world.getUnitPosition(unit.id);
-          if (unitPos) {
-            this.logger.info(
-              `  ${unit.name} (${unit.id.substring(0, 8)}) is at ${unitPos.mapId} (${unitPos.position.x}, ${unitPos.position.y})`
-            );
-          } else {
-            this.logger.info(
-              `  ${unit.name} (${unit.id.substring(0, 8)}) position not found in world`
-            );
-          }
-        } catch (error) {
-          this.logger.info(
-            `  Could not get position for ${unit.name} (${unit.id.substring(0, 8)}): ${error}`
-          );
-        }
-      }
-
-      this.logger.info('\n' + '='.repeat(50));
     }
   }
 
@@ -278,43 +258,25 @@ export class TakaoImpl {
     const maps = world.getAllMaps();
     const allUnits = this.unitController.getUnits();
 
-    // Create mapping from unit ID to unit name for rendering
-    const unitNameMap: Record<string, string> = {};
+    // Using Maya for rendering the final state
+    // Prepare units mapping for Maya rendering
+    const unitsMap: Record<string, BaseUnit> = {};
     for (const unit of allUnits) {
-      unitNameMap[unit.id] = unit.name;
+      unitsMap[unit.id] = unit;
     }
 
-    // Create mapping from unit ID to position information
-    const unitPositionMap: Record<string, IUnitPosition> = {};
-    for (const unit of allUnits) {
-      // Try to get position from the unit's own properties first
-      const unitPosition = unit.getPropertyValue('position');
-      if (unitPosition && isUnitPosition(unitPosition)) {
-        // Position is in IUnitPosition format: {unitId, mapId, position: Position}
-        unitPositionMap[unit.id] = {
-          unitId: unit.id,
-          mapId: unitPosition.mapId,
-          position: unitPosition.position,
-        };
-      } else {
-        // If unit doesn't have position property, check world position
-        try {
-          const worldPosition = world.getUnitPosition(unit.id);
-          if (worldPosition) {
-            unitPositionMap[unit.id] = {
-              unitId: unit.id,
-              mapId: worldPosition.mapId,
-              position: worldPosition.position,
-            };
-          }
-        } catch {
-          // If position is not found, we'll skip adding it to the map
-        }
-      }
+    const isVisualOnlyMode = this.gameEngine.getConfig().rendering.visualOnly;
+    // Render the game using Maya, showing only the first map
+    try {
+      const firstMap = maps[0];
+      renderGame(world, unitsMap, {
+        selectedMap: firstMap?.name,
+        showUnitPositions: !isVisualOnlyMode,
+      });
+    } catch {
+      // If Maya rendering fails, fall back to console rendering
+      MapRenderer.renderMultipleMapsFixed(maps, unitsMap);
     }
-
-    // Using fixed display for all maps together with unit positions
-    MapRenderer.renderMultipleMapsFixed(maps, unitNameMap, unitPositionMap);
 
     // Show gate connections
     this.logger.info('\nGate Connections:');

@@ -2,6 +2,7 @@
  * MapRenderer class for visualizing game maps in console format
  */
 
+import { type BaseUnit } from '@atsu/atago';
 import { Map as GameMap, Position, type TerrainType } from '@atsu/choukai';
 
 export interface MapRendererConfig {
@@ -63,7 +64,7 @@ export class MapRenderer {
    */
   public static render(
     map: GameMap,
-    unitNames?: Record<string, string>, // Optional mapping from unit ID to unit name
+    units?: Record<string, BaseUnit>, // Optional mapping from unit ID to unit object
     config?: Partial<MapRendererConfig>
   ): string {
     const finalConfig = { ...this.DEFAULT_CONFIG, ...config };
@@ -105,15 +106,21 @@ export class MapRenderer {
         const cell = map.getCell(x, y);
         let cellContent = '';
 
-        if (finalConfig.showUnits) {
-          const unitId = map.getUnitAt(x, y);
-          if (unitId) {
+        if (finalConfig.showUnits && units) {
+          // Find a unit at this position by checking their stored positions
+          const unitAtPosition = Object.values(units).find(unit => {
+            const positionData = unit.getPropertyValue('position');
+            return (
+              positionData?.mapId === map.name &&
+              positionData.position.x === x &&
+              positionData.position.y === y
+            );
+          });
+
+          if (unitAtPosition) {
             // Use first character of unit name if available, otherwise use first character of ID
-            if (unitNames && unitNames[unitId]) {
-              cellContent = unitNames[unitId].charAt(0).toUpperCase();
-            } else {
-              cellContent = unitId.charAt(0).toUpperCase();
-            }
+            const unitName = unitAtPosition.name || unitAtPosition.id;
+            cellContent = unitName.charAt(0).toUpperCase();
             // Apply unit color if enabled
             if (finalConfig.useColors) {
               cellContent = `${this.UNIT_COLOR}${cellContent}${this.RESET_COLOR}`;
@@ -123,10 +130,7 @@ export class MapRenderer {
 
         if (!cellContent && finalConfig.showTerrain) {
           const terrain = cell ? cell.terrain : 'grass';
-          cellContent =
-            this.TERRAIN_SYMBOLS[
-              terrain as keyof typeof this.TERRAIN_SYMBOLS
-            ] || '?';
+          cellContent = this.TERRAIN_SYMBOLS[terrain] || '?';
           // Apply terrain color if enabled
           if (finalConfig.useColors) {
             const terrainColor =
@@ -167,9 +171,12 @@ export class MapRenderer {
    */
   public static renderCompact(
     map: GameMap,
-    unitNames?: Record<string, string>
+    units?: Record<string, BaseUnit>
   ): string {
-    return this.render(map, unitNames, { compactView: true, useColors: true });
+    return this.render(map, units, {
+      compactView: true,
+      useColors: true,
+    });
   }
 
   /**
@@ -177,9 +184,9 @@ export class MapRenderer {
    */
   public static renderDetailed(
     map: GameMap,
-    unitNames?: Record<string, string>
+    units?: Record<string, BaseUnit>
   ): string {
-    return this.render(map, unitNames, {
+    return this.render(map, units, {
       compactView: false,
       showCoordinates: true,
       cellWidth: 2,
@@ -209,6 +216,7 @@ export class MapRenderer {
   public static renderWithHighlight(
     map: GameMap,
     highlightPosition: Position,
+    units?: Record<string, BaseUnit>,
     highlightSymbol: string = 'X'
   ): string {
     // Temporarily modify the renderer to show highlight
@@ -230,9 +238,21 @@ export class MapRenderer {
           let cellContent = '';
 
           // Check for units first
-          const unitId = map.getUnitAt(x, y);
-          if (unitId) {
-            cellContent = unitId.charAt(0).toUpperCase();
+          const unitAtPosition = units
+            ? Object.values(units).find(unit => {
+                const positionData = unit.getPropertyValue('position');
+                return (
+                  positionData?.mapId === map.name &&
+                  positionData.position.x === x &&
+                  positionData.position.y === y
+                );
+              })
+            : null;
+
+          if (unitAtPosition) {
+            cellContent =
+              unitAtPosition.name?.charAt(0).toUpperCase() ||
+              unitAtPosition.id.charAt(0).toUpperCase();
           } else {
             // Use terrain symbol
             const terrain = cell ? cell.terrain : 'grass';
@@ -257,7 +277,7 @@ export class MapRenderer {
    */
   public static renderFixed(
     map: GameMap,
-    unitNames?: Record<string, string>,
+    units?: Record<string, BaseUnit>,
     config?: Partial<MapRendererConfig>
   ): FixedDisplayState {
     const finalConfig = { ...this.DEFAULT_CONFIG, ...config };
@@ -271,7 +291,7 @@ export class MapRenderer {
     process.stdout.write('\x1b[2J\x1b[H'); // Clear entire screen and move to top-left
 
     // Render and output the map
-    const mapString = this.render(map, unitNames, finalConfig);
+    const mapString = this.render(map, units, finalConfig);
     process.stdout.write(mapString);
 
     // Return display state information
@@ -287,8 +307,7 @@ export class MapRenderer {
    */
   public static renderMultipleMapsFixed(
     maps: GameMap[],
-    unitNames?: Record<string, string>,
-    unitPositions?: Record<string, { mapId: string; position: Position }>,
+    units?: Record<string, BaseUnit>,
     config?: Partial<MapRendererConfig>
   ): FixedDisplayState {
     const finalConfig = { ...this.DEFAULT_CONFIG, ...config };
@@ -335,15 +354,21 @@ export class MapRenderer {
           const cell = map.getCell(x, y);
           let cellContent = '';
 
-          if (finalConfig?.showUnits) {
-            const unitId = map.getUnitAt(x, y);
-            if (unitId) {
+          if (finalConfig?.showUnits && units) {
+            // Find a unit at this position by checking their stored positions
+            const unitAtPosition = Object.values(units).find(unit => {
+              const positionData = unit.getPropertyValue('position');
+              return (
+                positionData?.mapId === map.name &&
+                positionData.position.x === x &&
+                positionData.position.y === y
+              );
+            });
+
+            if (unitAtPosition) {
               // Use first character of unit name if available, otherwise use first character of ID
-              if (unitNames && unitNames[unitId]) {
-                cellContent = unitNames[unitId].charAt(0).toUpperCase();
-              } else {
-                cellContent = unitId.charAt(0).toUpperCase();
-              }
+              const unitName = unitAtPosition.name || unitAtPosition.id;
+              cellContent = unitName.charAt(0).toUpperCase();
               // Apply unit color if enabled
               if (finalConfig?.useColors) {
                 cellContent = `${this.UNIT_COLOR}${cellContent}${this.RESET_COLOR}`;
@@ -387,12 +412,15 @@ export class MapRenderer {
 
     // Add unit positions information after all maps
     allLines.push('Unit Positions:');
-    if (unitPositions) {
-      for (const [unitId, posInfo] of Object.entries(unitPositions)) {
-        const unitName = unitNames?.[unitId] || unitId;
-        allLines.push(
-          `  ${unitName} (${unitId.substring(0, 8)}...) is at ${posInfo.mapId} (${posInfo.position.x}, ${posInfo.position.y})`
-        );
+    if (units) {
+      for (const [unitId, unit] of Object.entries(units)) {
+        const positionData = unit.getPropertyValue('position');
+        if (positionData) {
+          const unitName = unit.name || unitId;
+          allLines.push(
+            `  ${unitName} (${unitId.substring(0, 8)}...) is at ${positionData.mapId} (${positionData.position.x}, ${positionData.position.y})`
+          );
+        }
       }
     }
 

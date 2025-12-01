@@ -9,15 +9,22 @@ import type {
 } from '../types';
 import { DataManager } from './DataManager';
 import { isNumber, isRandomValue } from '../types/typeGuards';
+import { Logger } from './Logger';
 
 /**
  * Utility class for processing action effects
  */
 export class ActionProcessor {
+  private logger: Logger | undefined;
+
+  constructor(logger?: Logger) {
+    this.logger = logger;
+  }
+
   /**
-   * Executes the effect of an action on the relevant units
+   * Executes the effect of an action on the relevant units (instance method with logger)
    */
-  public static async executeActionEffect(
+  public async executeActionEffect(
     action: Action,
     units: BaseUnit[]
   ): Promise<ActionProcessingResult> {
@@ -39,12 +46,12 @@ export class ActionProcessor {
       } else if (action?.effects && Array.isArray(action.effects)) {
         // If no action def found, try to use effects from action payload
         effectsToExecute = action.effects;
-        console.log(
+        this.logger?.info(
           `Using effects from payload for action type: ${action.type}`
         );
       } else {
         // If no effects found in either place, just log and return
-        console.log(
+        this.logger?.info(
           `No effects found for action type: ${action.type}, skipping effects execution`
         );
         return { success: true };
@@ -64,7 +71,7 @@ export class ActionProcessor {
   /**
    * Executes a single effect on the appropriate unit(s)
    */
-  private static async executeSingleEffect(
+  private async executeSingleEffect(
     effect: EffectDefinition,
     action: Action,
     units: BaseUnit[]
@@ -139,12 +146,12 @@ export class ActionProcessor {
             newUnitType = effect.value.value.toString();
           }
 
-          console.log(
+          this.logger?.info(
             `New unit of type ${newUnitType} should be added to the game!`
           );
         } else {
-          console.error(
-            `Invalid operation for 'new' target in action ${action.type}`
+          this.logger?.error(
+            `Invalid operation for 'world' target in action ${action.type}`
           );
         }
         return; // Return early since we're handling new unit creation
@@ -155,7 +162,7 @@ export class ActionProcessor {
     }
 
     if (!targetUnit) {
-      console.error(
+      this.logger?.error(
         `Could not find target unit for action ${action.type} with target: ${effect.target}`
       );
       return;
@@ -168,7 +175,7 @@ export class ActionProcessor {
   /**
    * Applies a single effect to a specific unit
    */
-  private static async applyEffectToUnit(
+  private async applyEffectToUnit(
     effect: EffectDefinition,
     targetUnit: BaseUnit,
     action: Action
@@ -224,7 +231,7 @@ export class ActionProcessor {
   /**
    * Calculates the value to apply based on the effect value definition
    */
-  private static calculateEffectValue(
+  private calculateEffectValue(
     valueDef: EffectValue,
     action: Action,
     targetUnit: BaseUnit
@@ -242,7 +249,10 @@ export class ActionProcessor {
           const payloadValue = action.payload[valueDef.variable];
           // If payload value is a random range definition, generate the value
           if (isRandomValue(payloadValue))
-            return this.getRandomValue(payloadValue.min, payloadValue.max);
+            return ActionProcessor.getRandomValue(
+              payloadValue.min,
+              payloadValue.max
+            );
 
           // Otherwise return the payload value directly
           if (isNumber(payloadValue)) return payloadValue;
@@ -254,7 +264,7 @@ export class ActionProcessor {
       case 'random':
         // Generate random value based on min/max in the definition
         if (valueDef.min !== undefined && valueDef.max !== undefined) {
-          return this.getRandomValue(valueDef.min, valueDef.max);
+          return ActionProcessor.getRandomValue(valueDef.min, valueDef.max);
         }
         return 0;
       default:
@@ -349,9 +359,9 @@ export class ActionProcessor {
   }
 
   /**
-   * Returns a default action template
+   * Returns a default action template (instance method)
    */
-  public static getDefaultAction(unit: BaseUnit): Action {
+  public getDefaultAction(unit: BaseUnit): Action {
     return {
       player: unit.name,
       type: 'idle',
@@ -361,7 +371,10 @@ export class ActionProcessor {
     };
   }
 
-  public static getDefaultExecutedAction(
+  /**
+   * Returns a default executed action (instance method)
+   */
+  public getDefaultExecutedAction(
     unit: BaseUnit,
     turn: number
   ): ExecutedAction {

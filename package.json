@@ -25,7 +25,7 @@
     "ai",
     "typescript"
   ],
-  "author": "Tsukugi",
+  "author": "Tsukugi <Tsukugi@proton.me>",
   "license": "MIT",
   "devDependencies": {
     "@eslint/js": "^9.39.1",
@@ -48,6 +48,7 @@
   },
   "dependencies": {
     "@atsu/atago": "file:../Atago",
-    "@atsu/choukai": "file:../Choukai"
+    "@atsu/choukai": "file:../Choukai",
+    "@atsu/maya": "file:../Maya"
   }
 }

@@ -32,6 +32,7 @@ export class StoryTeller {
   private world: World;
   private gateSystem: GateSystem;
   private logger: Logger;
+  private actionProcessor: ActionProcessor;
 
   constructor(unitController: UnitController) {
     const isVisualOnlyMode = ConfigManager.getConfig().rendering.visualOnly;
@@ -43,6 +44,7 @@ export class StoryTeller {
     this.actionsData = DataManager.loadActions();
     this.diary = DataManager.loadDiary(); // Load existing diary entries
     DataManager.ensureDataDirectory(); // Ensure data directory exists
+    this.actionProcessor = new ActionProcessor(this.logger); // Initialize action processor with logger
 
     // Initialize map generation capabilities
     this.mapGenerator = new MapGenerator();
@@ -76,7 +78,7 @@ export class StoryTeller {
     const initialStates = StatTracker.takeSnapshot(units);
 
     // Execute action effects using the ActionProcessor
-    const result = await ActionProcessor.executeActionEffect(
+    const result = await this.actionProcessor.executeActionEffect(
       storyAction.action,
       units
     );
@@ -99,18 +101,11 @@ export class StoryTeller {
           const x = Math.floor(Math.random() * mainMap.width);
           const y = Math.floor(Math.random() * mainMap.height);
 
-          this.world.setUnitPosition(
-            newUnit.id,
+          WorldManager.setUnitPosition(
+            newUnit,
             mainMap.name,
             new Position(x, y)
           );
-
-          // Also set the position as a property of the unit for future reference
-          newUnit.setProperty('position', {
-            unitId: newUnit.id,
-            mapId: mainMap.name,
-            position: new Position(x, y),
-          });
         }
       }
     }
@@ -159,7 +154,7 @@ export class StoryTeller {
     // If no units exist, create a default action
     if (units.length === 0) {
       // Return a default narrative action instead of throwing
-      return ActionProcessor.getDefaultExecutedAction(
+      return this.actionProcessor.getDefaultExecutedAction(
         new BaseUnit('default-unit', 'DefaultUnit', 'unknown', {}),
         turn
       );
@@ -173,7 +168,7 @@ export class StoryTeller {
 
     // If no alive units exist, return a default action
     if (aliveUnits.length === 0) {
-      return ActionProcessor.getDefaultExecutedAction(
+      return this.actionProcessor.getDefaultExecutedAction(
         new BaseUnit('default-unit', 'DefaultUnit', 'unknown', {}),
         turn
       );
@@ -284,7 +279,14 @@ export class StoryTeller {
     targetY: number
   ): Promise<boolean> {
     try {
-      const unitPos = this.world.getUnitPosition(unitId);
+      // Get the actual unit from the unit controller
+      const units = this.unitController.getUnits();
+      const unit = units.find(u => u.id === unitId);
+      if (!unit) {
+        throw new Error(`Unit ${unitId} not found`);
+      }
+
+      const unitPos = WorldManager.getUnitPosition(unit);
 
       // Check if there's a gate at the target position - if so, perform gate transition instead of regular move
       if (this.gateSystem.hasGate(unitPos.mapId, targetX, targetY)) {
@@ -308,7 +310,7 @@ export class StoryTeller {
       }
 
       // Try to move the unit to the target position
-      const moved = this.world.moveUnit(unitId, targetX, targetY);
+      const moved = WorldManager.moveUnit(unit, targetX, targetY);
 
       return moved;
     } catch (error) {
@@ -335,12 +337,24 @@ export class StoryTeller {
       if (gate) {
         // Attempt to move the unit through the gate to the destination map
         try {
-          // Update the unit's position in the world to the new map and position
-          // This handles both the internal world tracking and the map-level tracking
-          const updateSuccess = this.world.setUnitPosition(
-            unitId,
+          // Get the actual unit from the unit controller
+          const units = this.unitController.getUnits();
+          const unit = units.find(u => u.id === unitId);
+          if (!unit) {
+            this.logger.error(`Unit ${unitId} not found for gate transition`);
+            return;
+          }
+
+          // Update the unit's position using WorldManager
+          const positionToUse =
+            gate.positionTo instanceof Position
+              ? gate.positionTo
+              : new Position(gate.positionTo.x, gate.positionTo.y);
+
+          const updateSuccess = WorldManager.setUnitPosition(
+            unit,
             gate.mapTo,
-            gate.positionTo
+            positionToUse
           );
 
           if (updateSuccess) {

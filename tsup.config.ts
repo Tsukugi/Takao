@@ -4,7 +4,7 @@ export default defineConfig({
   entry: {
     takao: 'src/index.ts'
   },
-  format: ['cjs', 'esm', 'iife'], // CommonJS, ES Modules, and IIFE for browser
+  format: ['cjs', 'esm'], // CommonJS, ES Modules (IIFE not suitable for React/Ink)
   outDir: 'dist',
   clean: true,
   minify: true,
