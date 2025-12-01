@@ -1,8 +1,13 @@
-import { World as ChoukaiWorld, Map as ChoukaiMap } from '@atsu/choukai';
+import {
+  World as ChoukaiWorld,
+  Map as ChoukaiMap,
+  IMapConfig,
+} from '@atsu/choukai';
 import {
   WorldSnapshotSerializer,
   type SerializableWorldSnapshot,
 } from '../src/utils/WorldSnapshotSerializer';
+import { describe, it, expect } from 'vitest';
 
 describe('WorldSnapshotSerializer', () => {
   describe('serialize', () => {
@@ -81,7 +86,7 @@ describe('WorldSnapshotSerializer', () => {
 
     it('should serialize map configurations if they exist', () => {
       const world = new ChoukaiWorld();
-      const config = { theme: 'forest', difficulty: 'hard' };
+      const config: IMapConfig = { defaultMovementCost: 2, wrapEdges: true };
       const map = new ChoukaiMap(2, 2, 'Configured Map', config);
 
       // Set some terrains
