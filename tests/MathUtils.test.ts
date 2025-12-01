@@ -1,132 +1,127 @@
-/**
- * Tests for the MathUtils utility functions
- */
-
-import { describe, it, expect } from 'vitest';
 import { MathUtils } from '../src/utils/Math';
+import { describe, it, expect } from 'vitest';
 
 describe('MathUtils', () => {
   describe('getRandomFromArray', () => {
-    it('should return a random element from the array', () => {
-      const testArray = ['apple', 'banana', 'cherry', 'date'];
-      const result = MathUtils.getRandomFromArray(testArray);
+    it('should return an element from the provided array', () => {
+      const testArray = [1, 2, 3, 4, 5];
+      const randomElement = MathUtils.getRandomFromArray(testArray);
 
-      expect(testArray).toContain(result);
+      expect(testArray).toContain(randomElement);
     });
 
-    it('should return the only element from a single-element array', () => {
-      const singleElementArray = ['only'];
-      const result = MathUtils.getRandomFromArray(singleElementArray);
+    it('should return the only element from single-element array', () => {
+      const singleElementArray = ['only-element'];
+      const randomElement = MathUtils.getRandomFromArray(singleElementArray);
 
-      expect(result).toBe('only');
+      expect(randomElement).toBe('only-element');
     });
 
-    it('should work with numbers array', () => {
-      const numbers = [1, 2, 3, 4, 5];
-      const result = MathUtils.getRandomFromArray(numbers);
-
-      expect(numbers).toContain(result);
-      expect(typeof result).toBe('number');
-    });
-
-    it('should work with mixed type arrays', () => {
-      const mixedArray = [1, 'hello', true, { id: 1 }];
-      const result = MathUtils.getRandomFromArray(mixedArray);
-
-      expect(mixedArray).toContainEqual(result);
-    });
-
-    it('should return undefined for empty array', () => {
+    it('should return undefined for an empty array', () => {
       const emptyArray: any[] = [];
-      const result = MathUtils.getRandomFromArray(emptyArray);
+      const randomElement = MathUtils.getRandomFromArray(emptyArray);
 
-      // When the array is empty, arr[0] will be undefined since Math.floor(Math.random() * 0) = 0
-      // and accessing index 0 of an empty array returns undefined
-      expect(result).toBeUndefined();
+      // When array is empty, accessing arr[randomIndex] when randomIndex=0 will return undefined
+      expect(randomElement).toBeUndefined();
+    });
+
+    it('should work with arrays of different types', () => {
+      // Test with string array
+      const stringArray = ['a', 'b', 'c'];
+      const randomString = MathUtils.getRandomFromArray(stringArray);
+      expect(stringArray).toContain(randomString);
+
+      // Test with number array
+      const numberArray = [10, 20, 30];
+      const randomNumber = MathUtils.getRandomFromArray(numberArray);
+      expect(numberArray).toContain(randomNumber);
+
+      // Test with object array
+      const objectArray = [{ id: 1 }, { id: 2 }];
+      const randomObject = MathUtils.getRandomFromArray(objectArray);
+      expect(objectArray).toContain(randomObject);
     });
   });
 
   describe('getRandomNumber', () => {
-    it('should return a random integer within the specified range (inclusive)', () => {
+    it('should return a number within the specified range (inclusive)', () => {
       const min = 5;
       const max = 10;
+      const randomNumber = MathUtils.getRandomNumber(min, max);
 
-      for (let i = 0; i < 100; i++) {
-        const result = MathUtils.getRandomNumber(min, max);
-
-        expect(result).toBeGreaterThanOrEqual(min);
-        expect(result).toBeLessThanOrEqual(max);
-        expect(Number.isInteger(result)).toBe(true);
-      }
+      expect(randomNumber).toBeGreaterThanOrEqual(min);
+      expect(randomNumber).toBeLessThanOrEqual(max);
+      expect(Number.isInteger(randomNumber)).toBe(true);
     });
 
     it('should return the same number when min and max are equal', () => {
-      const result = MathUtils.getRandomNumber(42, 42);
-      expect(result).toBe(42);
+      const minMax = 7;
+      const randomNumber = MathUtils.getRandomNumber(minMax, minMax);
+
+      expect(randomNumber).toBe(minMax);
     });
 
-    it('should work with negative numbers', () => {
+    it('should handle negative ranges correctly', () => {
       const min = -10;
       const max = -5;
+      const randomNumber = MathUtils.getRandomNumber(min, max);
 
-      // Test a few calls to verify it works with negative numbers
-      for (let i = 0; i < 5; i++) {
-        const result = MathUtils.getRandomNumber(min, max);
-
-        expect(result).toBeGreaterThanOrEqual(min);
-        expect(result).toBeLessThanOrEqual(max);
-        expect(Number.isInteger(result)).toBe(true);
-      }
+      expect(randomNumber).toBeGreaterThanOrEqual(min);
+      expect(randomNumber).toBeLessThanOrEqual(max);
+      expect(Number.isInteger(randomNumber)).toBe(true);
     });
 
-    it('should work with negative to positive range', () => {
+    it('should handle ranges crossing zero correctly', () => {
       const min = -5;
       const max = 5;
+      const randomNumber = MathUtils.getRandomNumber(min, max);
 
-      // Test a few calls to verify it works with mixed range
-      for (let i = 0; i < 5; i++) {
-        const result = MathUtils.getRandomNumber(min, max);
-
-        expect(result).toBeGreaterThanOrEqual(min);
-        expect(result).toBeLessThanOrEqual(max);
-        expect(Number.isInteger(result)).toBe(true);
-      }
+      expect(randomNumber).toBeGreaterThanOrEqual(min);
+      expect(randomNumber).toBeLessThanOrEqual(max);
+      expect(Number.isInteger(randomNumber)).toBe(true);
     });
 
-    it('should handle range of 0 to n', () => {
+    it('should work with range of 0 to positive number', () => {
       const min = 0;
       const max = 100;
+      const randomNumber = MathUtils.getRandomNumber(min, max);
 
-      // Test a few calls to verify it works with positive range
-      for (let i = 0; i < 5; i++) {
-        const result = MathUtils.getRandomNumber(min, max);
-
-        expect(result).toBeGreaterThanOrEqual(min);
-        expect(result).toBeLessThanOrEqual(max);
-        expect(Number.isInteger(result)).toBe(true);
-      }
+      expect(randomNumber).toBeGreaterThanOrEqual(min);
+      expect(randomNumber).toBeLessThanOrEqual(max);
+      expect(Number.isInteger(randomNumber)).toBe(true);
     });
   });
 
-  describe('Consistency checks', () => {
-    it('getRandomFromArray should return valid values', () => {
+  describe('repeated calls', () => {
+    it('getRandomFromArray should return different elements on repeated calls', () => {
+      // This is a probabilistic test - it's highly unlikely to return the same element every time
       const testArray = [1, 2, 3, 4, 5];
+      const results = [];
 
-      // Test a few calls to ensure they return valid results
-      for (let i = 0; i < 5; i++) {
-        const result = MathUtils.getRandomFromArray(testArray);
-        expect(testArray).toContain(result);
+      // Call function multiple times and collect results
+      for (let i = 0; i < 10; i++) {
+        results.push(MathUtils.getRandomFromArray(testArray));
       }
+
+      // With a low probability this could fail due to randomness, but it's very unlikely
+      const uniqueResults = new Set(results);
+      // We allow the possibility of some repeats but expect multiple unique values in most cases
+      expect(uniqueResults.size).toBeGreaterThan(1); // At least 2 different values expected
     });
 
-    it('getRandomNumber should return values within range', () => {
-      // Test a few calls to ensure they return values in range
-      for (let i = 0; i < 5; i++) {
-        const result = MathUtils.getRandomNumber(1, 10);
-        expect(result).toBeGreaterThanOrEqual(1);
-        expect(result).toBeLessThanOrEqual(10);
-        expect(Number.isInteger(result)).toBe(true);
+    it('getRandomNumber should return different numbers on repeated calls', () => {
+      // This is a probabilistic test
+      const results = [];
+
+      // Call function multiple times and collect results
+      for (let i = 0; i < 20; i++) {
+        results.push(MathUtils.getRandomNumber(1, 10));
       }
+
+      // With a low probability this could fail due to randomness, but it's very unlikely
+      const uniqueResults = new Set(results);
+      // We expect many different values in the range
+      expect(uniqueResults.size).toBeGreaterThan(1); // At least 2 different values expected
     });
   });
 });

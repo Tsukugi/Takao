@@ -4,15 +4,13 @@
  * Uses GameEngine internally for turn management and world saving
  */
 
+import { renderGame } from '@atsu/maya';
+import { World, Position } from '@atsu/choukai';
+import type { BaseUnit, IUnitPosition } from '@atsu/atago';
 import { GameEngine } from './core/GameEngine';
 import { StoryTeller } from './core/StoryTeller';
 import { UnitController } from './ai/UnitController';
-import { MapRenderer } from './utils/MapRenderer';
-import { renderGame } from '@atsu/maya';
-import { WorldManager } from './utils/WorldManager';
 import { Logger } from './utils/Logger';
-import { World, Position } from '@atsu/choukai';
-import type { BaseUnit, IUnitPosition } from '@atsu/atago';
 import { isUnitPosition } from './types/typeGuards';
 import { MathUtils } from './utils/Math';
 
@@ -94,18 +92,21 @@ export class TakaoImpl {
         const positionInstance =
           pos instanceof Position ? pos : new Position(pos.x, pos.y, pos.z);
 
-        WorldManager.setUnitPosition(
-          unit,
-          unitPosition.mapId,
-          positionInstance
-        );
+        unit.setProperty('position', {
+          unitId: unit.id,
+          mapId: unitPosition.mapId,
+          position: positionInstance,
+        });
       } else {
-        // Set the default position using the WorldManager
-        WorldManager.setUnitPosition(
-          unit,
-          defaultPosition.mapId,
-          new Position(defaultPosition.position.x, defaultPosition.position.y)
-        );
+        // Set the default position directly on the unit
+        unit.setProperty('position', {
+          unitId: unit.id,
+          mapId: defaultPosition.mapId,
+          position: new Position(
+            defaultPosition.position.x,
+            defaultPosition.position.y
+          ),
+        });
       }
     }
   }
@@ -120,11 +121,13 @@ export class TakaoImpl {
     const allMaps = world.getAllMaps();
     const isVisualOnlyMode = this.gameEngine.getConfig().rendering.visualOnly;
 
-    // Then, ensure each unit moves
+    // Then, ensure each unit moves - process each unit directly
     for (const unit of allUnits) {
       try {
-        const unitPos = WorldManager.getUnitPosition(unit);
-        if (!unitPos) continue;
+        // Get the unit's current position directly
+        const unitPos = unit.getPropertyValue<IUnitPosition>('position');
+        if (!unitPos) continue; // Skip units without position
+
         // Simple movement: move one step in a random direction
         const directions = [
           { x: 0, y: -1 }, // North
@@ -149,11 +152,15 @@ export class TakaoImpl {
           Math.min(unitPos.position.y + randomDirection.y, maxY)
         );
 
-        const moved = await this.storyTeller.moveUnitToPosition(
-          unit.id,
-          newX,
-          newY
-        );
+        // Update position directly on the unit using its property
+        const newPosition = new Position(newX, newY, unitPos.position.z);
+        const newUnitPosition: IUnitPosition = {
+          unitId: unit.id,
+          mapId: unitPos.mapId,
+          position: newPosition,
+        };
+        unit.setProperty('position', newUnitPosition);
+        const moved = true; // Movement always succeeds when setting property directly
 
         if (!isVisualOnlyMode) {
           if (moved) {
@@ -184,33 +191,7 @@ export class TakaoImpl {
         showUnitPositions: !isVisualOnlyMode,
       });
     } catch {
-      // Fallback to console rendering if Maya rendering fails
-      if (allMaps.length > 0) {
-        const firstMap = allMaps[0]; // Just render the first map
-        if (!firstMap) return;
-
-        this.logger.info(
-          MapRenderer.render(
-            firstMap,
-            allUnits.reduce(
-              (acc, unit) => {
-                acc[unit.id] = unit;
-                return acc;
-              },
-              {} as Record<string, BaseUnit>
-            ),
-            {
-              showCoordinates: false,
-              cellWidth: 1,
-              showUnits: true,
-              showTerrain: true,
-              compactView: true,
-            }
-          )
-        );
-      } else {
-        this.logger.info('\nNo maps to render.');
-      }
+      this.logger.error('\nNo maps to render.');
     }
   }
 
@@ -274,8 +255,7 @@ export class TakaoImpl {
         showUnitPositions: !isVisualOnlyMode,
       });
     } catch {
-      // If Maya rendering fails, fall back to console rendering
-      MapRenderer.renderMultipleMapsFixed(maps, unitsMap);
+      this.logger.error('\nNo maps to render.');
     }
 
     // Show gate connections

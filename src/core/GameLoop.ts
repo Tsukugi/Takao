@@ -5,7 +5,7 @@ export class GameLoop {
   private intervalId: NodeJS.Timeout | null = null;
   private turn: number = 0;
   private isRunning: boolean = false;
-  private turnInterval: number = 1000; // 1 second per turn by default
+  private turnInterval: number = 100; // 100ms per turn by default (10x faster)
 
   /**
    * Starts the game loop with a callback function to be called each turn

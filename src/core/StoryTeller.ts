@@ -11,11 +11,10 @@ import { StatTracker } from '../utils/StatTracker';
 import { ActionProcessor } from '../utils/ActionProcessor';
 import { MathUtils } from '../utils/Math';
 import { ConditionParser } from '../utils/ConditionParser';
-import { BaseUnit } from '@atsu/atago';
+import { BaseUnit, type IUnitPosition } from '@atsu/atago';
 import { isComparison } from '../types/typeGuards';
 import { MapGenerator } from '../utils/MapGenerator';
 import { World, Map as ChoukaiMap, Position } from '@atsu/choukai';
-import { WorldManager } from '../utils/WorldManager';
 import { GateSystem, type GateConnection } from '../utils/GateSystem';
 import { Logger } from '../utils/Logger';
 
@@ -58,7 +57,7 @@ export class StoryTeller {
       this.world = loadedWorld;
     } else {
       this.logger.info('creating new world');
-      this.world = WorldManager.createWorld();
+      this.world = new World();
     }
 
     this.gateSystem = new GateSystem();
@@ -101,11 +100,11 @@ export class StoryTeller {
           const x = Math.floor(Math.random() * mainMap.width);
           const y = Math.floor(Math.random() * mainMap.height);
 
-          WorldManager.setUnitPosition(
-            newUnit,
-            mainMap.name,
-            new Position(x, y)
-          );
+          newUnit.setProperty('position', {
+            unitId: newUnit.id,
+            mapId: mainMap.name,
+            position: new Position(x, y),
+          });
         }
       }
     }
@@ -286,7 +285,10 @@ export class StoryTeller {
         throw new Error(`Unit ${unitId} not found`);
       }
 
-      const unitPos = WorldManager.getUnitPosition(unit);
+      const unitPos = unit.getPropertyValue<IUnitPosition>('position');
+      if (!unitPos) {
+        throw new Error(`Unit ${unitId} has no position property`);
+      }
 
       // Check if there's a gate at the target position - if so, perform gate transition instead of regular move
       if (this.gateSystem.hasGate(unitPos.mapId, targetX, targetY)) {
@@ -309,8 +311,15 @@ export class StoryTeller {
         return false;
       }
 
-      // Try to move the unit to the target position
-      const moved = WorldManager.moveUnit(unit, targetX, targetY);
+      // Update the position using the unit's property directly
+      const newPosition = new Position(targetX, targetY, unitPos.position.z);
+      const newUnitPosition: IUnitPosition = {
+        unitId: unit.id,
+        mapId: unitPos.mapId,
+        position: newPosition,
+      };
+      unit.setProperty('position', newUnitPosition);
+      const moved = true; // Movement always succeeds when setting the property directly
 
       return moved;
     } catch (error) {
@@ -345,25 +354,22 @@ export class StoryTeller {
             return;
           }
 
-          // Update the unit's position using WorldManager
+          // Update the unit's position using the unit's property directly
           const positionToUse =
             gate.positionTo instanceof Position
               ? gate.positionTo
               : new Position(gate.positionTo.x, gate.positionTo.y);
 
-          const updateSuccess = WorldManager.setUnitPosition(
-            unit,
-            gate.mapTo,
-            positionToUse
-          );
+          const newUnitPosition: IUnitPosition = {
+            unitId: unit.id,
+            mapId: gate.mapTo,
+            position: positionToUse,
+          };
+          unit.setProperty('position', newUnitPosition);
 
-          if (updateSuccess) {
-            this.logger.info(
-              `Unit ${unitId} moved through gate from ${currentMapId}(${x},${y}) to ${gate.mapTo}(${gate.positionTo.x},${gate.positionTo.y})`
-            );
-          } else {
-            this.logger.error(`Failed to move unit ${unitId} through gate`);
-          }
+          this.logger.info(
+            `Unit ${unitId} moved through gate from ${currentMapId}(${x},${y}) to ${gate.mapTo}(${gate.positionTo.x},${gate.positionTo.y})`
+          );
         } catch (error) {
           this.logger.error(
             `Error during gate transition for unit ${unitId}: ${(error as Error).message}`

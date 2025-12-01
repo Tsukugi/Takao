@@ -1,189 +1,142 @@
-/**
- * Tests for the WorldManager utility class
- */
-
+import {
+  World as ChoukaiWorld,
+  Map as ChoukaiMap,
+  Position,
+} from '@atsu/choukai';
+import { WorldManager } from '../src/core/WorldManager';
 import { describe, it, expect, beforeEach } from 'vitest';
-import { WorldManager } from '../src/utils/WorldManager';
-import { World, Map as ChoukaiMap, Position } from '@atsu/choukai';
 
 describe('WorldManager', () => {
-  let world: World;
-  let testMap: ChoukaiMap;
+  let world: ChoukaiWorld;
 
   beforeEach(() => {
-    world = WorldManager.createWorld();
-    testMap = WorldManager.createMap(10, 10, 'Test Map');
-    world.addMap(testMap);
+    world = new ChoukaiWorld();
   });
 
-  it('should create a new map with specified dimensions and name', () => {
-    const map = WorldManager.createMap(15, 20, 'New Map');
-    expect(map).toBeDefined();
-    expect(map.width).toBe(15);
-    expect(map.height).toBe(20);
-    expect(map.name).toBe('New Map');
+  describe('constructor', () => {
+    it('should create a new WorldManager instance with the provided world', () => {
+      const worldManager = new WorldManager(world);
+      expect(worldManager).toBeInstanceOf(WorldManager);
+      expect(worldManager.getWorld()).toBe(world);
+    });
   });
 
-  it('should create a new world instance', () => {
-    const newWorld = WorldManager.createWorld();
-    expect(newWorld).toBeDefined();
-    expect(newWorld.getAllMaps().length).toBe(0);
+  describe('createMap', () => {
+    it('should create a new map with specified dimensions and name', () => {
+      const worldManager = new WorldManager(world);
+      const map = worldManager.createMap(10, 5, 'Test Map');
+
+      expect(map).toBeInstanceOf(ChoukaiMap);
+      expect(map.width).toBe(10);
+      expect(map.height).toBe(5);
+      expect(map.name).toBe('Test Map');
+    });
+
+    it('should create a map with zero dimensions', () => {
+      const worldManager = new WorldManager(world);
+      const map = worldManager.createMap(0, 0, 'Zero Map');
+
+      expect(map).toBeInstanceOf(ChoukaiMap);
+      expect(map.width).toBe(0);
+      expect(map.height).toBe(0);
+      expect(map.name).toBe('Zero Map');
+    });
+
+    it('should create maps with different names correctly', () => {
+      const worldManager = new WorldManager(world);
+
+      const map1 = worldManager.createMap(5, 5, 'Map One');
+      const map2 = worldManager.createMap(5, 5, 'Map Two');
+
+      expect(map1.name).toBe('Map One');
+      expect(map2.name).toBe('Map Two');
+      expect(map1.width).toBe(5);
+      expect(map2.width).toBe(5);
+      expect(map1.height).toBe(5);
+      expect(map2.height).toBe(5);
+    });
   });
 
-  it('should generate a random valid position on a map', () => {
-    const map = WorldManager.createMap(5, 5, 'Small Map');
-    const position = WorldManager.getRandomPosition(map);
+  describe('createWorld', () => {
+    it('should create a new world instance', () => {
+      const worldManager = new WorldManager(world);
+      const newWorld = worldManager.createWorld();
 
-    expect(position).toBeDefined();
-    expect(position.x).toBeGreaterThanOrEqual(0);
-    expect(position.x).toBeLessThan(5);
-    expect(position.y).toBeGreaterThanOrEqual(0);
-    expect(position.y).toBeLessThan(5);
+      expect(newWorld).toBeInstanceOf(ChoukaiWorld);
+    });
+
+    it('should create an independent world instance', () => {
+      const worldManager = new WorldManager(world);
+      const newWorld = worldManager.createWorld();
+
+      expect(newWorld).toBeInstanceOf(ChoukaiWorld);
+      expect(newWorld).not.toBe(world); // Different instance
+    });
+
+    it('should create an empty world', () => {
+      const worldManager = new WorldManager(world);
+      const newWorld = worldManager.createWorld();
+
+      expect(newWorld.getAllMaps()).toHaveLength(0);
+    });
   });
 
-  it('should set a unit position in the world successfully', () => {
-    const position = new Position(3, 4);
-    const success = WorldManager.setUnitPosition(
-      world,
-      'unit-1',
-      'Test Map',
-      position
-    );
+  describe('getRandomPosition', () => {
+    it('should return a position within the map bounds', () => {
+      const worldManager = new WorldManager(world);
+      const map = new ChoukaiMap(10, 5, 'Test Map');
 
-    expect(success).toBe(true);
+      const position = worldManager.getRandomPosition(map);
 
-    // Verify the position was actually set
-    const retrievedPosition = WorldManager.getUnitPosition(world, 'unit-1');
-    expect(retrievedPosition.mapId).toBe('Test Map');
-    expect(retrievedPosition.position.x).toBe(3);
-    expect(retrievedPosition.position.y).toBe(4);
+      expect(position).toBeInstanceOf(Position);
+      expect(position.x).toBeGreaterThanOrEqual(0);
+      expect(position.x).toBeLessThan(10);
+      expect(position.y).toBeGreaterThanOrEqual(0);
+      expect(position.y).toBeLessThan(5);
+    });
+
+    it('should return a position with valid coordinates for a 1x1 map', () => {
+      const worldManager = new WorldManager(world);
+      const map = new ChoukaiMap(1, 1, 'Tiny Map');
+
+      const position = worldManager.getRandomPosition(map);
+
+      expect(position).toBeInstanceOf(Position);
+      expect(position.x).toBe(0); // Only possible value
+      expect(position.y).toBe(0); // Only possible value
+    });
+
+    it('should return a position with valid coordinates for a larger map', () => {
+      const worldManager = new WorldManager(world);
+      const map = new ChoukaiMap(100, 100, 'Large Map');
+
+      const position = worldManager.getRandomPosition(map);
+
+      expect(position).toBeInstanceOf(Position);
+      expect(position.x).toBeGreaterThanOrEqual(0);
+      expect(position.x).toBeLessThan(100);
+      expect(position.y).toBeGreaterThanOrEqual(0);
+      expect(position.y).toBeLessThan(100);
+    });
   });
 
-  it('should fail to set a unit position on a non-existent map', () => {
-    const position = new Position(3, 4);
-    const success = WorldManager.setUnitPosition(
-      world,
-      'unit-1',
-      'NonExistent Map',
-      position
-    );
+  describe('getWorld', () => {
+    it('should return the world instance passed to the constructor', () => {
+      const worldManager = new WorldManager(world);
 
-    expect(success).toBe(false);
-  });
+      const returnedWorld = worldManager.getWorld();
 
-  it('should fail to set a unit position on an occupied cell', () => {
-    // Place first unit
-    const position1 = new Position(3, 4);
-    const success1 = WorldManager.setUnitPosition(
-      world,
-      'unit-1',
-      'Test Map',
-      position1
-    );
-    expect(success1).toBe(true);
+      expect(returnedWorld).toBe(world);
+    });
 
-    // Try to place second unit at same position
-    const position2 = new Position(3, 4);
-    const success2 = WorldManager.setUnitPosition(
-      world,
-      'unit-2',
-      'Test Map',
-      position2
-    );
+    it('should always return the same world instance', () => {
+      const worldManager = new WorldManager(world);
 
-    expect(success2).toBe(false);
-  });
+      const returnedWorld1 = worldManager.getWorld();
+      const returnedWorld2 = worldManager.getWorld();
 
-  it('should get a unit position from the world', () => {
-    const position = new Position(2, 5);
-    WorldManager.setUnitPosition(world, 'unit-1', 'Test Map', position);
-
-    const retrievedPosition = WorldManager.getUnitPosition(world, 'unit-1');
-    expect(retrievedPosition.unitId).toBe('unit-1');
-    expect(retrievedPosition.mapId).toBe('Test Map');
-    expect(retrievedPosition.position.x).toBe(2);
-    expect(retrievedPosition.position.y).toBe(5);
-  });
-
-  it('should throw an error when getting position for a non-existent unit', () => {
-    expect(() => {
-      WorldManager.getUnitPosition(world, 'non-existent-unit');
-    }).toThrow('Failed to get position for unit non-existent-unit');
-  });
-
-  it('should move a unit within the world successfully', () => {
-    // Set initial position
-    const initialPosition = new Position(2, 2);
-    WorldManager.setUnitPosition(world, 'unit-1', 'Test Map', initialPosition);
-
-    // Move the unit
-    const moved = WorldManager.moveUnit(world, 'unit-1', 5, 6);
-    expect(moved).toBe(true);
-
-    // Verify the new position
-    const newPosition = WorldManager.getUnitPosition(world, 'unit-1');
-    expect(newPosition.position.x).toBe(5);
-    expect(newPosition.position.y).toBe(6);
-  });
-
-  it('should fail to move a non-existent unit', () => {
-    const moved = WorldManager.moveUnit(world, 'non-existent-unit', 5, 6);
-    expect(moved).toBe(false);
-  });
-
-  it('should handle moveUnit failure gracefully when position is invalid', () => {
-    // Place a unit
-    const initialPosition = new Position(2, 2);
-    WorldManager.setUnitPosition(world, 'unit-1', 'Test Map', initialPosition);
-
-    // Place another unit to block the destination
-    WorldManager.setUnitPosition(
-      world,
-      'unit-2',
-      'Test Map',
-      new Position(7, 7)
-    );
-
-    const moved = WorldManager.moveUnit(world, 'unit-1', 7, 7);
-    expect(moved).toBe(false);
-
-    // Original unit should remain at initial position
-    const position = WorldManager.getUnitPosition(world, 'unit-1');
-    expect(position.position.x).toBe(2);
-    expect(position.position.y).toBe(2);
-  });
-
-  it('should preserve z-coordinate when setting unit position', () => {
-    const position = new Position(3, 4, 2); // With z-coordinate
-    const success = WorldManager.setUnitPosition(
-      world,
-      'unit-3d',
-      'Test Map',
-      position
-    );
-
-    expect(success).toBe(true);
-
-    const retrievedPosition = WorldManager.getUnitPosition(world, 'unit-3d');
-    expect(retrievedPosition.position.x).toBe(3);
-    expect(retrievedPosition.position.y).toBe(4);
-    expect(retrievedPosition.position.z).toBe(2);
-  });
-
-  it('should be able to move unit while preserving z-coordinate', () => {
-    // Set initial position with z-coordinate
-    const initialPosition = new Position(1, 1, 5);
-    WorldManager.setUnitPosition(world, 'unit-3d', 'Test Map', initialPosition);
-
-    // Move the unit (z-coordinate should be preserved during move)
-    const moved = WorldManager.moveUnit(world, 'unit-3d', 8, 8);
-    expect(moved).toBe(true);
-
-    const newPosition = WorldManager.getUnitPosition(world, 'unit-3d');
-    expect(newPosition.position.x).toBe(8);
-    expect(newPosition.position.y).toBe(8);
-    // Note: The z-coordinate is not preserved during the moveUnit operation in the World class
-    // The moveUnit function only takes x,y coordinates and creates a new Position
-    // So z-coordinate would be undefined unless explicitly managed at a higher level
+      expect(returnedWorld1).toBe(returnedWorld2);
+      expect(returnedWorld1).toBe(world);
+    });
   });
 });

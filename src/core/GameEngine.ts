@@ -44,12 +44,12 @@ export class GameEngine {
     // Initialize the controllers
     await this.unitController.initialize(gameState);
 
-    // Create a new story teller with the initialized controller
-    this.storyTeller = new StoryTeller(this.unitController);
-
     // Load the last turn number to continue from the previous session
     const lastTurn = DataManager.getLastTurnNumber();
     this.logger.info(`Starting from turn: ${lastTurn + 1}`);
+
+    // Create a new story teller with the initialized controller
+    this.storyTeller = new StoryTeller(this.unitController);
 
     // Initialize the turn manager with the continued turn number
     const gameStateWithTurn = { ...gameState, turn: lastTurn };

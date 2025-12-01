@@ -3,9 +3,11 @@
  * Stores maps as compressed string representations instead of individual cells
  */
 
-import { World as ChoukaiWorld, Map as ChoukaiMap } from '@atsu/choukai';
-import type { TerrainType } from '@atsu/choukai';
-import { MapRenderer } from './MapRenderer';
+import {
+  World as ChoukaiWorld,
+  Map as ChoukaiMap,
+  type TerrainType,
+} from '@atsu/choukai';
 
 /**
  * Serializable world snapshot data structure
@@ -60,7 +62,20 @@ export class WorldSnapshotSerializer {
           // Only render terrain, not units (units are managed separately by the unit controller)
           // This ensures the map snapshot shows the true underlying terrain state without units
           const terrain: TerrainType = cell ? cell.terrain : 'grass';
-          const terrainSymbol = MapRenderer['TERRAIN_SYMBOLS'][terrain] || '?';
+          // Use standard terrain symbols
+          const terrainSymbols: Record<TerrainType, string> = {
+            grass: '.',
+            water: '~',
+            mountain: '^',
+            forest: 't',
+            desert: '#',
+            road: '=',
+            plains: '.',
+            swamp: ':',
+            snow: '*',
+            sand: '-',
+          };
+          const terrainSymbol = terrainSymbols[terrain] || '?';
           cellContent = terrainSymbol;
 
           row += cellContent;
@@ -141,9 +156,19 @@ export class WorldSnapshotSerializer {
    * @returns The terrain type or null if unknown
    */
   private static getTerrainTypeFromSymbol(symbol: string): TerrainType | null {
-    // Map symbols to terrain types based on MapRenderer.TERRAIN_SYMBOLS
-    // Use direct lookup from the MapRenderer's terrain symbols for better maintainability
-    const terrainSymbols = MapRenderer['TERRAIN_SYMBOLS'];
+    // Map symbols to terrain types based on standard mapping
+    const terrainSymbols: Record<TerrainType, string> = {
+      grass: '.',
+      water: '~',
+      mountain: '^',
+      forest: 't',
+      desert: '#',
+      road: '=',
+      plains: '.',
+      swamp: ':',
+      snow: '*',
+      sand: '-',
+    };
 
     // Find the terrain type that corresponds to this symbol
     for (const [terrainType, terrainSymbol] of Object.entries(terrainSymbols)) {
@@ -167,8 +192,8 @@ export class WorldSnapshotSerializer {
       return false;
     }
 
-    for (const [i, map1] of snapshot1.maps.entries()) {
-      const map2 = snapshot2.maps[i];
+    return snapshot1.maps.every((map1, index) => {
+      const map2 = snapshot2.maps[index];
       if (!map2) {
         return false;
       }
@@ -182,13 +207,7 @@ export class WorldSnapshotSerializer {
       }
 
       // Compare rendered maps
-      for (let j = 0; j < map1.renderedMap.length; j++) {
-        if (map1.renderedMap[j] !== map2.renderedMap[j]) {
-          return false;
-        }
-      }
-    }
-
-    return true;
+      return map1.renderedMap.every((row, j) => row === map2.renderedMap[j]);
+    });
   }
 }

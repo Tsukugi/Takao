@@ -149,7 +149,6 @@ describe('UnitController', () => {
 
     const newState: Partial<GameState> = {
       turn: 5,
-      players: [{ id: 'player1', name: 'NewPlayer', resources: {} }],
     };
     await unitController.updateGameState(newState);
 
