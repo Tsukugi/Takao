@@ -17,6 +17,7 @@ import { MapGenerator } from '../utils/MapGenerator';
 import { World, Map as ChoukaiMap, Position } from '@atsu/choukai';
 import { GateSystem, type GateConnection } from '../utils/GateSystem';
 import { Logger } from '../utils/Logger';
+import { UnitPosition } from '../utils/UnitPosition';
 
 /**
  * Represents the StoryTeller that generates narrative actions based on unit states
@@ -452,6 +453,95 @@ export class StoryTeller {
    */
   public getAllGates(): GateConnection[] {
     return this.gateSystem.getAllGates();
+  }
+
+  /**
+   * Gets the unit at a specific position on a map
+   */
+  public getUnitAtPosition(
+    mapId: string,
+    x: number,
+    y: number
+  ): BaseUnit | undefined {
+    const units = this.unitController.getUnits();
+    return UnitPosition.getUnitAtPosition(units, mapId, x, y);
+  }
+
+  /**
+   * Gets all units on a specific map
+   */
+  public getUnitsInMap(mapId: string): BaseUnit[] {
+    const units = this.unitController.getUnits();
+    return UnitPosition.getUnitsInMap(units, mapId);
+  }
+
+  /**
+   * Gets all units within a specific range of a given unit
+   */
+  public getUnitsWithinRange(
+    unitId: string,
+    range: number,
+    useManhattanDistance: boolean = true
+  ): BaseUnit[] {
+    const units = this.unitController.getUnits();
+    return UnitPosition.getUnitsWithinRange(
+      units,
+      this.world,
+      unitId,
+      range,
+      useManhattanDistance
+    );
+  }
+
+  /**
+   * Calculates the distance between two units
+   */
+  public getDistanceBetweenUnits(
+    unitId1: string,
+    unitId2: string,
+    useManhattanDistance: boolean = true
+  ): number {
+    const units = this.unitController.getUnits();
+    return UnitPosition.getDistanceBetweenUnits(
+      units,
+      unitId1,
+      unitId2,
+      useManhattanDistance
+    );
+  }
+
+  /**
+   * Checks if two units are adjacent to each other
+   */
+  public areUnitsAdjacent(
+    unitId1: string,
+    unitId2: string,
+    allowDiagonal: boolean = true
+  ): boolean {
+    const units = this.unitController.getUnits();
+    return UnitPosition.areUnitsAdjacent(
+      units,
+      this.world,
+      unitId1,
+      unitId2,
+      allowDiagonal
+    );
+  }
+
+  /**
+   * Gets all adjacent units to a specific unit
+   */
+  public getAdjacentUnits(
+    unitId: string,
+    allowDiagonal: boolean = true
+  ): BaseUnit[] {
+    const units = this.unitController.getUnits();
+    return UnitPosition.getAdjacentUnits(
+      units,
+      this.world,
+      unitId,
+      allowDiagonal
+    );
   }
 
   /**

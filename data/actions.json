@@ -267,7 +267,8 @@
         "type": "random",
         "min": 5,
         "max": 10
-      }
+      },
+      "range": 1
     },
     "effects": [
       {
@@ -400,7 +401,8 @@
         "min": 5,
         "max": 10
       },
-      "targetUnit": "random_target"
+      "targetUnit": "random_target",
+      "range": 1
     },
     "effects": [
       {
@@ -457,7 +459,8 @@
         "min": 10,
         "max": 20
       },
-      "manaCost": 5
+      "manaCost": 5,
+      "range": 1
     },
     "effects": [
       {
@@ -499,7 +502,8 @@
         "min": 10,
         "max": 15
       },
-      "targetUnit": "random_target"
+      "targetUnit": "random_target",
+      "range": 2
     },
     "effects": [
       {
@@ -531,7 +535,8 @@
         "min": 3,
         "max": 8
       },
-      "targetUnit": "random_target"
+      "targetUnit": "random_target",
+      "range": 1
     },
     "effects": [
       {
@@ -627,7 +632,8 @@
         "min": 6,
         "max": 10
       },
-      "targetUnit": "random_target"
+      "targetUnit": "random_target",
+      "range": 2
     },
     "effects": [
       {
@@ -709,7 +715,8 @@
         "min": 10,
         "max": 20
       },
-      "targetUnit": "random_target"
+      "targetUnit": "random_target",
+      "range": 3
     },
     "effects": [
       {

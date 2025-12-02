@@ -10,15 +10,120 @@ import type {
 import { DataManager } from './DataManager';
 import { isNumber, isRandomValue } from '../types/typeGuards';
 import { Logger } from './Logger';
+import { UnitPosition } from './UnitPosition';
+import { World } from '@atsu/choukai';
 
 /**
  * Utility class for processing action effects
  */
 export class ActionProcessor {
   private logger: Logger | undefined;
+  private world: World | null = null;
 
-  constructor(logger?: Logger) {
+  constructor(logger?: Logger, world?: World) {
     this.logger = logger;
+    if (world) {
+      this.world = world;
+    }
+  }
+
+  /**
+   * Sets the world for range validation
+   */
+  public setWorld(world: World): void {
+    this.world = world;
+  }
+
+  /**
+   * Validates that target units are within range for the action
+   */
+  private validateActionRange(
+    action: Action,
+    units: BaseUnit[]
+  ): { isValid: boolean; errorMessage?: string } {
+    try {
+      if (!this.world) {
+        return { isValid: true }; // If no world is set, skip range validation
+      }
+
+      // Get the acting unit
+      const actingUnit = units?.find?.(unit => unit?.name === action?.player);
+      if (!actingUnit) {
+        return { isValid: true }; // If no acting unit found, skip validation
+      }
+
+      // Check if action has a target unit in the payload
+      const targetUnitId = action?.payload?.targetUnit;
+      if (targetUnitId && typeof targetUnitId === 'string') {
+        // Find the target unit
+        const targetUnit = units?.find?.(unit => unit?.id === targetUnitId);
+        if (!targetUnit) {
+          return {
+            isValid: false,
+            errorMessage: `Target unit ${targetUnitId} not found`,
+          };
+        }
+
+        // Get the range from action definition or payload, default to 1 for melee actions
+        let maxRange = 1;
+        if (
+          action?.payload?.range !== undefined &&
+          isNumber(action?.payload?.range)
+        ) {
+          maxRange = action.payload.range;
+        } else if (
+          [
+            'attack',
+            'melee',
+            'stab',
+            'desperate_attack',
+            'trade',
+            'interact',
+            'negotiate',
+          ].includes(action?.type)
+        ) {
+          maxRange = 1; // Melee and close-range actions have 1 tile range
+        } else if (['shoot', 'ranged_attack', 'cast'].includes(action?.type)) {
+          maxRange = 3; // Ranged attacks have 3 tile range
+        } else if (['support', 'heal', 'inspire'].includes(action?.type)) {
+          maxRange = 2; // Support actions have 2 tile range
+        } else {
+          // For any action with targetUnit, default to 1 tile range
+          maxRange = 1;
+        }
+
+        // Calculate distance between units
+        const distance = UnitPosition.getDistanceBetweenUnits(
+          units,
+          actingUnit.id,
+          targetUnitId,
+          true // Use Manhattan distance
+        );
+
+        // If distance is infinity, units are on different maps
+        if (distance === Infinity) {
+          return {
+            isValid: false,
+            errorMessage: `Units ${actingUnit.id} and ${targetUnitId} are on different maps`,
+          };
+        }
+
+        // Check if the target is within range
+        if (distance > maxRange) {
+          return {
+            isValid: false,
+            errorMessage: `Target unit ${targetUnitId} is out of range. Distance: ${distance}, Max range: ${maxRange}`,
+          };
+        }
+      }
+
+      return { isValid: true };
+    } catch (error) {
+      return {
+        isValid: false,
+        errorMessage: `Range validation error: ${(error as Error).message}`,
+      };
+    }
   }
 
   /**
@@ -55,6 +160,32 @@ export class ActionProcessor {
           `No effects found for action type: ${action.type}, skipping effects execution`
         );
         return { success: true };
+      }
+
+      // Check if the action has range requirements and validate them
+      if (this.world) {
+        const rangeValidationResult = this.validateActionRange(action, units);
+        if (
+          !rangeValidationResult.isValid &&
+          rangeValidationResult.errorMessage
+        ) {
+          this.logger?.error(
+            `Range validation failed for action ${action.type}: ${rangeValidationResult.errorMessage}`
+          );
+          return {
+            success: false,
+            errorMessage: rangeValidationResult.errorMessage,
+          };
+        } else if (!rangeValidationResult.isValid) {
+          // If validation failed but no specific error message, return a generic failure
+          this.logger?.error(
+            `Range validation failed for action ${action.type}`
+          );
+          return {
+            success: false,
+            errorMessage: `Range validation failed for action ${action.type}`,
+          };
+        }
       }
 
       // Execute each effect
