@@ -5,6 +5,7 @@ import * as path from 'path';
 interface AppConfig {
   maxTurnsPerSession: number;
   overrideAvailableActions?: string[];
+  cooldownPeriod?: number; // Units can act once every N turns (default: 1)
 }
 
 // Map generation configuration
@@ -94,6 +95,7 @@ export class ConfigManager {
   public static getDefaultConfig(): FullConfig {
     return {
       maxTurnsPerSession: 10,
+      cooldownPeriod: 1, // Default: every unit can act each turn (current behavior)
       mapGeneration: {
         // Map dimensions settings
         defaultMapWidth: 20,

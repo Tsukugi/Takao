@@ -174,6 +174,18 @@ export class StoryTeller {
       return !statusProperty || statusProperty.value !== 'dead';
     });
 
+    // Filter units by cooldown - units can only act once every few turns
+    const cooldownPeriod = ConfigManager.getConfig().cooldownPeriod || 1; // Default to 1 (every turn)
+    const now = turn;
+    const availableUnits = aliveUnits.filter(unit => {
+      const lastTurnProperty = unit.getPropertyValue('lastActionTurn');
+      const lastTurn = lastTurnProperty ? lastTurnProperty.value : -Infinity;
+      return (now - lastTurn) >= cooldownPeriod;
+    });
+
+    // If no units are available due to cooldown, use all alive units (reset cooldowns)
+    const unitsToConsider = availableUnits.length > 0 ? availableUnits : aliveUnits;
+
     // If no alive units exist, return a default action
     if (aliveUnits.length === 0) {
       return this.actionProcessor.getDefaultExecutedAction(
@@ -183,7 +195,7 @@ export class StoryTeller {
     }
 
     // Choose a random alive unit to center the story around
-    const randomUnit = MathUtils.getRandomFromArray(aliveUnits);
+    const randomUnit = MathUtils.getRandomFromArray(unitsToConsider);
 
     // Get properties of the unit to create a meaningful story
     const unitName = randomUnit.name;
@@ -265,6 +277,13 @@ export class StoryTeller {
       .replace('{{targetUnitName}}', targetUnitName);
 
     // Create action payload based on action type
+
+    // Record that this unit took an action in this turn
+    randomUnit.setProperty('lastActionTurn', {
+      name: 'lastActionTurn',
+      value: turn,
+      baseValue: turn
+    });
 
     return {
       turn,
