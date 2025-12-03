@@ -46,12 +46,19 @@ export interface MapGenerationConfig {
   seed: string;
 }
 
+// Maya rendering configuration
+export interface MayaRenderingConfig {
+  visualOnly: boolean;
+  showDiary?: boolean;
+  diaryMaxHeight?: number;
+  diaryMaxEntries?: number;
+  diaryTitle?: string;
+}
+
 // Combined configuration interface
 export interface FullConfig extends AppConfig {
   mapGeneration: Partial<MapGenerationConfig>;
-  rendering: {
-    visualOnly: boolean;
-  };
+  rendering: MayaRenderingConfig;
 }
 
 export class ConfigManager {
@@ -126,6 +133,10 @@ export class ConfigManager {
       },
       rendering: {
         visualOnly: false,
+        showDiary: true,        // Default to showing diary
+        diaryMaxHeight: 30,     // Default diary height
+        diaryMaxEntries: 20,    // Default max entries to show
+        diaryTitle: 'Action Diary', // Default diary title
       },
     };
   }

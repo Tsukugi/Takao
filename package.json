@@ -11,9 +11,10 @@
     "dist/**"
   ],
   "scripts": {
-    "build": "tsup",
+    "build": "cd ../Maya && npm run build && cd ../Takao && tsup",
     "dev": "tsup --watch",
-    "start": "tsx examples/takao-engine-demo.ts",
+    "start": "cd ../Maya && npm run build && cd ../Takao && tsx examples/takao-engine-demo.ts",
+    "start:dev": "cd ../Maya && npm run build && cd ../Takao && tsx examples/takao-engine-demo.ts",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
     "format": "prettier --write src",

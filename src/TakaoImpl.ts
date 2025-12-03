@@ -261,8 +261,36 @@ export class TakaoImpl {
             unitsMap[id] = unit;
           }
 
-          // Render the game using Maya with the stored world state
-          renderGame(this.lastWorldState.world, unitsMap, this.renderConfig);
+          // Get diary entries from the StoryTeller
+          const diaryEntries = this.storyTeller.getDiary();
+
+          // Get configuration from ConfigManager
+          const config = this.gameEngine.getConfig();
+
+          // Render the game using Maya with the stored world state and diary
+          // Prepare configuration object with proper handling of optional properties
+          const rendererConfig = {
+            ...this.renderConfig,
+            ...(config.rendering.showDiary !== undefined && {
+              showDiary: config.rendering.showDiary,
+            }),
+            ...(config.rendering.diaryMaxHeight !== undefined && {
+              diaryMaxHeight: config.rendering.diaryMaxHeight,
+            }),
+            ...(config.rendering.diaryMaxEntries !== undefined && {
+              diaryMaxEntries: config.rendering.diaryMaxEntries,
+            }),
+            ...(config.rendering.diaryTitle !== undefined && {
+              diaryTitle: config.rendering.diaryTitle,
+            }),
+          };
+
+          renderGame(
+            this.lastWorldState.world,
+            unitsMap,
+            rendererConfig,
+            diaryEntries
+          );
         } catch {
           this.logger.error('\nNo maps to render.');
         }
@@ -338,14 +366,33 @@ export class TakaoImpl {
       unitsMap[unit.id] = unit;
     }
 
-    const isVisualOnlyMode = this.gameEngine.getConfig().rendering.visualOnly;
+    // Get configuration from ConfigManager
+    const config = this.gameEngine.getConfig();
+    const isVisualOnlyMode = config.rendering.visualOnly;
+
     // Render the game using Maya, showing only the first map
     try {
       const firstMap = maps[0];
-      renderGame(world, unitsMap, {
+      const diaryEntries = this.storyTeller.getDiary();
+      // Prepare configuration object with proper handling of optional properties
+      const rendererConfig = {
         selectedMap: firstMap?.name,
         showUnitPositions: !isVisualOnlyMode,
-      });
+        ...(config.rendering.showDiary !== undefined && {
+          showDiary: config.rendering.showDiary,
+        }),
+        ...(config.rendering.diaryMaxHeight !== undefined && {
+          diaryMaxHeight: config.rendering.diaryMaxHeight,
+        }),
+        ...(config.rendering.diaryMaxEntries !== undefined && {
+          diaryMaxEntries: config.rendering.diaryMaxEntries,
+        }),
+        ...(config.rendering.diaryTitle !== undefined && {
+          diaryTitle: config.rendering.diaryTitle,
+        }),
+      };
+
+      renderGame(world, unitsMap, rendererConfig, diaryEntries);
     } catch {
       this.logger.error('\nNo maps to render.');
     }
