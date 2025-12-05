@@ -164,8 +164,31 @@ export class TakaoImpl {
     const allMaps = world.getAllMaps();
     const isVisualOnlyMode = this.gameEngine.getConfig().rendering.visualOnly;
 
-    // Then, ensure each unit moves - process each unit directly
-    for (const unit of allUnits) {
+    // Get current turn for cooldown calculation
+    const currentTurn = this.gameEngine.getCurrentTurn();
+
+    // Get cooldown period from config
+    const cooldownPeriod = this.gameEngine.getCooldownPeriod();
+
+    // Filter units by cooldown - only move units that are not in cooldown
+    const aliveUnits = allUnits.filter(unit => {
+      const statusProperty = unit.getPropertyValue('status');
+      return !(statusProperty && statusProperty.value === 'dead');
+    });
+
+    // Filter units by cooldown - units can only move once every few turns
+    // Only units that have completed their cooldown can move
+    const unitsToMove = aliveUnits.filter(unit => {
+      const lastTurnProperty = unit.getPropertyValue('lastActionTurn');
+      const lastTurn = lastTurnProperty ? lastTurnProperty.value : -Infinity;
+      return (currentTurn - lastTurn) >= cooldownPeriod;
+    });
+
+    // If no units are available due to cooldown, use all alive units (reset cooldowns)
+    const unitsForMovement = unitsToMove.length > 0 ? unitsToMove : aliveUnits;
+
+    // Move only eligible units - process each unit directly
+    for (const unit of unitsForMovement) {
       try {
         // Get the unit's current position directly
         const unitPos = unit.getPropertyValue<IUnitPosition>('position');

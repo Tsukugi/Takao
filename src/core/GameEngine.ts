@@ -204,10 +204,24 @@ export class GameEngine {
   }
 
   /**
+   * Gets the current turn number from the turn manager
+   */
+  public getCurrentTurn(): number {
+    return this.turnManager.getCurrentTurn();
+  }
+
+  /**
    * Retrieves the full configuration of the game engine, used from config.json
    * @returns FullConfig object
    */
   public getConfig(): FullConfig {
     return ConfigManager.getConfig();
+  }
+
+  /**
+   * Gets the cooldown period from configuration
+   */
+  public getCooldownPeriod(): number {
+    return ConfigManager.getConfig().cooldownPeriod || 1;
   }
 }
