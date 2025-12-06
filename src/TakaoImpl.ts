@@ -119,10 +119,11 @@ export class TakaoImpl {
   private readonly targetFrameTime: number = 1000 / 1;
   private rendererIntervalId: NodeJS.Timeout | null = null;
   private isRendererRunning: boolean = false;
-  private lastWorldState: {
+  // Reserved for future diffing of world state to avoid unnecessary renders
+  private _lastWorldState: {
     world: World;
     units: Map<string, BaseUnit>;
-  } | null = null; // Used in runTurn method
+  } | null = null;
   private renderConfig: IGameRendererConfig = {};
   private _lastWorldHash: string | null = null;
   private inputHandler: ((data: Buffer) => void) | null = null;
@@ -252,19 +253,16 @@ export class TakaoImpl {
       unitsMap.set(unit.id, unit);
     }
 
-    // Always update the world state for rendering to ensure all units are displayed
-    this.lastWorldState = {
-      world,
-      units: unitsMap,
-    };
+    // Track world snapshot; if unchanged, just refresh hash and skip extra logging
+    const newWorldHash = this.generateWorldHash(world, unitsMap);
+    const worldChanged = this._lastWorldHash !== newWorldHash;
+    this._lastWorldHash = newWorldHash;
+    this._lastWorldState = worldChanged ? { world, units: unitsMap } : this._lastWorldState;
 
     this.renderConfig = {
       selectedMap: allMaps[0]?.name,
       showUnitPositions: !isVisualOnlyMode,
     };
-
-    // Generate hash to determine if state has changed for optimization
-    this.lastWorldHash = this.generateWorldHash(world, unitsMap);
   }
 
   private startRenderer(): void {
@@ -275,13 +273,16 @@ export class TakaoImpl {
     this.isRendererRunning = true;
 
     this.rendererIntervalId = setInterval(() => {
-      // Always get fresh units from the controller to ensure we have all units
-      const allUnits = this.unitController.getUnits();
-      const world = this.storyTeller.getWorld();
+      const cachedState = this._lastWorldState;
+      // Prefer the latest cached world snapshot from the game loop, fallback to live fetch
+      const world = cachedState?.world ?? this.storyTeller.getWorld();
+      const unitsList = cachedState?.units
+        ? Array.from(cachedState.units.values())
+        : this.unitController.getUnits();
 
       // Create a fresh units mapping to ensure all units are included
       const unitsMap: Record<string, BaseUnit> = {};
-      for (const unit of allUnits) {
+      for (const unit of unitsList) {
         // Only include units that are not dead
         const statusProperty = unit.getPropertyValue('status');
         if (statusProperty && statusProperty.value === 'dead') continue;
