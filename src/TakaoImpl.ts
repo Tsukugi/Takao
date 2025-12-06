@@ -16,11 +16,10 @@ import { MathUtils } from './utils/Math';
 
 export class TakaoImpl {
   private gameEngine: GameEngine;
-  private logger: Logger;
+  private logger: Logger = new Logger({ prefix: 'TakaoImpl', disable: false });
   private isRunning: boolean = false;
 
   constructor() {
-    this.logger = new Logger({ prefix: 'TakaoImpl' });
     this.gameEngine = new GameEngine({
       onTurnStart: this.runTurn.bind(this),
       onStop: this.showFinalState.bind(this),
@@ -39,11 +38,13 @@ export class TakaoImpl {
    * Initialize the game with initial setup
    */
   public async initialize(): Promise<void> {
-    this.logger.info('Initializing Takao Engine...');
-
     // Initialize the underlying game engine
     await this.gameEngine.initialize({ turn: 0 });
-
+    this.logger.info('Initializing Takao Engine...');
+    this.logger = new Logger({
+      prefix: 'TakaoImpl',
+      disable: this.gameEngine.getConfig().rendering.visualOnly,
+    });
     // Get the world instance
     const world = this.storyTeller.getWorld();
 
@@ -121,9 +122,9 @@ export class TakaoImpl {
   private lastWorldState: {
     world: World;
     units: Map<string, BaseUnit>;
-  } | null = null;
+  } | null = null; // Used in runTurn method
   private renderConfig: IGameRendererConfig = {};
-  private lastWorldHash: string | null = null;
+  private lastWorldHash: string | null = null; // Used in runTurn method
 
   /**
    * Generate a hash to determine if the world state has changed
@@ -181,7 +182,7 @@ export class TakaoImpl {
     const unitsToMove = aliveUnits.filter(unit => {
       const lastTurnProperty = unit.getPropertyValue('lastActionTurn');
       const lastTurn = lastTurnProperty ? lastTurnProperty.value : -Infinity;
-      return (currentTurn - lastTurn) >= cooldownPeriod;
+      return currentTurn - lastTurn >= cooldownPeriod;
     });
 
     // If no units are available due to cooldown, use all alive units (reset cooldowns)
@@ -243,29 +244,25 @@ export class TakaoImpl {
       }
     }
 
-    // Store the current world state for rendering
+    // Store the current world state for rendering (always update with all units)
     const unitsMap = new Map<string, BaseUnit>();
     for (const unit of allUnits) {
       unitsMap.set(unit.id, unit);
     }
 
-    // Generate hash to determine if state has changed
-    const currentHash = this.generateWorldHash(world, unitsMap);
+    // Always update the world state for rendering to ensure all units are displayed
+    this.lastWorldState = {
+      world,
+      units: unitsMap,
+    };
 
-    // Only update if state has changed
-    if (currentHash !== this.lastWorldHash) {
-      this.lastWorldState = {
-        world,
-        units: unitsMap,
-      };
+    this.renderConfig = {
+      selectedMap: allMaps[0]?.name,
+      showUnitPositions: !isVisualOnlyMode,
+    };
 
-      this.renderConfig = {
-        selectedMap: allMaps[0]?.name,
-        showUnitPositions: !isVisualOnlyMode,
-      };
-
-      this.lastWorldHash = currentHash;
-    }
+    // Generate hash to determine if state has changed for optimization
+    this.lastWorldHash = this.generateWorldHash(world, unitsMap);
   }
 
   private startRenderer(): void {
@@ -276,47 +273,47 @@ export class TakaoImpl {
     this.isRendererRunning = true;
 
     this.rendererIntervalId = setInterval(() => {
-      if (this.lastWorldState) {
-        try {
-          // Prepare units mapping for Maya rendering from the stored Map
-          const unitsMap: Record<string, BaseUnit> = {};
-          for (const [id, unit] of this.lastWorldState.units) {
-            unitsMap[id] = unit;
-          }
+      // Always get fresh units from the controller to ensure we have all units
+      const allUnits = this.unitController.getUnits();
+      const world = this.storyTeller.getWorld();
 
-          // Get diary entries from the StoryTeller
-          const diaryEntries = this.storyTeller.getDiary();
+      // Create a fresh units mapping to ensure all units are included
+      const unitsMap: Record<string, BaseUnit> = {};
+      for (const unit of allUnits) {
+        // Only include units that are not dead
+        const statusProperty = unit.getPropertyValue('status');
+        if (statusProperty && statusProperty.value === 'dead') continue;
+        unitsMap[unit.id] = unit;
+      }
 
-          // Get configuration from ConfigManager
-          const config = this.gameEngine.getConfig();
+      // Get diary entries from the StoryTeller
+      const diaryEntries = this.storyTeller.getDiary();
 
-          // Render the game using Maya with the stored world state and diary
-          // Prepare configuration object with proper handling of optional properties
-          const rendererConfig = {
-            ...this.renderConfig,
-            ...(config.rendering.showDiary !== undefined && {
-              showDiary: config.rendering.showDiary,
-            }),
-            ...(config.rendering.diaryMaxHeight !== undefined && {
-              diaryMaxHeight: config.rendering.diaryMaxHeight,
-            }),
-            ...(config.rendering.diaryMaxEntries !== undefined && {
-              diaryMaxEntries: config.rendering.diaryMaxEntries,
-            }),
-            ...(config.rendering.diaryTitle !== undefined && {
-              diaryTitle: config.rendering.diaryTitle,
-            }),
-          };
+      // Get configuration from ConfigManager
+      const config = this.gameEngine.getConfig();
 
-          renderGame(
-            this.lastWorldState.world,
-            unitsMap,
-            rendererConfig,
-            diaryEntries
-          );
-        } catch {
-          this.logger.error('\nNo maps to render.');
-        }
+      // Render the game using Maya with the stored world state and diary
+      // Prepare configuration object with proper handling of optional properties
+      const rendererConfig = {
+        ...this.renderConfig,
+        ...(config.rendering.showDiary !== undefined && {
+          showDiary: config.rendering.showDiary,
+        }),
+        ...(config.rendering.diaryMaxHeight !== undefined && {
+          diaryMaxHeight: config.rendering.diaryMaxHeight,
+        }),
+        ...(config.rendering.diaryMaxEntries !== undefined && {
+          diaryMaxEntries: config.rendering.diaryMaxEntries,
+        }),
+        ...(config.rendering.diaryTitle !== undefined && {
+          diaryTitle: config.rendering.diaryTitle,
+        }),
+      };
+
+      try {
+        renderGame(world, unitsMap, rendererConfig, diaryEntries);
+      } catch {
+        this.logger.error('\nNo maps to render.');
       }
     }, this.targetFrameTime);
   }
@@ -383,9 +380,12 @@ export class TakaoImpl {
     const allUnits = this.unitController.getUnits();
 
     // Using Maya for rendering the final state
-    // Prepare units mapping for Maya rendering
+    // Prepare units mapping for Maya rendering - only include non-dead units
     const unitsMap: Record<string, BaseUnit> = {};
     for (const unit of allUnits) {
+      // Only include units that are not dead
+      const statusProperty = unit.getPropertyValue('status');
+      if (statusProperty && statusProperty.value === 'dead') continue;
       unitsMap[unit.id] = unit;
     }
 

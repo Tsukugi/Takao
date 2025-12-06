@@ -13,7 +13,7 @@
   "scripts": {
     "build": "cd ../Maya && npm run build && cd ../Takao && tsup",
     "dev": "tsup --watch",
-    "start": "cd ../Maya && npm run build && cd ../Takao && tsx examples/takao-engine-demo.ts",
+    "start": "tsx examples/takao-engine-demo.ts",
     "start:dev": "cd ../Maya && npm run build && cd ../Takao && tsx examples/takao-engine-demo.ts",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",

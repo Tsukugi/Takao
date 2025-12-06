@@ -180,11 +180,12 @@ export class StoryTeller {
     const availableUnits = aliveUnits.filter(unit => {
       const lastTurnProperty = unit.getPropertyValue('lastActionTurn');
       const lastTurn = lastTurnProperty ? lastTurnProperty.value : -Infinity;
-      return (now - lastTurn) >= cooldownPeriod;
+      return now - lastTurn >= cooldownPeriod;
     });
 
     // If no units are available due to cooldown, use all alive units (reset cooldowns)
-    const unitsToConsider = availableUnits.length > 0 ? availableUnits : aliveUnits;
+    const unitsToConsider =
+      availableUnits.length > 0 ? availableUnits : aliveUnits;
 
     // If no alive units exist, return a default action
     if (aliveUnits.length === 0) {
@@ -282,7 +283,7 @@ export class StoryTeller {
     randomUnit.setProperty('lastActionTurn', {
       name: 'lastActionTurn',
       value: turn,
-      baseValue: turn
+      baseValue: turn,
     });
 
     return {
