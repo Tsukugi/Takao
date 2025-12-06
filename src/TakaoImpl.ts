@@ -349,10 +349,6 @@ export class TakaoImpl {
    * Stop the game loop
    */
   public stop(): void {
-    if (!this.isRunning) {
-      return;
-    }
-
     this.isRunning = false;
 
     // Stop the renderer first
