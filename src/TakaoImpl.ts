@@ -124,7 +124,9 @@ export class TakaoImpl {
     units: Map<string, BaseUnit>;
   } | null = null; // Used in runTurn method
   private renderConfig: IGameRendererConfig = {};
-  private lastWorldHash: string | null = null; // Used in runTurn method
+  private _lastWorldHash: string | null = null;
+  private inputHandler: ((data: Buffer) => void) | null = null;
+  private stdinRawMode = false;
 
   /**
    * Generate a hash to determine if the world state has changed
@@ -340,6 +342,9 @@ export class TakaoImpl {
     // Start the separate renderer loop for Maya
     this.startRenderer();
 
+    // Listen for ESC to exit when running in a TTY
+    this.attachEscapeHandler();
+
     // Start the underlying game engine for game logic
     this.gameEngine.start();
     this.logger.info('Game started! Running...');
@@ -350,6 +355,9 @@ export class TakaoImpl {
    */
   public stop(): void {
     this.isRunning = false;
+
+    // Remove key handler if attached
+    this.detachEscapeHandler();
 
     // Stop the renderer first
     this.stopRenderer();
@@ -491,5 +499,56 @@ export class TakaoImpl {
    */
   public getRunning(): boolean {
     return this.isRunning;
+  }
+
+  /**
+   * Attach an ESC key handler for graceful shutdown in TTY environments
+   */
+  private attachEscapeHandler(): void {
+    if (typeof process === 'undefined') return;
+    const stdin = process.stdin;
+    if (!stdin || !stdin.isTTY) return;
+
+    try {
+      stdin.setRawMode?.(true);
+      stdin.resume();
+      this.stdinRawMode = true;
+    } catch {
+      return;
+    }
+
+    this.inputHandler = (data: Buffer) => {
+      const key = data.toString();
+      if (key === '\u001b') {
+        this.logger.info('ESC pressed, stopping game...');
+        this.stop();
+      }
+    };
+
+    stdin.on('data', this.inputHandler);
+  }
+
+  /**
+   * Detach ESC key handler and restore stdin state
+   */
+  private detachEscapeHandler(): void {
+    if (typeof process === 'undefined') return;
+    const stdin = process.stdin;
+    if (!stdin) return;
+
+    if (this.inputHandler) {
+      stdin.off('data', this.inputHandler);
+      this.inputHandler = null;
+    }
+
+    if (this.stdinRawMode) {
+      try {
+        stdin.setRawMode?.(false);
+        stdin.pause();
+      } catch {
+        // ignore cleanup errors
+      }
+      this.stdinRawMode = false;
+    }
   }
 }

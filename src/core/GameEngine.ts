@@ -23,6 +23,8 @@ export class GameEngine {
   private sessionTurnCount: number = 0;
   private maxTurnsPerSession: number =
     ConfigManager.getConfig().maxTurnsPerSession;
+  private runIndefinitely: boolean =
+    ConfigManager.getConfig().runIndefinitely ?? false;
   private props: EngineProps = this.getDefaultProps();
 
   constructor(_props: Partial<EngineProps> = {}) {
@@ -130,8 +132,10 @@ export class GameEngine {
    * Determines if the game should continue
    */
   private async shouldContinue(): Promise<boolean> {
-    // This will be implemented by the specific game
-    // For now, let's continue for a fixed number of turns per session
+    if (this.runIndefinitely || this.maxTurnsPerSession <= 0) {
+      return true;
+    }
+
     return this.sessionTurnCount < this.maxTurnsPerSession;
   }
 
