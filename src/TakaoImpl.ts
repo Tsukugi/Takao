@@ -12,7 +12,6 @@ import { StoryTeller } from './core/StoryTeller';
 import { UnitController } from './ai/UnitController';
 import { Logger } from './utils/Logger';
 import { isUnitPosition } from './types/typeGuards';
-import { MathUtils } from './utils/Math';
 
 export class TakaoImpl {
   private gameEngine: GameEngine;
@@ -166,86 +165,6 @@ export class TakaoImpl {
     const allUnits = this.unitController.getUnits();
     const world = this.storyTeller.getWorld();
     const allMaps = world.getAllMaps();
-    const isVisualOnlyMode = this.gameEngine.getConfig().rendering.visualOnly;
-
-    // Get current turn for cooldown calculation
-    const currentTurn = this.gameEngine.getCurrentTurn();
-
-    // Get cooldown period from config
-    const cooldownPeriod = this.gameEngine.getCooldownPeriod();
-
-    // Filter units by cooldown - only move units that are not in cooldown
-    const aliveUnits = allUnits.filter(unit => {
-      const statusProperty = unit.getPropertyValue('status');
-      return !(statusProperty && statusProperty.value === 'dead');
-    });
-
-    // Filter units by cooldown - units can only move once every few turns
-    // Only units that have completed their cooldown can move
-    const unitsToMove = aliveUnits.filter(unit => {
-      const lastTurnProperty = unit.getPropertyValue('lastActionTurn');
-      const lastTurn = lastTurnProperty ? lastTurnProperty.value : -Infinity;
-      return currentTurn - lastTurn >= cooldownPeriod;
-    });
-
-    // If no units are available due to cooldown, use all alive units (reset cooldowns)
-    const unitsForMovement = unitsToMove.length > 0 ? unitsToMove : aliveUnits;
-
-    // Move only eligible units - process each unit directly
-    for (const unit of unitsForMovement) {
-      try {
-        // Get the unit's current position directly
-        const unitPos = unit.getPropertyValue<IUnitPosition>('position');
-        if (!unitPos) continue; // Skip units without position
-
-        // Simple movement: move one step in a random direction
-        const directions = [
-          { x: 0, y: -1 }, // North
-          { x: 1, y: 0 }, // East
-          { x: 0, y: 1 }, // South
-          { x: -1, y: 0 }, // West
-        ];
-
-        // Select a random direction
-        const randomDirection = MathUtils.getRandomFromArray(directions);
-        // Get map dimensions to properly constrain movement
-        const currentMap = world.getMap(unitPos.mapId);
-        const maxX = currentMap ? currentMap.width - 1 : 19;
-        const maxY = currentMap ? currentMap.height - 1 : 14;
-
-        const newX = Math.max(
-          0,
-          Math.min(unitPos.position.x + randomDirection.x, maxX)
-        );
-        const newY = Math.max(
-          0,
-          Math.min(unitPos.position.y + randomDirection.y, maxY)
-        );
-
-        // Update position directly on the unit using its property
-        const newPosition = new Position(newX, newY, unitPos.position.z);
-        const newUnitPosition: IUnitPosition = {
-          unitId: unit.id,
-          mapId: unitPos.mapId,
-          position: newPosition,
-        };
-        unit.setProperty('position', newUnitPosition);
-        const moved = true; // Movement always succeeds when setting property directly
-
-        if (!isVisualOnlyMode) {
-          if (moved) {
-            this.logger.info(`${unit.name} moves to (${newX}, ${newY})`);
-          } else {
-            this.logger.info(`${unit.name} failed to move`);
-          }
-        }
-      } catch (error) {
-        if (!isVisualOnlyMode)
-          this.logger.info(
-            `${unit.name} could not move: ${(error as Error).message}`
-          );
-      }
-    }
 
     // Store the current world state for rendering (always update with all units)
     const unitsMap = new Map<string, BaseUnit>();
@@ -257,11 +176,13 @@ export class TakaoImpl {
     const newWorldHash = this.generateWorldHash(world, unitsMap);
     const worldChanged = this._lastWorldHash !== newWorldHash;
     this._lastWorldHash = newWorldHash;
-    this._lastWorldState = worldChanged ? { world, units: unitsMap } : this._lastWorldState;
+    this._lastWorldState = worldChanged
+      ? { world, units: unitsMap }
+      : this._lastWorldState;
 
     this.renderConfig = {
       selectedMap: allMaps[0]?.name,
-      showUnitPositions: !isVisualOnlyMode,
+      showUnitPositions: !this.gameEngine.getConfig().rendering.visualOnly,
     };
   }
 

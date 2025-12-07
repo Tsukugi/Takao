@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { BaseUnit } from '@atsu/atago';
 import type { World as ChoukaiWorld } from '@atsu/choukai';
-import type { NamesData, ActionsData, DiaryEntry } from '../types';
+import type { NamesData, ActionsData, DiaryEntry, GoalsData } from '../types';
 import { WorldSnapshotSerializer } from './WorldSnapshotSerializer';
 import { isUnitPosition } from '../types/typeGuards';
 import { Logger } from './Logger';
@@ -13,6 +13,7 @@ import { Logger } from './Logger';
 export class DataManager {
   public static DATA_DIR = path.join(process.cwd(), 'data');
   public static ACTIONS_FILE = path.join(DataManager.DATA_DIR, 'actions.json');
+  public static GOALS_FILE = path.join(DataManager.DATA_DIR, 'goals.json');
   public static NAMES_FILE = path.join(DataManager.DATA_DIR, 'names.json');
   public static UNITS_FILE = path.join(DataManager.DATA_DIR, 'units.json');
   public static DIARY_FILE = path.join(DataManager.DATA_DIR, 'diary.json');
@@ -27,6 +28,18 @@ export class DataManager {
     }
 
     const data = fs.readFileSync(this.ACTIONS_FILE, 'utf-8');
+    return JSON.parse(data);
+  }
+
+  /**
+   * Loads goal definitions from the goals.json file
+   */
+  public static loadGoals(): GoalsData {
+    if (!fs.existsSync(this.GOALS_FILE)) {
+      throw new Error(`Goals file not found: ${this.GOALS_FILE}`);
+    }
+
+    const data = fs.readFileSync(this.GOALS_FILE, 'utf-8');
     return JSON.parse(data);
   }
 
@@ -91,6 +104,10 @@ export class DataManager {
 
     const content = fs.readFileSync(this.UNITS_FILE, 'utf-8');
     const unitData = JSON.parse(content) as BaseUnit[];
+
+    if (!Array.isArray(unitData)) {
+      return [];
+    }
 
     // Reconstruct BaseUnit instances properly
     return unitData.map(unit => {

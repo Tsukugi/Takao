@@ -1,0 +1,30 @@
+[
+  {
+    "id": "RecoverHealth",
+    "label": "Recover Health",
+    "scope": "unit",
+    "completion": { "type": "stat_at_least", "stat": "health", "value": 70 },
+    "candidateActions": ["rest", "retreat", "meditate", "search"]
+  },
+  {
+    "id": "RecoverMana",
+    "label": "Recover Mana",
+    "scope": "unit",
+    "completion": { "type": "stat_at_least", "stat": "mana", "value": 50 },
+    "candidateActions": ["conserve_mana", "meditate", "rest"]
+  },
+  {
+    "id": "AttackEnemy",
+    "label": "Attack Enemy",
+    "scope": "unit",
+    "completion": { "type": "condition_met", "condition": "no_hostile_in_range" },
+    "candidateActions": ["attack", "desperate_attack"]
+  },
+  {
+    "id": "Explore",
+    "label": "Explore",
+    "scope": "unit",
+    "completion": { "type": "none" },
+    "candidateActions": ["explore", "scout", "patrol"]
+  }
+]

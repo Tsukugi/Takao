@@ -18,6 +18,7 @@ import { World, Map as ChoukaiMap, Position } from '@atsu/choukai';
 import { GateSystem, type GateConnection } from '../utils/GateSystem';
 import { Logger } from '../utils/Logger';
 import { UnitPosition } from '../utils/UnitPosition';
+import { GoalSystem } from '../ai/goals/GoalSystem';
 
 /**
  * Represents the StoryTeller that generates narrative actions based on unit states
@@ -26,6 +27,7 @@ import { UnitPosition } from '../utils/UnitPosition';
 export class StoryTeller {
   private unitController: UnitController;
   private actionsData: ActionsData;
+  private goalSystem: GoalSystem;
   private storyHistory: string[] = [];
   private diary: DiaryEntry[] = [];
   private mapGenerator: MapGenerator;
@@ -42,6 +44,7 @@ export class StoryTeller {
     });
     this.unitController = unitController;
     this.actionsData = DataManager.loadActions();
+    this.goalSystem = new GoalSystem();
     this.diary = DataManager.loadDiary(); // Load existing diary entries
     DataManager.ensureDataDirectory(); // Ensure data directory exists
     this.actionProcessor = new ActionProcessor(this.logger); // Initialize action processor with logger
@@ -205,53 +208,24 @@ export class StoryTeller {
     // Create a story action based on unit properties using JSON data
     let description = '';
 
-    // Get available actions based on unit requirements and config settings
-    let availableActions: Action[] = [];
+    const availableActions = this.getAvailableActionsForUnit(randomUnit);
 
-    // Get override actions from config
-    const overrideActionList =
-      ConfigManager.getConfig().overrideAvailableActions;
+    const goalChoice = this.goalSystem.chooseAction(randomUnit, {
+      availableActions,
+      units,
+      turn,
+    });
 
-    // Filter actions based on unit requirements (health, mana, etc.) and config
-    for (const action of this.actionsData) {
-      // If overrideAvailableActions is specified, only use those actions
-      if (
-        overrideActionList &&
-        overrideActionList.length > 0 &&
-        !overrideActionList.includes(action.type)
-      )
-        continue;
+    const selectedAction =
+      goalChoice.action ?? MathUtils.getRandomFromArray(availableActions);
 
-      // Check all requirements
-      if (action.requirements) {
-        let meetsAllRequirements = true;
-        for (const requirement of action.requirements) {
-          if (isComparison(requirement)) {
-            // Check property comparison requirement
-            const unitValue = randomUnit.getPropertyValue(requirement.property);
-            const conditionString = `${requirement.property} ${requirement.operator} ${requirement.value}`;
-            if (
-              !ConditionParser.evaluateCondition(conditionString, unitValue)
-            ) {
-              meetsAllRequirements = false;
-              break;
-            }
-          }
-        }
-        if (!meetsAllRequirements) continue;
-      }
-
-      // Add action to available list
-      availableActions.push(action);
+    if (!selectedAction) {
+      return this.actionProcessor.getDefaultExecutedAction(randomUnit, turn);
     }
 
-    // If no actions are available based on requirements, use all actions
-    if (availableActions.length === 0) {
-      availableActions = [...this.actionsData];
+    if (selectedAction.type === 'explore') {
+      this.moveUnitRandomStep(randomUnit);
     }
-
-    // Select a random action from available actions
-    const selectedAction = MathUtils.getRandomFromArray(availableActions);
 
     // For interaction-type actions, select another unit to interact with
     let targetUnit = null;
@@ -296,6 +270,49 @@ export class StoryTeller {
         payload: selectedAction.payload || {}, // Ensure payload exists
       },
     };
+  }
+
+  private getAvailableActionsForUnit(unit: BaseUnit): Action[] {
+    const availableActions: Action[] = [];
+    const overrideActionList =
+      ConfigManager.getConfig().overrideAvailableActions;
+
+    for (const action of this.actionsData) {
+      if (
+        overrideActionList &&
+        overrideActionList.length > 0 &&
+        !overrideActionList.includes(action.type)
+      ) {
+        continue;
+      }
+
+      if (action.requirements) {
+        let meetsAllRequirements = true;
+        for (const requirement of action.requirements) {
+          if (isComparison(requirement)) {
+            const unitValue = unit.getPropertyValue(requirement.property);
+            const conditionString = `${requirement.property} ${requirement.operator} ${requirement.value}`;
+            if (
+              !ConditionParser.evaluateCondition(conditionString, unitValue)
+            ) {
+              meetsAllRequirements = false;
+              break;
+            }
+          }
+        }
+        if (!meetsAllRequirements) {
+          continue;
+        }
+      }
+
+      availableActions.push(action);
+    }
+
+    if (availableActions.length === 0) {
+      return [...this.actionsData];
+    }
+
+    return availableActions;
   }
 
   /**
@@ -357,6 +374,40 @@ export class StoryTeller {
       );
       return false;
     }
+  }
+
+  private moveUnitRandomStep(unit: BaseUnit): boolean {
+    const unitPos = unit.getPropertyValue<IUnitPosition>('position');
+    if (!unitPos) {
+      return false;
+    }
+
+    const currentMap = this.world.getMap(unitPos.mapId);
+    if (!currentMap) {
+      return false;
+    }
+
+    const directions = [
+      { x: 0, y: -1 },
+      { x: 1, y: 0 },
+      { x: 0, y: 1 },
+      { x: -1, y: 0 },
+    ];
+
+    const dir = MathUtils.getRandomFromArray(directions);
+    const maxX = currentMap.width - 1;
+    const maxY = currentMap.height - 1;
+    const newX = Math.max(0, Math.min(unitPos.position.x + dir.x, maxX));
+    const newY = Math.max(0, Math.min(unitPos.position.y + dir.y, maxY));
+
+    const newPosition = new Position(newX, newY, unitPos.position.z);
+    const newUnitPosition: IUnitPosition = {
+      unitId: unit.id,
+      mapId: unitPos.mapId,
+      position: newPosition,
+    };
+    unit.setProperty('position', newUnitPosition);
+    return true;
   }
 
   /**

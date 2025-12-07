@@ -80,3 +80,8 @@ Lightweight goal-driven action selection for units. Keep the first version simpl
 - Goal progress tracking (e.g., “heal to >70%” before completion).
 - Shared/blackboard goals, personality weights per unit, memory of last failed actions.
 - Utility-based scoring (distance, threat) and multi-step plans (move then attack).
+
+## Implementation snapshot (v1)
+- Added `data/goals.json` with RecoverHealth/RecoverMana/AttackEnemy/Explore definitions.
+- Introduced a lightweight `GoalSystem` that scores goals from health/mana and picks the first executable candidate action.
+- StoryTeller now uses the goal system instead of a pure random choice, still falling back safely when nothing matches.

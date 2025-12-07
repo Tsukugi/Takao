@@ -20,6 +20,27 @@ export interface Action {
 }
 
 /**
+ * Represents a goal definition loaded from data
+ */
+export interface GoalDefinition {
+  id: string;
+  label: string;
+  scope?: 'unit' | 'squad';
+  completion: GoalCompletion;
+  candidateActions: string[];
+}
+
+/**
+ * Goal completion descriptor
+ */
+export interface GoalCompletion {
+  type: 'stat_at_least' | 'condition_met' | 'none';
+  stat?: string;
+  value?: number;
+  condition?: string;
+}
+
+/**
  * Represents an effect definition for actions
  */
 export interface EffectDefinition {
@@ -118,6 +139,7 @@ export interface NamesData {
  * Represents the structure of actions.json
  */
 export type ActionsData = Action[];
+export type GoalsData = GoalDefinition[];
 
 export interface DiaryEntry {
   turn: number;
