@@ -84,6 +84,75 @@ describe('UnitPosition', () => {
     });
   });
 
+  describe('getUnitsAtPosition and findCollisions', () => {
+    it('returns all occupants at a tile', () => {
+      // stack two units on same tile
+      units[1]?.setProperty('position', {
+        unitId: 'unit2',
+        mapId: 'Test Map',
+        position: new Position(2, 2),
+      });
+
+      const occupants = UnitPosition.getUnitsAtPosition(
+        units,
+        'Test Map',
+        2,
+        2
+      );
+      expect(occupants.map(u => u.id)).toEqual(['unit1', 'unit2']);
+    });
+
+    it('identifies collisions without blocking overlap', () => {
+      units[1]?.setProperty('position', {
+        unitId: 'unit2',
+        mapId: 'Test Map',
+        position: new Position(2, 2),
+      });
+      units[2]?.setProperty('position', {
+        unitId: 'unit3',
+        mapId: 'Test Map',
+        position: new Position(2, 2),
+      });
+
+      const collisions = UnitPosition.findCollisions(units);
+      expect(collisions).toHaveLength(1);
+      expect(collisions[0]?.mapId).toBe('Test Map');
+      expect(collisions[0]?.x).toBe(2);
+      expect(collisions[0]?.y).toBe(2);
+      expect(collisions[0]?.units.map(u => u.id).sort()).toEqual([
+        'unit1',
+        'unit2',
+        'unit3',
+      ]);
+    });
+  });
+
+  describe('stepTowards', () => {
+    it('moves horizontally toward target when farther on x axis', () => {
+      const from = new Position(2, 2);
+      const to = new Position(5, 3);
+      const step = UnitPosition.stepTowards(world, 'Test Map', from, to);
+      expect(step.x).toBe(3);
+      expect(step.y).toBe(2);
+    });
+
+    it('moves vertically toward target when farther on y axis', () => {
+      const from = new Position(5, 5);
+      const to = new Position(3, 9);
+      const step = UnitPosition.stepTowards(world, 'Test Map', from, to);
+      expect(step.x).toBe(5);
+      expect(step.y).toBe(6);
+    });
+
+    it('clamps within map bounds', () => {
+      const from = new Position(0, 0);
+      const to = new Position(-3, -4);
+      const step = UnitPosition.stepTowards(world, 'Test Map', from, to);
+      expect(step.x).toBe(0);
+      expect(step.y).toBe(0);
+    });
+  });
+
   describe('getUnitsWithinRange', () => {
     it('should return units within range using Manhattan distance', () => {
       const unitsInRange = UnitPosition.getUnitsWithinRange(

@@ -64,33 +64,7 @@ export class ActionProcessor {
           };
         }
 
-        // Get the range from action definition or payload, default to 1 for melee actions
-        let maxRange = 1;
-        if (
-          action?.payload?.range !== undefined &&
-          isNumber(action?.payload?.range)
-        ) {
-          maxRange = action.payload.range;
-        } else if (
-          [
-            'attack',
-            'melee',
-            'stab',
-            'desperate_attack',
-            'trade',
-            'interact',
-            'negotiate',
-          ].includes(action?.type)
-        ) {
-          maxRange = 1; // Melee and close-range actions have 1 tile range
-        } else if (['shoot', 'ranged_attack', 'cast'].includes(action?.type)) {
-          maxRange = 3; // Ranged attacks have 3 tile range
-        } else if (['support', 'heal', 'inspire'].includes(action?.type)) {
-          maxRange = 2; // Support actions have 2 tile range
-        } else {
-          // For any action with targetUnit, default to 1 tile range
-          maxRange = 1;
-        }
+        const maxRange = this.getActionRange(action);
 
         // Calculate distance between units
         const distance = UnitPosition.getDistanceBetweenUnits(
@@ -408,6 +382,36 @@ export class ActionProcessor {
    */
   private static getRandomValue(min: number, max: number): number {
     return Math.floor(Math.random() * (max - min + 1)) + min;
+  }
+
+  /**
+   * Determine action range from definition, payload, or defaults
+   */
+  private getActionRange(action: Action): number {
+    if (
+      action?.payload?.range !== undefined &&
+      isNumber(action?.payload?.range)
+    ) {
+      return action.payload.range;
+    }
+
+    if (
+      ['attack', 'melee', 'stab', 'desperate_attack', 'trade', 'interact', 'negotiate'].includes(
+        action.type
+      )
+    ) {
+      return 1; // Melee and close-range actions
+    }
+
+    if (['shoot', 'ranged_attack', 'cast'].includes(action.type)) {
+      return 3; // Ranged actions
+    }
+
+    if (['support', 'heal', 'inspire'].includes(action.type)) {
+      return 2; // Support actions
+    }
+
+    return 1;
   }
 
   /**

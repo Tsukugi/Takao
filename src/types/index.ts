@@ -76,7 +76,7 @@ export interface ComparisonRequirement extends Requirement {
  * Represents action-specific payload data
  */
 export interface ActionPayload {
-  [key: string]: string | number | RandomValue | object;
+  [key: string]: string | boolean | number | RandomValue | object;
 }
 
 export interface ExecutedAction {

@@ -126,6 +126,24 @@ describe('ActionProcessor range validation', () => {
     expect(result.errorMessage).toContain('out of range');
   });
 
+  it('defaults to range 1 without payload range and respects payload range when present', async () => {
+    const action = {
+      player: 'Player1',
+      type: 'attack',
+      description: 'Player1 attacks Player3',
+      payload: {
+        targetUnit: 'unit3',
+      },
+    };
+
+    const tooFar = await actionProcessor.executeActionEffect(action, units);
+    expect(tooFar.success).toBe(false); // default range 1
+
+    action.payload.range = 6;
+    const withinRange = await actionProcessor.executeActionEffect(action, units);
+    expect(withinRange.success).toBe(true);
+  });
+
   it('should allow action when no target unit specified', async () => {
     const action = {
       player: 'Player1',

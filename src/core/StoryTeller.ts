@@ -73,6 +73,9 @@ export class StoryTeller {
     }
 
     this.gateSystem = new GateSystem();
+
+    // Ensure the action processor knows about the current world for range validation
+    this.actionProcessor.setWorld(this.world);
   }
 
   /**
@@ -83,7 +86,7 @@ export class StoryTeller {
     const units = await this.unitController.getUnitState();
 
     // Generate a story action based on unit states
-    const storyAction = this.createStoryBasedOnUnits(units, turn);
+    const storyAction = await this.createStoryBasedOnUnits(units, turn);
 
     // Take a snapshot of unit properties before action execution
     const initialStates = StatTracker.takeSnapshot(units);
@@ -158,10 +161,10 @@ export class StoryTeller {
   /**
    * Creates a story action based on unit states
    */
-  private createStoryBasedOnUnits(
+  private async createStoryBasedOnUnits(
     units: BaseUnit[],
     turn: number
-  ): ExecutedAction {
+  ): Promise<ExecutedAction> {
     // If no units exist, create a default action
     if (units.length === 0) {
       // Return a default narrative action instead of throwing
@@ -230,6 +233,7 @@ export class StoryTeller {
     // For interaction-type actions, select another unit to interact with
     let targetUnit = null;
     let targetUnitName = 'another unit';
+    const actionPayload = { ...(selectedAction.payload || {}) };
 
     if (
       ['interact', 'attack', 'support', 'trade'].includes(
@@ -242,6 +246,49 @@ export class StoryTeller {
       if (otherUnits.length > 0) {
         targetUnit = MathUtils.getRandomFromArray(otherUnits);
         targetUnitName = targetUnit.name;
+        actionPayload.targetUnit = targetUnit.id;
+      }
+    }
+
+    // If we have a target and are out of range, step toward the target before the action
+    if (targetUnit) {
+      const actionRange = this.getActionRange(selectedAction);
+      const distance = UnitPosition.getDistanceBetweenUnits(
+        units,
+        randomUnit.id,
+        targetUnit.id,
+        true
+      );
+
+      if (distance === Infinity) {
+        this.logger.warn(
+          `Units ${randomUnit.id} and ${targetUnit.id} are on different maps; cannot move toward target`
+        );
+      } else if (distance > actionRange) {
+        const unitPos = randomUnit.getPropertyValue<IUnitPosition>('position');
+        const targetPos =
+          targetUnit.getPropertyValue<IUnitPosition>('position');
+        if (unitPos && targetPos && unitPos.mapId === targetPos.mapId) {
+          const nextStep = UnitPosition.stepTowards(
+            this.world,
+            unitPos.mapId,
+            new Position(
+              unitPos.position.x,
+              unitPos.position.y,
+              unitPos.position.z
+            ),
+            new Position(
+              targetPos.position.x,
+              targetPos.position.y,
+              targetPos.position.z
+            )
+          );
+
+          // Move the unit one tile closer; ignore result, since attack may still be out of range
+          await this.moveUnitToPosition(randomUnit.id, nextStep.x, nextStep.y);
+          actionPayload.movedTowardsTarget = true;
+          actionPayload.movedTo = { x: nextStep.x, y: nextStep.y };
+        }
       }
     }
 
@@ -250,6 +297,16 @@ export class StoryTeller {
       .replace('{{unitName}}', unitName)
       .replace('{{unitType}}', unitType)
       .replace('{{targetUnitName}}', targetUnitName);
+
+    if (actionPayload.movedTowardsTarget) {
+      const movedTo = actionPayload.movedTo as
+        | { x: number; y: number }
+        | undefined;
+      const movedText = movedTo
+        ? `Moves closer to ${targetUnitName} (${movedTo.x},${movedTo.y}) to get in range. `
+        : `Moves closer to ${targetUnitName} to get in range. `;
+      description = `${movedText}${description}`;
+    }
 
     // Create action payload based on action type
 
@@ -267,9 +324,16 @@ export class StoryTeller {
         ...selectedAction,
         description,
         player: unitName, // Add the unit's name as the player
-        payload: selectedAction.payload || {}, // Ensure payload exists
+        payload: actionPayload, // Ensure payload exists and includes target when needed
       },
     };
+  }
+
+  private getActionRange(action: Action): number {
+    if (action?.payload && typeof action.payload.range === 'number') {
+      return action.payload.range;
+    }
+    return 1;
   }
 
   private getAvailableActionsForUnit(unit: BaseUnit): Action[] {
@@ -365,6 +429,7 @@ export class StoryTeller {
         position: newPosition,
       };
       unit.setProperty('position', newUnitPosition);
+      this.logCollisionIfAny(unitPos.mapId, targetX, targetY);
       const moved = true; // Movement always succeeds when setting the property directly
 
       return moved;
@@ -407,6 +472,7 @@ export class StoryTeller {
       position: newPosition,
     };
     unit.setProperty('position', newUnitPosition);
+    this.logCollisionIfAny(unitPos.mapId, newX, newY);
     return true;
   }
 
@@ -446,6 +512,11 @@ export class StoryTeller {
             position: positionToUse,
           };
           unit.setProperty('position', newUnitPosition);
+          this.logCollisionIfAny(
+            gate.mapTo,
+            gate.positionTo.x,
+            gate.positionTo.y
+          );
 
           this.logger.info(
             `Unit ${unitId} moved through gate from ${currentMapId}(${x},${y}) to ${gate.mapTo}(${gate.positionTo.x},${gate.positionTo.y})`
@@ -510,6 +581,22 @@ export class StoryTeller {
     y: number
   ): GateConnection | undefined {
     return this.gateSystem.getDestination(mapId, x, y);
+  }
+
+  /**
+   * Logs if multiple units occupy the same tile. Does not block movement.
+   */
+  private logCollisionIfAny(mapId: string, x: number, y: number): void {
+    const units = this.unitController.getUnits();
+    const occupants = UnitPosition.getUnitsAtPosition(units, mapId, x, y);
+    if (occupants.length <= 1) {
+      return;
+    }
+
+    const occupantLabels = occupants.map(u => `${u.name || 'Unit'} (${u.id})`);
+    this.logger.warn(
+      `Collision detected on ${mapId} at (${x},${y}): ${occupantLabels.join(', ')}`
+    );
   }
 
   /**

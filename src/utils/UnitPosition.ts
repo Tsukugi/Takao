@@ -7,6 +7,106 @@ import { isUnitPosition } from '../types/typeGuards';
  */
 export class UnitPosition {
   /**
+   * Compute a single-tile step from one position toward another, clamped to map bounds.
+   */
+  static stepTowards(
+    world: World,
+    mapId: string,
+    from: Position,
+    to: Position
+  ): Position {
+    const map = world.getAllMaps().find(m => m.name === mapId);
+    const width = map?.width ?? from.x + 1;
+    const height = map?.height ?? from.y + 1;
+
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
+
+    // Prefer moving along the axis with the greater distance
+    let stepX = 0;
+    let stepY = 0;
+    if (Math.abs(dx) >= Math.abs(dy)) {
+      stepX = Math.sign(dx);
+    } else {
+      stepY = Math.sign(dy);
+    }
+
+    const nextX = Math.min(Math.max(from.x + stepX, 0), width - 1);
+    const nextY = Math.min(Math.max(from.y + stepY, 0), height - 1);
+
+    return new Position(nextX, nextY, from.z);
+  }
+
+  /**
+   * Get all units at a specific map coordinate
+   */
+  static getUnitsAtPosition(
+    units: BaseUnit[],
+    mapId: string,
+    x: number,
+    y: number
+  ): BaseUnit[] {
+    return units.filter(unit => {
+      const position = unit.getPropertyValue<IUnitPosition>('position');
+      if (!position || !isUnitPosition(position)) {
+        return false;
+      }
+
+      return (
+        position.mapId === mapId &&
+        position.position.x === x &&
+        position.position.y === y
+      );
+    });
+  }
+
+  /**
+   * Find any positions that have more than one unit on the same map coordinate
+   */
+  static findCollisions(
+    units: BaseUnit[]
+  ): Array<{ mapId: string; x: number; y: number; units: BaseUnit[] }> {
+    const collisions: Array<{
+      mapId: string;
+      x: number;
+      y: number;
+      units: BaseUnit[];
+    }> = [];
+
+    const seen: Record<string, BaseUnit[]> = {};
+
+    for (const unit of units) {
+      const position = unit.getPropertyValue<IUnitPosition>('position');
+      if (!position || !isUnitPosition(position)) {
+        continue;
+      }
+
+      const key = `${position.mapId}:${position.position.x},${position.position.y}`;
+      if (!seen[key]) {
+        seen[key] = [];
+      }
+      seen[key].push(unit);
+    }
+
+    for (const [key, occupants] of Object.entries(seen)) {
+      if (occupants.length <= 1) {
+        continue;
+      }
+
+      const [mapPart, coordPart] = key.split(':');
+      const [xStr, yStr] = coordPart.split(',');
+      collisions.push({
+        mapId: mapPart,
+        x: Number(xStr),
+        y: Number(yStr),
+        units: occupants,
+      });
+    }
+
+    return collisions;
+  }
+
+  /**
    * Find the unit at a specific position on a map
    * @param units Array of units to search through
    * @param mapId The ID of the map to search
