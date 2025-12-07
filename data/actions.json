@@ -1,7 +1,7 @@
 [
   {
     "type": "search",
-    "description": "{{unitName}} the {{unitType}} searches for healing herbs.",
+    "description": "{{unitName}} searches for healing herbs.",
     "payload": {
       "target": "healing"
     },
@@ -20,7 +20,7 @@
   },
   {
     "type": "retreat",
-    "description": "{{unitName}} the {{unitType}} retreats to heal wounds.",
+    "description": "{{unitName}} retreats to heal wounds.",
     "payload": {
       "target": "safe_location"
     },
@@ -49,7 +49,7 @@
   },
   {
     "type": "meditate",
-    "description": "{{unitName}} the {{unitType}} focuses on inner healing.",
+    "description": "{{unitName}} focuses on inner healing.",
     "payload": {
       "healthRestore": 20,
       "manaRestore": 15
@@ -79,7 +79,7 @@
   },
   {
     "type": "explore",
-    "description": "{{unitName}} the {{unitType}} explores the terrain confidently.",
+    "description": "{{unitName}} explores the terrain confidently.",
     "payload": {
       "direction": "random_direction"
     },
@@ -98,7 +98,7 @@
   },
   {
     "type": "scout",
-    "description": "{{unitName}} the {{unitType}} scouts ahead for potential threats.",
+    "description": "{{unitName}} scouts ahead for potential threats.",
     "payload": {
       "direction": "random_direction"
     },
@@ -117,7 +117,7 @@
   },
   {
     "type": "hunt",
-    "description": "{{unitName}} the {{unitType}} hunts for prey to sustain themselves.",
+    "description": "{{unitName}} hunts for prey to sustain themselves.",
     "payload": {
       "resourceGain": {
         "type": "random",
@@ -145,7 +145,7 @@
   },
   {
     "type": "patrol",
-    "description": "{{unitName}} the {{unitType}} patrols the area vigilantly.",
+    "description": "{{unitName}} patrols the area vigilantly.",
     "payload": {
       "direction": "random_direction"
     },
@@ -164,7 +164,7 @@
   },
   {
     "type": "rest",
-    "description": "{{unitName}} the {{unitType}} takes a moment to rest and recover.",
+    "description": "{{unitName}} takes a moment to rest and recover.",
     "payload": {
       "healthRestore": {
         "type": "random",
@@ -210,7 +210,7 @@
   },
   {
     "type": "meditate",
-    "description": "{{unitName}} the {{unitType}} focuses on inner peace and mana restoration.",
+    "description": "{{unitName}} focuses on inner peace and mana restoration.",
     "payload": {
       "manaRestore": {
         "type": "random",
@@ -256,7 +256,7 @@
   },
   {
     "type": "desperate_attack",
-    "description": "{{unitName}} the {{unitType}} launches a desperate attack despite low health.",
+    "description": "{{unitName}} launches a desperate attack despite low health.",
     "payload": {
       "damage": {
         "type": "random",
@@ -309,7 +309,7 @@
   },
   {
     "type": "conserve_mana",
-    "description": "{{unitName}} the {{unitType}} enters a low-power state to preserve mana.",
+    "description": "{{unitName}} enters a low-power state to preserve mana.",
     "payload": {
       "manaBonus": {
         "type": "random",
@@ -356,7 +356,7 @@
   },
   {
     "type": "train",
-    "description": "{{unitName}} the {{unitType}} practices to improve their skills.",
+    "description": "{{unitName}} practices to improve their skills.",
     "payload": {
       "attackBoost": {
         "type": "random",
@@ -394,7 +394,7 @@
   },
   {
     "type": "interact",
-    "description": "{{unitName}} the {{unitType}} interacts with {{targetUnitName}} to share knowledge.",
+    "description": "{{unitName}} interacts with {{targetUnitName}} to share knowledge.",
     "payload": {
       "experienceGain": {
         "type": "random",
@@ -429,7 +429,7 @@
   },
   {
     "type": "defend",
-    "description": "{{unitName}} the {{unitType}} strengthens defenses at their position.",
+    "description": "{{unitName}} strengthens defenses at their position.",
     "payload": {
       "defenseBoost": {
         "type": "random",
@@ -452,7 +452,7 @@
   },
   {
     "type": "attack",
-    "description": "{{unitName}} the {{unitType}} attacks {{targetUnitName}} aggressively.",
+    "description": "{{unitName}} attacks {{targetUnitName}} aggressively.",
     "payload": {
       "damage": {
         "type": "random",
@@ -495,7 +495,7 @@
   },
   {
     "type": "support",
-    "description": "{{unitName}} the {{unitType}} provides support to {{targetUnitName}}.",
+    "description": "{{unitName}} provides support to {{targetUnitName}}.",
     "payload": {
       "healing": {
         "type": "random",
@@ -528,7 +528,7 @@
   },
   {
     "type": "trade",
-    "description": "{{unitName}} the {{unitType}} trades resources with {{targetUnitName}}.",
+    "description": "{{unitName}} trades resources with {{targetUnitName}}.",
     "payload": {
       "resourceExchange": {
         "type": "random",
@@ -563,7 +563,7 @@
   },
   {
     "type": "study",
-    "description": "{{unitName}} the {{unitType}} studies ancient texts to gain wisdom.",
+    "description": "{{unitName}} studies ancient texts to gain wisdom.",
     "payload": {
       "wisdomGain": {
         "type": "random",
@@ -594,7 +594,7 @@
   },
   {
     "type": "craft",
-    "description": "{{unitName}} the {{unitType}} crafts equipment to strengthen themselves.",
+    "description": "{{unitName}} crafts equipment to strengthen themselves.",
     "payload": {
       "defenseBoost": {
         "type": "random",
@@ -625,7 +625,7 @@
   },
   {
     "type": "negotiate",
-    "description": "{{unitName}} the {{unitType}} negotiates with {{targetUnitName}}.",
+    "description": "{{unitName}} negotiates with {{targetUnitName}}.",
     "payload": {
       "diplomacyGain": {
         "type": "random",
@@ -650,7 +650,7 @@
   },
   {
     "type": "stealth",
-    "description": "{{unitName}} the {{unitType}} moves with stealth.",
+    "description": "{{unitName}} moves with stealth.",
     "payload": {
       "stealthBoost": {
         "type": "random",
@@ -681,7 +681,7 @@
   },
   {
     "type": "summon",
-    "description": "{{unitName}} the {{unitType}} summons an ally.",
+    "description": "{{unitName}} summons an ally.",
     "payload": {
       "manaCost": 25
     },
@@ -708,7 +708,7 @@
   },
   {
     "type": "inspire",
-    "description": "{{unitName}} the {{unitType}} inspires {{targetUnitName}} with鼓舞.",
+    "description": "{{unitName}} inspires {{targetUnitName}} with鼓舞.",
     "payload": {
       "moraleBoost": {
         "type": "random",
