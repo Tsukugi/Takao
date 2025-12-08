@@ -452,14 +452,13 @@
   },
   {
     "type": "attack",
-    "description": "{{unitName}} attacks {{targetUnitName}} aggressively.",
+    "description": "{{unitName}} attacks {{targetUnitName}} with a melee attack.",
     "payload": {
       "damage": {
         "type": "random",
         "min": 10,
         "max": 20
       },
-      "manaCost": 5,
       "range": 1
     },
     "effects": [
@@ -470,16 +469,6 @@
         "value": {
           "type": "variable",
           "variable": "damage"
-        },
-        "permanent": false
-      },
-      {
-        "target": "self",
-        "property": "mana",
-        "operation": "subtract",
-        "value": {
-          "type": "variable",
-          "variable": "manaCost"
         },
         "permanent": false
       }

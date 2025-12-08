@@ -224,6 +224,20 @@ export class UnitController {
   }
 
   /**
+   * Removes a unit from the controller by id.
+   */
+  public removeUnit(unitId: string): boolean {
+    const index = this.gameUnits.findIndex(unit => unit.id === unitId);
+    if (index === -1) {
+      return false;
+    }
+
+    this.gameUnits.splice(index, 1);
+    DataManager.saveUnits(this.gameUnits);
+    return true;
+  }
+
+  /**
    * Ensure a unit has a non-neutral faction so hostilities resolve correctly.
    */
   private ensureFaction(unit: BaseUnit): void {

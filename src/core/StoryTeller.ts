@@ -296,15 +296,15 @@ export class StoryTeller {
       units.length > 1
     ) {
       const otherUnits = units.filter(u => u.id !== unit.id);
-      let candidateTargets = otherUnits;
+      let candidateTargets = otherUnits.filter(u => this.isUnitAlive(u));
 
       if (this.requiresHostileTarget(actionDef.type)) {
         candidateTargets = otherUnits.filter(u =>
-          RelationshipHelper.isHostile(unit, u)
+          this.isUnitAlive(u) && RelationshipHelper.isHostile(unit, u)
         );
       } else if (this.requiresAllyTarget(actionDef.type)) {
         candidateTargets = otherUnits.filter(u =>
-          RelationshipHelper.isAlly(unit, u)
+          this.isUnitAlive(u) && RelationshipHelper.isAlly(unit, u)
         );
       }
 
@@ -428,6 +428,29 @@ export class StoryTeller {
 
   private requiresAllyTarget(actionType: string): boolean {
     return ['support', 'heal', 'inspire'].includes(actionType);
+  }
+
+  private isUnitAlive(unit: BaseUnit): boolean {
+    const statusProperty = unit.getPropertyValue('status');
+    const status =
+      typeof statusProperty === 'string'
+        ? statusProperty
+        : statusProperty?.value;
+    if (status === 'dead') {
+      return false;
+    }
+
+    const healthProperty = unit.getPropertyValue('health');
+    const healthValue =
+      typeof healthProperty === 'number'
+        ? healthProperty
+        : healthProperty?.value;
+
+    if (typeof healthValue === 'number' && healthValue <= 0) {
+      return false;
+    }
+
+    return true;
   }
 
   private getAvailableActionsForUnit(unit: BaseUnit): Action[] {

@@ -12,15 +12,19 @@ import { StoryTeller } from './core/StoryTeller';
 import { UnitController } from './ai/UnitController';
 import { Logger } from './utils/Logger';
 import { isUnitPosition } from './types/typeGuards';
+import type { Action, ActionPayload, DiaryEntry } from './types';
 
 export class TakaoImpl {
   private gameEngine: GameEngine;
   private logger: Logger = new Logger({ prefix: 'TakaoImpl', disable: false });
   private isRunning: boolean = false;
+  private processedDeadUnits: Set<string> = new Set();
+  private lastDiaryIndex: number = 0;
 
   constructor() {
     this.gameEngine = new GameEngine({
       onTurnStart: this.runTurn.bind(this),
+      onTurnEnd: this.afterTurn.bind(this),
       onStop: this.showFinalState.bind(this),
     });
   }
@@ -60,6 +64,14 @@ export class TakaoImpl {
 
     // Place some initial units on the maps based on configuration
     this.initializeUnitPositions();
+
+    // Track existing diary entries and defeated units so we only process new ones
+    this.lastDiaryIndex = this.storyTeller.getDiary().length;
+    for (const unit of this.unitController.getUnits()) {
+      if (this.isUnitDead(unit)) {
+        this.processedDeadUnits.add(unit.id);
+      }
+    }
 
     // DEBUG: Check how many maps are in the world
     const finalMaps = world.getAllMaps();
@@ -192,6 +204,13 @@ export class TakaoImpl {
     }
   }
 
+  private afterTurn(_turn: number): void {
+    const newEntries = this.getNewDiaryEntries();
+    if (newEntries.length === 0) return;
+
+    this.handleNewDiaryEntries(newEntries);
+  }
+
   /**
    * Spawn a wolf with faction Wild Animals if below threshold.
    */
@@ -313,6 +332,122 @@ export class TakaoImpl {
       this.rendererIntervalId = null;
       this.isRendererRunning = false;
     }
+  }
+
+  private getNewDiaryEntries(): DiaryEntry[] {
+    const diary = this.storyTeller.getDiary();
+    const entries = diary.slice(this.lastDiaryIndex);
+    this.lastDiaryIndex = diary.length;
+    return entries;
+  }
+
+  private handleNewDiaryEntries(entries: DiaryEntry[]): void {
+    const units = this.unitController.getUnits();
+
+    for (const entry of entries) {
+      const action = entry.action;
+      const targetId = this.getTargetIdFromAction(action);
+
+      if (!targetId) continue;
+
+      const defeatedUnit = units.find(unit => unit.id === targetId);
+      if (!defeatedUnit) continue;
+      if (this.processedDeadUnits.has(defeatedUnit.id)) continue;
+      if (!this.isUnitDead(defeatedUnit)) continue;
+      if (!this.isWildAnimal(defeatedUnit)) continue;
+
+      const killerUnit = units.find(unit => unit.id === action.player);
+
+      if (killerUnit) {
+        const loot = this.getNumericPropertyValue(defeatedUnit, 'resources');
+        if (loot > 0) {
+          const currentResources = this.getNumericPropertyValue(
+            killerUnit,
+            'resources'
+          );
+          this.setNumericPropertyValue(
+            killerUnit,
+            'resources',
+            currentResources + loot
+          );
+        }
+      }
+
+      this.unitController.removeUnit(defeatedUnit.id);
+      this.processedDeadUnits.add(defeatedUnit.id);
+    }
+  }
+
+  private getTargetIdFromAction(action: Action): string | null {
+    const payload = action.payload as ActionPayload | undefined;
+    const target =
+      payload?.targetUnit ||
+      payload?.target ||
+      (payload as any)?.targetUnitId ||
+      (payload as any)?.unitId;
+    return typeof target === 'string' ? target : null;
+  }
+
+  private isWildAnimal(unit: BaseUnit): boolean {
+    const factionProperty = unit.getPropertyValue('faction');
+    const faction =
+      typeof factionProperty === 'string'
+        ? factionProperty
+        : factionProperty?.value;
+    return faction === 'Wild Animals' || unit.type === 'wolf';
+  }
+
+  private isUnitDead(unit: BaseUnit): boolean {
+    const health = unit.getPropertyValue('health');
+    const status = unit.getPropertyValue('status');
+
+    const healthValue =
+      typeof health === 'number' ? health : (health as any)?.value;
+
+    if (typeof healthValue === 'number' && healthValue <= 0) {
+      return true;
+    }
+
+    const statusValue =
+      typeof status === 'string' ? status : (status as any)?.value;
+
+    return statusValue === 'dead';
+  }
+
+  private getNumericPropertyValue(unit: BaseUnit, property: string): number {
+    const value = unit.getPropertyValue(property);
+    if (typeof value === 'number') {
+      return value;
+    }
+
+    if (value && typeof value === 'object' && 'value' in value) {
+      const numeric = (value as { value: number }).value;
+      return typeof numeric === 'number' ? numeric : 0;
+    }
+
+    return 0;
+  }
+
+  private setNumericPropertyValue(
+    unit: BaseUnit,
+    property: string,
+    value: number
+  ): void {
+    const existing = unit.getPropertyValue(property);
+    if (existing && typeof existing === 'object') {
+      const baseValue =
+        typeof (existing as any).baseValue === 'number'
+          ? (existing as any).baseValue
+          : value;
+      unit.setProperty(property, {
+        ...(existing as object),
+        value,
+        baseValue,
+      });
+      return;
+    }
+
+    unit.setProperty(property, value);
   }
 
   /**

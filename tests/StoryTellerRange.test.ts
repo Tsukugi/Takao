@@ -179,6 +179,59 @@ describe('StoryTeller range-aware movement logging', () => {
     expect(result.executions[0].action.payload?.targetUnit).toBe('near');
   });
 
+  it('skips dead targets when selecting an enemy', async () => {
+    const attacker = new BaseUnit('attacker', 'Attacker', 'warrior');
+    attacker.setProperty('faction', 'Adventurers');
+    attacker.setProperty('position', {
+      unitId: 'attacker',
+      mapId: 'Test Map',
+      position: new Position(0, 0),
+    });
+
+    const deadTarget = new BaseUnit('dead', 'Dead', 'archer');
+    deadTarget.setProperty('faction', 'Wild Animals');
+    deadTarget.setProperty('status', 'dead');
+    deadTarget.setProperty('health', { name: 'health', value: 0 });
+    deadTarget.setProperty('position', {
+      unitId: 'dead',
+      mapId: 'Test Map',
+      position: new Position(1, 0),
+    });
+
+    const liveTarget = new BaseUnit('alive', 'Alive', 'archer');
+    liveTarget.setProperty('faction', 'Wild Animals');
+    liveTarget.setProperty('position', {
+      unitId: 'alive',
+      mapId: 'Test Map',
+      position: new Position(2, 0),
+    });
+
+    (unitController as any).gameUnits = [attacker, deadTarget, liveTarget];
+
+    const storyTeller = new StoryTeller(unitController, world);
+
+    const customAction = {
+      type: 'attack',
+      description: '{{unitName}} attacks {{targetUnitName}} aggressively.',
+      payload: {
+        range: 1,
+      },
+    };
+
+    (storyTeller as any).actionsData = [customAction];
+    (storyTeller as any).goalSystem.chooseAction = () => ({
+      action: customAction,
+      candidateActions: [customAction],
+    });
+
+    const result = await (storyTeller as any).createStoryBasedOnUnits(
+      [attacker, deadTarget, liveTarget],
+      1
+    );
+
+    expect(result.executions[0].action.payload?.targetUnit).toBe('alive');
+  });
+
   it('nudges to nearest free tile to avoid overlap when moving', async () => {
     const attacker = new BaseUnit('attacker', 'Attacker', 'warrior');
     attacker.setProperty('faction', 'Adventurers');
