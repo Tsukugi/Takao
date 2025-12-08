@@ -5,7 +5,7 @@
  */
 
 import { renderGame, type IGameRendererConfig } from '@atsu/maya';
-import { World, Position } from '@atsu/choukai';
+import { World, Position, Map as ChoukaiMap } from '@atsu/choukai';
 import type { BaseUnit, IUnitPosition } from '@atsu/atago';
 import { GameEngine } from './core/GameEngine';
 import { StoryTeller } from './core/StoryTeller';
@@ -165,6 +165,7 @@ export class TakaoImpl {
     const allUnits = this.unitController.getUnits();
     const world = this.storyTeller.getWorld();
     const allMaps = world.getAllMaps();
+    const currentTurn = this.gameEngine.getTurnManager().getCurrentTurn();
 
     // Store the current world state for rendering (always update with all units)
     const unitsMap = new Map<string, BaseUnit>();
@@ -184,6 +185,70 @@ export class TakaoImpl {
       selectedMap: allMaps[0]?.name,
       showUnitPositions: !this.gameEngine.getConfig().rendering.visualOnly,
     };
+
+    // Periodic hostile spawns: every 10 turns, ensure at least 3 Wild Animals
+    if (currentTurn > 0 && currentTurn % 10 === 0) {
+      await this.maybeSpawnWildAnimals(allMaps, allUnits);
+    }
+  }
+
+  /**
+   * Spawn a wolf with faction Wild Animals if below threshold.
+   */
+  private async maybeSpawnWildAnimals(
+    allMaps: ChoukaiMap[],
+    units: BaseUnit[]
+  ): Promise<void> {
+    if (allMaps.length === 0) {
+      this.logger.warn('No maps available; skipping wild animal spawn.');
+      return;
+    }
+
+    const wildAnimalCount = units.filter(
+      unit => unit.getPropertyValue('faction') === 'Wild Animals'
+    ).length;
+
+    if (wildAnimalCount >= 3) {
+      return;
+    }
+
+    const newUnit = await this.unitController.addNewUnit();
+    if (!newUnit) return;
+
+    // Animals don't need unique names; override to a simple label
+    newUnit.name = 'Wolf';
+    newUnit.type = 'wolf';
+    newUnit.setProperty('faction', 'Wild Animals');
+
+    // Relationships: mark as hostile toward all non-Wild Animals
+    const relationships: Record<string, 'hostile'> = {};
+    for (const unit of units) {
+      const faction = unit.getPropertyValue('faction');
+      if (faction !== 'Wild Animals') {
+        relationships[unit.id] = 'hostile';
+      }
+    }
+    newUnit.setProperty('relationships', relationships);
+
+    // Place on main map (or first map) at a random valid position
+    const targetMap =
+      allMaps.find(map => map.name === 'Main Continent') ?? allMaps[0];
+    if (!targetMap) {
+      this.logger.warn('No map available to place spawned wolf.');
+      return;
+    }
+
+    const x = Math.floor(Math.random() * targetMap.width);
+    const y = Math.floor(Math.random() * targetMap.height);
+    newUnit.setProperty('position', {
+      unitId: newUnit.id,
+      mapId: targetMap.name,
+      position: new Position(x, y),
+    });
+
+    this.logger.info(
+      `Spawned Wild Animals wolf (${newUnit.id}) at ${targetMap.name} (${x}, ${y})`
+    );
   }
 
   private startRenderer(): void {

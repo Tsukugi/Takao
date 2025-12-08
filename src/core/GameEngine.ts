@@ -188,6 +188,13 @@ export class GameEngine {
   }
 
   /**
+   * Gets the turn manager
+   */
+  public getTurnManager(): TurnManager {
+    return this.turnManager;
+  }
+
+  /**
    * Gets the world controller
    */
   public getWorldController(): WorldController {
@@ -205,13 +212,6 @@ export class GameEngine {
       onStop: () => {},
       onStart: () => {},
     };
-  }
-
-  /**
-   * Gets the current turn number from the turn manager
-   */
-  public getCurrentTurn(): number {
-    return this.turnManager.getCurrentTurn();
   }
 
   /**
