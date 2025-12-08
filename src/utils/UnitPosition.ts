@@ -1,9 +1,82 @@
 import type { BaseUnit, IUnitPosition } from '@atsu/atago';
-import { World, Position } from '@atsu/choukai';
+import {
+  World,
+  Position,
+  stepTowards,
+  getPositionsAtCoordinate,
+  findCollisions,
+  getPositionAtCoordinate,
+  getPositionsInMap,
+  getPositionsWithinRange,
+  getDistanceBetweenPositions,
+  arePositionsAdjacent,
+  getAdjacentPositions,
+  isValidPosition,
+  getAdjacentPositionsToPosition,
+} from '@atsu/choukai';
 import { isUnitPosition } from '../types/typeGuards';
 
 /**
- * Utility class with pure functions for unit position operations
+ * Helper function to convert units to position data structure
+ * @param units Array of units to convert
+ * @returns Array of position data objects
+ */
+interface UnitWithPosition {
+  unit: BaseUnit;
+  position: IUnitPosition;
+}
+
+function unitsToPositions(units: BaseUnit[]): Array<IUnitPosition> {
+  return units
+    .filter(unit => {
+      const position = unit.getPropertyValue<IUnitPosition>('position');
+      return position && isUnitPosition(position);
+    })
+    .map(
+      unit => unit.getPropertyValue<IUnitPosition>('position') as IUnitPosition
+    );
+}
+
+/**
+ * Helper to map Choukai position results back to units
+ * @param positions Array of position data objects
+ * @param units Array of units to map from
+ * @returns Array of units corresponding to the given positions
+ */
+function mapPositionsToUnits(
+  positions: IUnitPosition[],
+  units: BaseUnit[]
+): BaseUnit[] {
+  return positions
+    .map(position => units.find(unit => unit.id === position.unitId))
+    .filter((unit): unit is BaseUnit => Boolean(unit));
+}
+
+/**
+ * Get a unit along with its position by unit ID
+ * @param units
+ * @param unitId
+ * @returns
+ */
+function getUnitWithPosition(
+  units: BaseUnit[],
+  unitId: string
+): UnitWithPosition | undefined {
+  const unit = units.find(u => u.id === unitId);
+  if (!unit) {
+    return undefined;
+  }
+
+  const position = unit.getPropertyValue<IUnitPosition>('position');
+  if (!position || !isUnitPosition(position)) {
+    return undefined;
+  }
+
+  return { unit, position };
+}
+
+/**
+ * Utility class that adapts unit-based operations to use Choukai's position functions
  */
 export class UnitPosition {
   /**
@@ -15,30 +88,16 @@ export class UnitPosition {
     from: Position,
     to: Position
   ): Position {
-    const map = world.getAllMaps().find(m => m.name === mapId);
-    const width = map?.width ?? from.x + 1;
-    const height = map?.height ?? from.y + 1;
-
-    const dx = to.x - from.x;
-    const dy = to.y - from.y;
-
-    // Prefer moving along the axis with the greater distance
-    let stepX = 0;
-    let stepY = 0;
-    if (Math.abs(dx) >= Math.abs(dy)) {
-      stepX = Math.sign(dx);
-    } else {
-      stepY = Math.sign(dy);
-    }
-
-    const nextX = Math.min(Math.max(from.x + stepX, 0), width - 1);
-    const nextY = Math.min(Math.max(from.y + stepY, 0), height - 1);
-
-    return new Position(nextX, nextY, from.z);
+    return stepTowards(world, mapId, from, to);
   }
 
   /**
    * Get all units at a specific map coordinate
+   * @param units Array of units to search through
+   * @param mapId The ID of the map to search
+   * @param x X coordinate
+   * @param y Y coordinate
+   * @returns Array of units at the specified position
    */
   static getUnitsAtPosition(
     units: BaseUnit[],
@@ -46,64 +105,28 @@ export class UnitPosition {
     x: number,
     y: number
   ): BaseUnit[] {
-    return units.filter(unit => {
-      const position = unit.getPropertyValue<IUnitPosition>('position');
-      if (!position || !isUnitPosition(position)) {
-        return false;
-      }
-
-      return (
-        position.mapId === mapId &&
-        position.position.x === x &&
-        position.position.y === y
-      );
-    });
+    const positions = unitsToPositions(units);
+    const positionResults = getPositionsAtCoordinate(positions, mapId, x, y);
+    return mapPositionsToUnits(positionResults, units);
   }
 
   /**
    * Find any positions that have more than one unit on the same map coordinate
+   * @param units Array of units to check for collisions
+   * @returns Array of collision data, each containing mapId, x, y, and the units at that position
    */
   static findCollisions(
     units: BaseUnit[]
   ): Array<{ mapId: string; x: number; y: number; units: BaseUnit[] }> {
-    const collisions: Array<{
-      mapId: string;
-      x: number;
-      y: number;
-      units: BaseUnit[];
-    }> = [];
+    const positions = unitsToPositions(units);
+    const collisions = findCollisions(positions);
 
-    const seen: Record<string, BaseUnit[]> = {};
-
-    for (const unit of units) {
-      const position = unit.getPropertyValue<IUnitPosition>('position');
-      if (!position || !isUnitPosition(position)) {
-        continue;
-      }
-
-      const key = `${position.mapId}:${position.position.x},${position.position.y}`;
-      if (!seen[key]) {
-        seen[key] = [];
-      }
-      seen[key].push(unit);
-    }
-
-    for (const [key, occupants] of Object.entries(seen)) {
-      if (occupants.length <= 1) {
-        continue;
-      }
-
-      const [mapPart, coordPart] = key.split(':');
-      const [xStr, yStr] = coordPart.split(',');
-      collisions.push({
-        mapId: mapPart,
-        x: Number(xStr),
-        y: Number(yStr),
-        units: occupants,
-      });
-    }
-
-    return collisions;
+    return collisions.map(collision => ({
+      mapId: collision.mapId,
+      x: collision.x,
+      y: collision.y,
+      units: mapPositionsToUnits(collision.positions, units),
+    }));
   }
 
   /**
@@ -120,17 +143,12 @@ export class UnitPosition {
     x: number,
     y: number
   ): BaseUnit | undefined {
-    return units.find(unit => {
-      const position = unit.getPropertyValue<IUnitPosition>('position');
-      if (!position || !isUnitPosition(position)) {
-        return false;
-      }
-      return (
-        position.mapId === mapId &&
-        position.position.x === x &&
-        position.position.y === y
-      );
-    });
+    const positions = unitsToPositions(units);
+    const positionResult = getPositionAtCoordinate(positions, mapId, x, y);
+    if (!positionResult) {
+      return undefined;
+    }
+    return mapPositionsToUnits([positionResult], units)[0];
   }
 
   /**
@@ -140,13 +158,9 @@ export class UnitPosition {
    * @returns Array of units on the specified map
    */
   static getUnitsInMap(units: BaseUnit[], mapId: string): BaseUnit[] {
-    return units.filter(unit => {
-      const position = unit.getPropertyValue<IUnitPosition>('position');
-      if (!position || !isUnitPosition(position)) {
-        return false;
-      }
-      return position.mapId === mapId;
-    });
+    const positions = unitsToPositions(units);
+    const positionResults = getPositionsInMap(positions, mapId);
+    return mapPositionsToUnits(positionResults, units);
   }
 
   /**
@@ -160,60 +174,25 @@ export class UnitPosition {
    */
   static getUnitsWithinRange(
     units: BaseUnit[],
-    _world: World,
+    world: World,
     unitId: string,
     range: number,
     useManhattanDistance: boolean = true
   ): BaseUnit[] {
-    // Find the reference unit
-    const referenceUnit = units.find(u => u.id === unitId);
-    if (!referenceUnit) {
+    const reference = getUnitWithPosition(units, unitId);
+    if (!reference) {
       return [];
     }
 
-    // Get reference unit's position
-    const refPosition =
-      referenceUnit.getPropertyValue<IUnitPosition>('position');
-    if (!refPosition || !isUnitPosition(refPosition)) {
-      return [];
-    }
-
-    // Check if units are on the same map
-    const sameMapUnits = units.filter(unit => {
-      if (unit.id === unitId) return false; // Don't include the reference unit itself
-
-      const position = unit.getPropertyValue<IUnitPosition>('position');
-      if (!position || !isUnitPosition(position)) {
-        return false;
-      }
-      return position.mapId === refPosition.mapId;
-    });
-
-    // Calculate distances and filter by range
-    return sameMapUnits.filter(unit => {
-      const position = unit.getPropertyValue<IUnitPosition>('position');
-      if (!position || !isUnitPosition(position)) {
-        return false;
-      }
-
-      // Calculate distance between positions by creating new Position objects
-      const refPos = new Position(
-        refPosition.position.x,
-        refPosition.position.y,
-        refPosition.position.z
-      );
-      const targetPos = new Position(
-        position.position.x,
-        position.position.y,
-        position.position.z
-      );
-
-      const distance = useManhattanDistance
-        ? refPos.manhattanDistanceTo(targetPos)
-        : refPos.distanceTo(targetPos);
-
-      return distance <= range;
-    });
+    const positions = unitsToPositions(units);
+    const positionResults = getPositionsWithinRange(
+      positions,
+      world,
+      reference.position,
+      range,
+      useManhattanDistance
+    );
+    return mapPositionsToUnits(positionResults, units);
   }
 
   /**
@@ -244,26 +223,7 @@ export class UnitPosition {
       return Infinity;
     }
 
-    // If units are on different maps, return infinity
-    if (pos1.mapId !== pos2.mapId) {
-      return Infinity;
-    }
-
-    // Create Position instances for proper distance calculation
-    const pos1Instance = new Position(
-      pos1.position.x,
-      pos1.position.y,
-      pos1.position.z
-    );
-    const pos2Instance = new Position(
-      pos2.position.x,
-      pos2.position.y,
-      pos2.position.z
-    );
-
-    return useManhattanDistance
-      ? pos1Instance.manhattanDistanceTo(pos2Instance)
-      : pos1Instance.distanceTo(pos2Instance);
+    return getDistanceBetweenPositions(pos1, pos2, useManhattanDistance);
   }
 
   /**
@@ -282,42 +242,12 @@ export class UnitPosition {
     unitId2: string,
     allowDiagonal: boolean = true
   ): boolean {
-    const unit1 = units.find(u => u.id === unitId1);
-    const unit2 = units.find(u => u.id === unitId2);
-
-    if (!unit1 || !unit2) {
+    const left = getUnitWithPosition(units, unitId1);
+    const right = getUnitWithPosition(units, unitId2);
+    if (!left || !right) {
       return false;
     }
-
-    const pos1 = unit1.getPropertyValue<IUnitPosition>('position');
-    const pos2 = unit2.getPropertyValue<IUnitPosition>('position');
-
-    if (!pos1 || !pos2 || !isUnitPosition(pos1) || !isUnitPosition(pos2)) {
-      return false;
-    }
-
-    // If units are on different maps, they can't be adjacent
-    if (pos1.mapId !== pos2.mapId) {
-      return false;
-    }
-
-    // Calculate the absolute differences
-    const dx = Math.abs(pos1.position.x - pos2.position.x);
-    const dy = Math.abs(pos1.position.y - pos2.position.y);
-
-    if (allowDiagonal) {
-      // With diagonals allowed, units are adjacent if they're within Manhattan distance 1
-      // This means either dx=1,dy=0 or dx=0,dy=1 or dx=1,dy=1 (diagonal)
-      return (
-        (dx === 1 && dy === 0) ||
-        (dx === 0 && dy === 1) ||
-        (dx === 1 && dy === 1)
-      );
-    } else {
-      // Without diagonals, units are adjacent only if Manhattan distance is 1 and on same axis
-      // This means either dx=1,dy=0 or dx=0,dy=1, but not dx=1,dy=1
-      return (dx === 1 && dy === 0) || (dx === 0 && dy === 1);
-    }
+    return arePositionsAdjacent(left.position, right.position, allowDiagonal);
   }
 
   /**
@@ -336,44 +266,7 @@ export class UnitPosition {
     y: number,
     allowDiagonal: boolean = true
   ): Position[] {
-    try {
-      const map = world.getMap(mapId);
-
-      // Define the directions - if allowDiagonal is false, only use cardinal directions
-      const directions = allowDiagonal
-        ? [
-            { dx: -1, dy: 0 }, // left
-            { dx: 1, dy: 0 }, // right
-            { dx: 0, dy: -1 }, // up
-            { dx: 0, dy: 1 }, // down
-            { dx: -1, dy: -1 }, // up-left
-            { dx: -1, dy: 1 }, // down-left
-            { dx: 1, dy: -1 }, // up-right
-            { dx: 1, dy: 1 }, // down-right
-          ]
-        : [
-            { dx: -1, dy: 0 }, // left
-            { dx: 1, dy: 0 }, // right
-            { dx: 0, dy: -1 }, // up
-            { dx: 0, dy: 1 }, // down
-          ];
-
-      const adjacentPositions: Position[] = [];
-
-      for (const { dx, dy } of directions) {
-        const newX = x + dx;
-        const newY = y + dy;
-
-        // Check if the position is within map bounds
-        if (newX >= 0 && newX < map.width && newY >= 0 && newY < map.height) {
-          adjacentPositions.push(new Position(newX, newY));
-        }
-      }
-
-      return adjacentPositions;
-    } catch {
-      return []; // Return empty array if map doesn't exist
-    }
+    return getAdjacentPositions(world, mapId, x, y, allowDiagonal);
   }
 
   /**
@@ -390,12 +283,7 @@ export class UnitPosition {
     x: number,
     y: number
   ): boolean {
-    try {
-      const map = world.getMap(mapId);
-      return x >= 0 && x < map.width && y >= 0 && y < map.height;
-    } catch {
-      return false; // Return false if map doesn't exist
-    }
+    return isValidPosition(world, mapId, x, y);
   }
 
   /**
@@ -412,40 +300,18 @@ export class UnitPosition {
     unitId: string,
     allowDiagonal: boolean = true
   ): BaseUnit[] {
-    const referenceUnit = units.find(u => u.id === unitId);
-    if (!referenceUnit) {
+    const reference = getUnitWithPosition(units, unitId);
+    if (!reference) {
       return [];
     }
 
-    const refPosition =
-      referenceUnit.getPropertyValue<IUnitPosition>('position');
-    if (!refPosition || !isUnitPosition(refPosition)) {
-      return [];
-    }
-
-    // Get adjacent positions
-    const adjacentPositions = UnitPosition.getAdjacentPositions(
+    const positions = unitsToPositions(units);
+    const positionResults = getAdjacentPositionsToPosition(
+      positions,
       world,
-      refPosition.mapId,
-      refPosition.position.x,
-      refPosition.position.y,
+      reference.position,
       allowDiagonal
     );
-
-    // Find units at adjacent positions
-    const adjacentUnits: BaseUnit[] = [];
-    for (const adjPos of adjacentPositions) {
-      const unitAtPos = UnitPosition.getUnitAtPosition(
-        units,
-        refPosition.mapId,
-        adjPos.x,
-        adjPos.y
-      );
-      if (unitAtPos && unitAtPos.id !== unitId) {
-        adjacentUnits.push(unitAtPos);
-      }
-    }
-
-    return adjacentUnits;
+    return mapPositionsToUnits(positionResults, units);
   }
 }
