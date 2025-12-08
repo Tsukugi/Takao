@@ -48,7 +48,9 @@ export class ActionProcessor {
       }
 
       // Get the acting unit
-      const actingUnit = units?.find?.(unit => unit?.name === action?.player);
+      const actingUnit =
+        units?.find?.(unit => unit?.id === action?.player) ||
+        units?.find?.(unit => unit?.name === action?.player);
       if (!actingUnit) {
         return { isValid: true }; // If no acting unit found, skip validation
       }

@@ -79,6 +79,22 @@ describe('ActionProcessor range validation', () => {
     expect(result.errorMessage).toContain('out of range');
   });
 
+  it('uses player id when validating range', async () => {
+    const action = {
+      player: 'unit1', // id instead of name
+      type: 'attack',
+      description: 'Player1 attacks Player3 by id',
+      payload: {
+        targetUnit: 'unit3',
+        range: 1,
+      },
+    };
+
+    const result = await actionProcessor.executeActionEffect(action, units);
+    expect(result.success).toBe(false);
+    expect(result.errorMessage).toContain('out of range');
+  });
+
   it('should deny attack when units are on different maps', async () => {
     const action = {
       player: 'Player1',
