@@ -19,6 +19,7 @@ import { GateSystem, type GateConnection } from '../utils/GateSystem';
 import { Logger } from '../utils/Logger';
 import { UnitPosition } from '../utils/UnitPosition';
 import { GoalSystem } from '../ai/goals/GoalSystem';
+import { RelationshipHelper } from '../utils/RelationshipHelper';
 
 /**
  * Represents the StoryTeller that generates narrative actions based on unit states
@@ -85,22 +86,37 @@ export class StoryTeller {
     // Get the current state of units from the UnitController
     const units = await this.unitController.getUnitState();
 
-    // Generate a story action based on unit states
-    const storyAction = await this.createStoryBasedOnUnits(units, turn);
+    // Build candidate actions (in priority order) for the turn
+    const { executions: actionCandidates, actor } =
+      await this.createStoryBasedOnUnits(units, turn);
 
     // Take a snapshot of unit properties before action execution
     const initialStates = StatTracker.takeSnapshot(units);
 
-    // Execute action effects using the ActionProcessor
-    const result = await this.actionProcessor.executeActionEffect(
-      storyAction.action,
-      units
-    );
-    if (!result.success) {
-      this.logger.error(
-        `Failed to execute action effect: ${result.errorMessage || 'Unknown error'}`
+    // Try candidates until one succeeds; fall back to default idle action
+    let storyAction: ExecutedAction =
+      this.actionProcessor.getDefaultExecutedAction(actor, turn);
+
+    for (const candidate of actionCandidates) {
+      const result = await this.actionProcessor.executeActionEffect(
+        candidate.action,
+        units
       );
-      return storyAction; // Return early if execution fails
+      if (result.success) {
+        storyAction = candidate;
+
+        // Mark that this unit acted this turn
+        actor.setProperty('lastActionTurn', {
+          name: 'lastActionTurn',
+          value: turn,
+          baseValue: turn,
+        });
+        break;
+      }
+
+      this.logger.warn(
+        `Action ${candidate.action.type} failed (${result.errorMessage || 'unknown reason'}), trying next candidate`
+      );
     }
 
     // Handle new units if any were created
@@ -164,14 +180,22 @@ export class StoryTeller {
   private async createStoryBasedOnUnits(
     units: BaseUnit[],
     turn: number
-  ): Promise<ExecutedAction> {
+  ): Promise<{ executions: ExecutedAction[]; actor: BaseUnit }> {
     // If no units exist, create a default action
     if (units.length === 0) {
       // Return a default narrative action instead of throwing
-      return this.actionProcessor.getDefaultExecutedAction(
-        new BaseUnit('default-unit', 'DefaultUnit', 'unknown', {}),
-        turn
+      const defaultActor = new BaseUnit(
+        'default-unit',
+        'DefaultUnit',
+        'unknown',
+        {}
       );
+      return {
+        actor: defaultActor,
+        executions: [
+          this.actionProcessor.getDefaultExecutedAction(defaultActor, turn),
+        ],
+      };
     }
 
     // Filter out dead units - only consider alive units for taking actions
@@ -195,21 +219,19 @@ export class StoryTeller {
 
     // If no alive units exist, return a default action
     if (aliveUnits.length === 0) {
-      return this.actionProcessor.getDefaultExecutedAction(
-        new BaseUnit('default-unit', 'DefaultUnit', 'unknown', {}),
-        turn
-      );
+      return {
+        actor: new BaseUnit('default-unit', 'DefaultUnit', 'unknown', {}),
+        executions: [
+          this.actionProcessor.getDefaultExecutedAction(
+            new BaseUnit('default-unit', 'DefaultUnit', 'unknown', {}),
+            turn
+          ),
+        ],
+      };
     }
 
     // Choose a random alive unit to center the story around
     const randomUnit = MathUtils.getRandomFromArray(unitsToConsider);
-
-    // Get properties of the unit to create a meaningful story
-    const unitName = randomUnit.name;
-    const unitType = randomUnit.type;
-
-    // Create a story action based on unit properties using JSON data
-    let description = '';
 
     const availableActions = this.getAvailableActionsForUnit(randomUnit);
 
@@ -219,53 +241,98 @@ export class StoryTeller {
       turn,
     });
 
-    const selectedAction =
-      goalChoice.action ?? MathUtils.getRandomFromArray(availableActions);
+    const prioritizedActions =
+      goalChoice.candidateActions.length > 0
+        ? goalChoice.candidateActions
+        : availableActions;
 
-    if (!selectedAction) {
-      return this.actionProcessor.getDefaultExecutedAction(randomUnit, turn);
+    const executions: ExecutedAction[] = [];
+
+    for (const actionDef of prioritizedActions) {
+      const execution = await this.prepareActionExecution(
+        randomUnit,
+        actionDef,
+        units,
+        turn
+      );
+      if (execution) {
+        executions.push(execution);
+      }
     }
 
-    if (selectedAction.type === 'explore') {
-      this.moveUnitRandomStep(randomUnit);
-    }
+    // Always include a safe default at the end
+    executions.push(
+      this.actionProcessor.getDefaultExecutedAction(randomUnit, turn)
+    );
 
-    // For interaction-type actions, select another unit to interact with
+    return { executions, actor: randomUnit };
+  }
+
+  /**
+   * Builds an ExecutedAction for a unit and action definition, handling targets and movement.
+   */
+  private async prepareActionExecution(
+    unit: BaseUnit,
+    actionDef: Action,
+    units: BaseUnit[],
+    turn: number
+  ): Promise<ExecutedAction | null> {
+    const unitName = unit.name;
+    const unitType = unit.type;
     let targetUnit = null;
     let targetUnitName = 'another unit';
-    const actionPayload = { ...(selectedAction.payload || {}) };
+    const actionPayload = { ...(actionDef.payload || {}) };
 
+    // Auto-target another unit for interaction-type actions
     if (
-      ['interact', 'attack', 'support', 'trade'].includes(
-        selectedAction.type
+      ['interact', 'attack', 'support', 'trade', 'inspire'].includes(
+        actionDef.type
       ) &&
       units.length > 1
     ) {
-      // Find a different unit to interact with
-      const otherUnits = units.filter(u => u.id !== randomUnit.id);
-      if (otherUnits.length > 0) {
-        targetUnit = MathUtils.getRandomFromArray(otherUnits);
-        targetUnitName = targetUnit.name;
-        actionPayload.targetUnit = targetUnit.id;
+      const otherUnits = units.filter(u => u.id !== unit.id);
+      let candidateTargets = otherUnits;
+
+      if (this.requiresHostileTarget(actionDef.type)) {
+        candidateTargets = otherUnits.filter(u =>
+          RelationshipHelper.isHostile(unit, u)
+        );
+      } else if (this.requiresAllyTarget(actionDef.type)) {
+        candidateTargets = otherUnits.filter(u =>
+          RelationshipHelper.isAlly(unit, u)
+        );
       }
+
+      if (candidateTargets.length === 0) {
+        return null; // No valid target for this action
+      }
+
+      targetUnit = MathUtils.getRandomFromArray(candidateTargets);
+      targetUnitName = targetUnit.name;
+      actionPayload.targetUnit = targetUnit.id;
+    }
+
+    // Handle exploration movement before action description
+    if (actionDef.type === 'explore') {
+      this.moveUnitRandomStep(unit);
     }
 
     // If we have a target and are out of range, step toward the target before the action
     if (targetUnit) {
-      const actionRange = this.getActionRange(selectedAction);
+      const actionRange = this.getActionRange(actionDef);
       const distance = UnitPosition.getDistanceBetweenUnits(
         units,
-        randomUnit.id,
+        unit.id,
         targetUnit.id,
         true
       );
 
       if (distance === Infinity) {
         this.logger.warn(
-          `Units ${randomUnit.id} and ${targetUnit.id} are on different maps; cannot move toward target`
+          `Units ${unit.id} and ${targetUnit.id} are on different maps; cannot move toward target`
         );
       } else if (distance > actionRange) {
-        const unitPos = randomUnit.getPropertyValue<IUnitPosition>('position');
+        const unitPos = unit.getPropertyValue<IUnitPosition>('position');
         const targetPos =
           targetUnit.getPropertyValue<IUnitPosition>('position');
         if (unitPos && targetPos && unitPos.mapId === targetPos.mapId) {
@@ -284,16 +351,14 @@ export class StoryTeller {
             )
           );
 
-          // Move the unit one tile closer; ignore result, since attack may still be out of range
-          await this.moveUnitToPosition(randomUnit.id, nextStep.x, nextStep.y);
+          await this.moveUnitToPosition(unit.id, nextStep.x, nextStep.y);
           actionPayload.movedTowardsTarget = true;
           actionPayload.movedTo = { x: nextStep.x, y: nextStep.y };
         }
       }
     }
 
-    // Create description by replacing placeholders
-    description = selectedAction.description
+    let description = actionDef.description
       .replace('{{unitName}}', unitName)
       .replace('{{unitType}}', unitType)
       .replace('{{targetUnitName}}', targetUnitName);
@@ -308,23 +373,14 @@ export class StoryTeller {
       description = `${movedText}${description}`;
     }
 
-    // Create action payload based on action type
-
-    // Record that this unit took an action in this turn
-    randomUnit.setProperty('lastActionTurn', {
-      name: 'lastActionTurn',
-      value: turn,
-      baseValue: turn,
-    });
-
     return {
       turn,
       timestamp: Date.now(),
       action: {
-        ...selectedAction,
+        ...actionDef,
         description,
-        player: unitName, // Add the unit's name as the player
-        payload: actionPayload, // Ensure payload exists and includes target when needed
+        player: unitName,
+        payload: actionPayload,
       },
     };
   }
@@ -334,6 +390,22 @@ export class StoryTeller {
       return action.payload.range;
     }
     return 1;
+  }
+
+  private requiresHostileTarget(actionType: string): boolean {
+    return [
+      'attack',
+      'desperate_attack',
+      'ranged_attack',
+      'shoot',
+      'stab',
+      'melee',
+      'cast_attack',
+    ].includes(actionType);
+  }
+
+  private requiresAllyTarget(actionType: string): boolean {
+    return ['support', 'heal', 'inspire'].includes(actionType);
   }
 
   private getAvailableActionsForUnit(unit: BaseUnit): Action[] {

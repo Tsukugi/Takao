@@ -21,3 +21,8 @@ Building a lightweight yet flexible relationship tier (allies/neutral/hostiles) 
 - ActionProcessor tests: mock units with relationships and assert that damage actions ignore allies and heal/support only hit allies.
 - Goal/evaluator tests: confirm `AttackEnemy` goals only execute when hostile targets are available.
 - Documented plan in `Takao/agents/RELATIONSHIP_PLAN.md`, referencing helper API and key integration points.
+
+## Implementation snapshot (current)
+- Added `RelationshipHelper` (faction + explicit map) with `getRelationship`/`isAlly`/`isHostile`.
+- ActionProcessor now gates effects: damage → hostiles only; healing/support → allies/self; ally/enemy targets filtered.
+- Story action flow retries lower-priority actions when a candidate fails (e.g., out of range or no valid target) to avoid dead turns.

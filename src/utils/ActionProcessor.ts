@@ -11,6 +11,7 @@ import { DataManager } from './DataManager';
 import { isNumber, isRandomValue } from '../types/typeGuards';
 import { Logger } from './Logger';
 import { UnitPosition } from './UnitPosition';
+import { RelationshipHelper } from './RelationshipHelper';
 import { World } from '@atsu/choukai';
 
 /**
@@ -181,6 +182,8 @@ export class ActionProcessor {
     action: Action,
     units: BaseUnit[]
   ): Promise<void> {
+    const actingUnit = units.find(unit => unit.name === action.player);
+
     // Determine the target unit based on effect.target
     let targetUnit;
 
@@ -203,21 +206,29 @@ export class ActionProcessor {
       case 'all':
         // Apply to all units
         for (const unit of units) {
-          await this.applyEffectToUnit(effect, unit, action);
+          if (this.canAffectTarget(effect, actingUnit, unit)) {
+            await this.applyEffectToUnit(effect, unit, action);
+          } else {
+            this.logger?.info(
+              `Skipped applying effect ${effect.property} to ${unit.name} due to relationship filter`
+            );
+          }
         }
         return; // Already applied to all, so return early
 
       case 'ally': {
         // Apply to allied units - apply to self and target if exists
-        const actingUnit = units.find(unit => unit.name === action.player);
-        if (actingUnit) {
+        if (
+          actingUnit &&
+          this.canAffectTarget(effect, actingUnit, actingUnit)
+        ) {
           await this.applyEffectToUnit(effect, actingUnit, action);
         }
         if (action.payload?.targetUnit) {
           const target = units.find(
             unit => unit.id === action.payload?.targetUnit
           );
-          if (target) {
+          if (target && this.canAffectTarget(effect, actingUnit, target)) {
             await this.applyEffectToUnit(effect, target, action);
           }
         }
@@ -227,13 +238,22 @@ export class ActionProcessor {
       case 'enemy':
         // Apply to enemy units - apply to target unit
         if (action.payload?.targetUnit) {
-          targetUnit = units.find(
+          const candidate = units.find(
             unit => unit.id === action.payload?.targetUnit
           );
+          if (
+            candidate &&
+            RelationshipHelper.isHostile(actingUnit, candidate)
+          ) {
+            targetUnit = candidate;
+          }
         } else {
           // If no specific target, pick a different unit than the acting unit
-          const actingUnit = units.find(unit => unit.name === action.player);
-          targetUnit = units.find(unit => unit.id !== actingUnit?.id);
+          targetUnit = units.find(
+            unit =>
+              unit.id !== actingUnit?.id &&
+              RelationshipHelper.isHostile(actingUnit, unit)
+          );
         }
         break;
 
@@ -269,6 +289,13 @@ export class ActionProcessor {
     if (!targetUnit) {
       this.logger?.error(
         `Could not find target unit for action ${action.type} with target: ${effect.target}`
+      );
+      return;
+    }
+
+    if (!this.canAffectTarget(effect, actingUnit, targetUnit)) {
+      this.logger?.info(
+        `Skipped applying effect ${effect.property} to ${targetUnit.name} due to relationship filter`
       );
       return;
     }
@@ -382,6 +409,49 @@ export class ActionProcessor {
    */
   private static getRandomValue(min: number, max: number): number {
     return Math.floor(Math.random() * (max - min + 1)) + min;
+  }
+
+  /**
+   * Relationship-aware gating for effect application.
+   * Damage effects must hit hostiles; healing/support effects should only touch allies/self.
+   */
+  private canAffectTarget(
+    effect: EffectDefinition,
+    actingUnit: BaseUnit | undefined,
+    targetUnit: BaseUnit
+  ): boolean {
+    if (!actingUnit) return true; // No actor context, allow by default
+
+    const relationship = RelationshipHelper.getRelationship(
+      actingUnit,
+      targetUnit
+    );
+
+    if (ActionProcessor.isDamageEffect(effect)) {
+      return relationship === 'hostile';
+    }
+
+    if (ActionProcessor.isHealingEffect(effect)) {
+      return relationship === 'ally';
+    }
+
+    if (effect.target === 'ally') {
+      return relationship === 'ally';
+    }
+
+    if (effect.target === 'enemy') {
+      return relationship === 'hostile';
+    }
+
+    return true;
+  }
+
+  private static isDamageEffect(effect: EffectDefinition): boolean {
+    return effect.property === 'health' && effect.operation === 'subtract';
+  }
+
+  private static isHealingEffect(effect: EffectDefinition): boolean {
+    return effect.property === 'health' && effect.operation === 'add';
   }
 
   /**

@@ -2,6 +2,7 @@ import { BaseUnit } from '@atsu/atago';
 import type { Action, GoalDefinition, GoalsData } from '../../types';
 import { DataManager } from '../../utils/DataManager';
 import { MathUtils } from '../../utils/Math';
+import { RelationshipHelper } from '../../utils/RelationshipHelper';
 
 interface GoalContext {
   availableActions: Action[];
@@ -34,7 +35,7 @@ export class GoalSystem {
   }
 
   public chooseAction(unit: BaseUnit, context: GoalContext): GoalChoice {
-    const evaluatedGoals = this.evaluateGoals(unit).sort(
+    const evaluatedGoals = this.evaluateGoals(unit, context).sort(
       (a, b) => b.score - a.score
     );
 
@@ -71,13 +72,14 @@ export class GoalSystem {
     };
   }
 
-  private evaluateGoals(unit: BaseUnit): GoalCandidate[] {
+  private evaluateGoals(unit: BaseUnit, context: GoalContext): GoalCandidate[] {
     const health = this.getNumericProperty(unit, 'health');
     const maxHealth = this.getNumericProperty(unit, 'maxHealth');
     const mana = this.getNumericProperty(unit, 'mana');
     const maxMana = this.getNumericProperty(unit, 'maxMana');
     const healthPct = maxHealth > 0 ? health / maxHealth : 1;
     const manaPct = maxMana > 0 ? mana / maxMana : 1;
+    const hostilesAvailable = this.hasHostileTarget(unit, context.units);
 
     const candidates: GoalCandidate[] = [];
 
@@ -109,12 +111,12 @@ export class GoalSystem {
     }
 
     const attackGoal = this.findGoalById('AttackEnemy');
-    if (attackGoal) {
+    if (attackGoal && hostilesAvailable) {
       const baseAttackScore = healthPct > 0.35 ? 60 : 25;
       candidates.push({
         goal: attackGoal,
         score: baseAttackScore,
-        reason: 'Default offensive posture',
+        reason: 'Hostile targets available',
       });
     }
 
@@ -176,5 +178,16 @@ export class GoalSystem {
       completion: { type: 'none' },
       candidateActions: [],
     };
+  }
+
+  /**
+   * Determines whether the unit has any hostile targets available.
+   */
+  private hasHostileTarget(actor: BaseUnit, units?: BaseUnit[]): boolean {
+    if (!units || units.length === 0) return true; // Unknown context: allow attack goal
+    return units.some(
+      other =>
+        other.id !== actor.id && RelationshipHelper.isHostile(actor, other)
+    );
   }
 }
