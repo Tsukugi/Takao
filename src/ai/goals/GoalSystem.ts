@@ -34,7 +34,7 @@ export class GoalSystem {
   }
 
   public chooseAction(unit: BaseUnit, context: GoalContext): GoalChoice {
-    const evaluatedGoals = this.evaluateGoals(unit, context).sort(
+    const evaluatedGoals = this.evaluateGoals(unit).sort(
       (a, b) => b.score - a.score
     );
 
@@ -71,10 +71,7 @@ export class GoalSystem {
     };
   }
 
-  private evaluateGoals(
-    unit: BaseUnit,
-    _context: GoalContext
-  ): GoalCandidate[] {
+  private evaluateGoals(unit: BaseUnit): GoalCandidate[] {
     const health = this.getNumericProperty(unit, 'health');
     const maxHealth = this.getNumericProperty(unit, 'maxHealth');
     const mana = this.getNumericProperty(unit, 'mana');

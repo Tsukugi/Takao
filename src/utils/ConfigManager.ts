@@ -137,9 +137,9 @@ export class ConfigManager {
       },
       rendering: {
         visualOnly: false,
-        showDiary: true,        // Default to showing diary
-        diaryMaxHeight: 30,     // Default diary height
-        diaryMaxEntries: 20,    // Default max entries to show
+        showDiary: true, // Default to showing diary
+        diaryMaxHeight: 30, // Default diary height
+        diaryMaxEntries: 20, // Default max entries to show
         diaryTitle: 'Action Diary', // Default diary title
       },
     };

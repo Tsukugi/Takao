@@ -7,6 +7,7 @@ import {
   World as ChoukaiWorld,
   Map as ChoukaiMap,
   type TerrainType,
+  type IMapConfig,
 } from '@atsu/choukai';
 
 /**
@@ -23,7 +24,7 @@ export interface MapSnapshot {
   name: string;
   width: number;
   height: number;
-  config?: any; // Store map config if needed
+  config?: IMapConfig; // Store map config if needed
   renderedMap: string[]; // Each row as a string
 }
 

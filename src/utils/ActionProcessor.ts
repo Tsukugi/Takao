@@ -396,9 +396,15 @@ export class ActionProcessor {
     }
 
     if (
-      ['attack', 'melee', 'stab', 'desperate_attack', 'trade', 'interact', 'negotiate'].includes(
-        action.type
-      )
+      [
+        'attack',
+        'melee',
+        'stab',
+        'desperate_attack',
+        'trade',
+        'interact',
+        'negotiate',
+      ].includes(action.type)
     ) {
       return 1; // Melee and close-range actions
     }
