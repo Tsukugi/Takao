@@ -2,6 +2,7 @@
   "maxTurnsPerSession": 50,
   "runIndefinitely": false,
   "cooldownPeriod": 1,
+  "clearUnitsOnStart": false,
   "overrideAvailableActions": [
     "attack",
     "defend",

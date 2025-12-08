@@ -182,15 +182,16 @@ export class ActionProcessor {
     action: Action,
     units: BaseUnit[]
   ): Promise<void> {
-    const actingUnit = units.find(unit => unit.name === action.player);
+    const actingUnit =
+      units.find(unit => unit.id === action.player) ||
+      units.find(unit => unit.name === action.player);
 
     // Determine the target unit based on effect.target
     let targetUnit;
 
     switch (effect.target) {
       case 'self':
-        // Find the acting unit by player name
-        targetUnit = units.find(unit => unit.name === action.player);
+        targetUnit = actingUnit;
         break;
 
       case 'target':
@@ -283,7 +284,7 @@ export class ActionProcessor {
 
       default:
         // Default to self
-        targetUnit = units.find(unit => unit.name === action.player);
+        targetUnit = actingUnit;
     }
 
     if (!targetUnit) {
@@ -319,8 +320,12 @@ export class ActionProcessor {
       targetUnit
     );
 
-    // Use setProperty for temporary changes - only if method exists
-    const currentValue = targetUnit.getPropertyValue(effect.property) || 0;
+    // Ensure the property exists; if missing, initialize it with value 1
+    const existingValue = targetUnit.getPropertyValue(effect.property);
+    if (existingValue === undefined) {
+      targetUnit.setProperty(effect.property, 1);
+    }
+    const currentValue = isNumber(existingValue) ? existingValue : 1;
     let newValue: number;
 
     switch (effect.operation) {
@@ -357,6 +362,10 @@ export class ActionProcessor {
       targetUnit.setBaseProperty(effect.property, newValue);
     } else {
       targetUnit.setProperty(effect.property, newValue);
+    }
+
+    if (effect.property === 'health' && newValue <= 0) {
+      targetUnit.setProperty('status', 'dead');
     }
   }
 
@@ -457,34 +466,12 @@ export class ActionProcessor {
   /**
    * Determine action range from definition, payload, or defaults
    */
-  private getActionRange(action: Action): number {
+  public getActionRange(action: Action): number {
     if (
       action?.payload?.range !== undefined &&
       isNumber(action?.payload?.range)
     ) {
       return action.payload.range;
-    }
-
-    if (
-      [
-        'attack',
-        'melee',
-        'stab',
-        'desperate_attack',
-        'trade',
-        'interact',
-        'negotiate',
-      ].includes(action.type)
-    ) {
-      return 1; // Melee and close-range actions
-    }
-
-    if (['shoot', 'ranged_attack', 'cast'].includes(action.type)) {
-      return 3; // Ranged actions
-    }
-
-    if (['support', 'heal', 'inspire'].includes(action.type)) {
-      return 2; // Support actions
     }
 
     return 1;
@@ -574,7 +561,7 @@ export class ActionProcessor {
    */
   public getDefaultAction(unit: BaseUnit): Action {
     return {
-      player: unit.name,
+      player: unit.id,
       type: 'idle',
       description: `${unit.name} idles, doing nothing of note.`,
       payload: { target: 'self' },

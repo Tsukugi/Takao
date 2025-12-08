@@ -7,6 +7,7 @@ interface AppConfig {
   runIndefinitely?: boolean;
   overrideAvailableActions?: string[];
   cooldownPeriod?: number; // Units can act once every N turns (default: 1)
+  clearUnitsOnStart?: boolean;
 }
 
 // Map generation configuration
@@ -98,6 +99,7 @@ export class ConfigManager {
       maxTurnsPerSession: 10,
       runIndefinitely: false,
       cooldownPeriod: 1, // Default: every unit can act each turn (current behavior)
+      clearUnitsOnStart: false,
       mapGeneration: {
         // Map dimensions settings
         defaultMapWidth: 20,

@@ -95,6 +95,8 @@ describe('UnitController', () => {
 
     const unit1 = units[0];
     const unit2 = units[1];
+    expect(unit1.getPropertyValue('faction')).toBe('Neutral');
+    expect(unit2.getPropertyValue('faction')).toBe('Neutral');
 
     // Check that the names are from the expected categories
     expect(['WarriorName', 'BraveWarrior']).toContain(unit1.name);
@@ -131,6 +133,7 @@ describe('UnitController', () => {
     expect(units[0].name).toBe('ExistingWarrior');
     expect(units[0].type).toBe('warrior');
     expect(units[0].id).toBe('existing-unit-1');
+    expect(units[0].getPropertyValue('faction')).toBe('Neutral');
   });
 
   it('gets unit state correctly', async () => {

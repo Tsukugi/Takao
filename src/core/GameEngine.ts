@@ -47,6 +47,14 @@ export class GameEngine {
    */
   public async initialize(gameState: GameState): Promise<void> {
     this.logger.info('Initializing game engine...');
+    const config = ConfigManager.getConfig();
+
+    if (config.clearUnitsOnStart) {
+      DataManager.ensureDataDirectory();
+      DataManager.saveUnits([]);
+      this.logger.info('Cleared saved units before start per configuration.');
+    }
+
     // Initialize the controllers
     await this.unitController.initialize(gameState);
 

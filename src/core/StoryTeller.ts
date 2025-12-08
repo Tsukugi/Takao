@@ -14,7 +14,12 @@ import { ConditionParser } from '../utils/ConditionParser';
 import { BaseUnit, type IUnitPosition } from '@atsu/atago';
 import { isComparison } from '../types/typeGuards';
 import { MapGenerator } from '../utils/MapGenerator';
-import { World, Map as ChoukaiMap, Position } from '@atsu/choukai';
+import {
+  World,
+  Map as ChoukaiMap,
+  Position,
+  findNearestFreeTile,
+} from '@atsu/choukai';
 import { GateSystem, type GateConnection } from '../utils/GateSystem';
 import { Logger } from '../utils/Logger';
 import { UnitPosition } from '../utils/UnitPosition';
@@ -242,7 +247,7 @@ export class StoryTeller {
     });
 
     const prioritizedActions =
-      goalChoice.candidateActions.length > 0
+      goalChoice?.candidateActions && goalChoice.candidateActions.length > 0
         ? goalChoice.candidateActions
         : availableActions;
 
@@ -307,7 +312,31 @@ export class StoryTeller {
         return null; // No valid target for this action
       }
 
-      targetUnit = MathUtils.getRandomFromArray(candidateTargets);
+      const actionRange = this.actionProcessor.getActionRange(actionDef);
+      const candidatesWithDistance = candidateTargets.map(target => ({
+        target,
+        distance: UnitPosition.getDistanceBetweenUnits(
+          units,
+          unit.id,
+          target.id,
+          true
+        ),
+      }));
+
+      const reachable = candidatesWithDistance.filter(
+        c => c.distance !== Infinity
+      );
+      const considered =
+        reachable.length > 0 ? reachable : candidatesWithDistance;
+      const inRange = considered.filter(c => c.distance <= actionRange);
+      const selectionPool = inRange.length > 0 ? inRange : considered;
+      selectionPool.sort((a, b) => a.distance - b.distance);
+
+      targetUnit = selectionPool[0]?.target ?? null;
+      if (!targetUnit) {
+        return null;
+      }
+
       targetUnitName = targetUnit.name;
       actionPayload.targetUnit = targetUnit.id;
     }
@@ -319,7 +348,7 @@ export class StoryTeller {
 
     // If we have a target and are out of range, step toward the target before the action
     if (targetUnit) {
-      const actionRange = this.getActionRange(actionDef);
+      const actionRange = this.actionProcessor.getActionRange(actionDef);
       const distance = UnitPosition.getDistanceBetweenUnits(
         units,
         unit.id,
@@ -368,9 +397,9 @@ export class StoryTeller {
         | { x: number; y: number }
         | undefined;
       const movedText = movedTo
-        ? `Moves closer to ${targetUnitName} (${movedTo.x},${movedTo.y}) to get in range. `
-        : `Moves closer to ${targetUnitName} to get in range. `;
-      description = `${movedText}${description}`;
+        ? `${unitName} is moving closer to ${targetUnitName}`
+        : `${unitName} is moving closer to ${targetUnitName}`;
+      description = movedText;
     }
 
     return {
@@ -379,17 +408,10 @@ export class StoryTeller {
       action: {
         ...actionDef,
         description,
-        player: unitName,
+        player: unit.id,
         payload: actionPayload,
       },
     };
-  }
-
-  private getActionRange(action: Action): number {
-    if (action?.payload && typeof action.payload.range === 'number') {
-      return action.payload.range;
-    }
-    return 1;
   }
 
   private requiresHostileTarget(actionType: string): boolean {
@@ -501,10 +523,38 @@ export class StoryTeller {
         position: newPosition,
       };
       unit.setProperty('position', newUnitPosition);
-      this.logCollisionIfAny(unitPos.mapId, targetX, targetY);
-      const moved = true; // Movement always succeeds when setting the property directly
+      const positions = this.unitController
+        .getUnits()
+        .map(u => u.getPropertyValue<IUnitPosition>('position'))
+        .filter((pos): pos is IUnitPosition => Boolean(pos));
+      const occupants = positions.filter(
+        pos =>
+          pos.mapId === unitPos.mapId &&
+          pos.position.x === targetX &&
+          pos.position.y === targetY
+      );
 
-      return moved;
+      if (occupants.length > 1) {
+        const free = findNearestFreeTile(
+          this.world,
+          unitPos.mapId,
+          positions,
+          newPosition
+        );
+        if (free) {
+          const adjustedPosition: IUnitPosition = {
+            unitId: unit.id,
+            mapId: unitPos.mapId,
+            position: new Position(free.x, free.y, unitPos.position.z),
+          };
+          unit.setProperty('position', adjustedPosition);
+          this.logCollisionIfAny(unitPos.mapId, free.x, free.y);
+        }
+      } else {
+        this.logCollisionIfAny(unitPos.mapId, targetX, targetY);
+      }
+
+      return true;
     } catch (error) {
       this.logger.error(
         `Failed to move unit to position: ${(error as Error).message}`
@@ -544,10 +594,39 @@ export class StoryTeller {
       position: newPosition,
     };
     unit.setProperty('position', newUnitPosition);
+    const positions = this.unitController
+      .getUnits()
+      .map(u => u.getPropertyValue<IUnitPosition>('position'))
+      .filter((pos): pos is IUnitPosition => Boolean(pos));
+    const occupants = positions.filter(
+      pos =>
+        pos.mapId === unitPos.mapId &&
+        pos.position.x === newX &&
+        pos.position.y === newY
+    );
+
+    if (occupants.length > 1) {
+      const free = findNearestFreeTile(
+        this.world,
+        unitPos.mapId,
+        positions,
+        newPosition
+      );
+      if (free) {
+        const adjusted: IUnitPosition = {
+          unitId: unit.id,
+          mapId: unitPos.mapId,
+          position: new Position(free.x, free.y, unitPos.position.z),
+        };
+        unit.setProperty('position', adjusted);
+        this.logCollisionIfAny(unitPos.mapId, free.x, free.y);
+        return true;
+      }
+    }
+
     this.logCollisionIfAny(unitPos.mapId, newX, newY);
     return true;
   }
-
   /**
    * Handles map transitions when a unit reaches a gate
    */

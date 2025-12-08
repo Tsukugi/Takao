@@ -13,6 +13,7 @@ export class UnitController {
   private initialized: boolean = false;
   private gameUnits: BaseUnit[] = [];
   private namesCatalog: NamesData = {};
+  private readonly defaultFaction = 'Neutral';
 
   /**
    * Initializes the Unit controller with the game state
@@ -46,6 +47,7 @@ export class UnitController {
           unitData.type,
           unitData.properties
         );
+        this.ensureFaction(unit);
         this.gameUnits.push(unit);
       }
       console.log(
@@ -62,6 +64,11 @@ export class UnitController {
         status: { name: 'status', value: 'alive', baseValue: 'alive' }, // Add status property
         maxHealth: { name: 'maxHealth', value: 100, baseValue: 100 },
         maxMana: { name: 'maxMana', value: 50, baseValue: 50 },
+        faction: {
+          name: 'faction',
+          value: this.defaultFaction,
+          baseValue: this.defaultFaction,
+        },
       });
 
       const archerName = this.getRandomName(false); // Female name for archer
@@ -73,8 +80,15 @@ export class UnitController {
         status: { name: 'status', value: 'alive', baseValue: 'alive' }, // Add status property
         maxHealth: { name: 'maxHealth', value: 70, baseValue: 70 },
         maxMana: { name: 'maxMana', value: 30, baseValue: 30 },
+        faction: {
+          name: 'faction',
+          value: this.defaultFaction,
+          baseValue: this.defaultFaction,
+        },
       });
 
+      this.ensureFaction(unit1);
+      this.ensureFaction(unit2);
       this.gameUnits.push(unit1, unit2);
       console.log(
         `Initialized ${this.gameUnits.length} new game units with Atago library`
@@ -164,13 +178,6 @@ export class UnitController {
       Math.floor(baseAttack * (0.4 + Math.random() * 0.4))
     ); // Correlated to attack (±20%)
 
-    // Generate other stats with some correlations
-    const baseWisdom = Math.floor(Math.random() * 15) + 5; // 5-20
-    const baseAwareness = Math.floor(Math.random() * 10) + 2; // 2-12
-    const baseStealth = Math.floor(Math.random() * 20) + 5; // 5-25
-    const baseDiplomacy = Math.floor(Math.random() * 10) + 5; // 5-15
-    const baseKnowledge = Math.floor(Math.random() * 15) + 5; // 5-20
-
     // Create the new unit with correlated random stats
     const newUnit = new BaseUnit(randomUUID(), newUnitName, 'adventurer', {
       health: { name: 'health', value: baseHealth, baseValue: baseHealth },
@@ -196,52 +203,17 @@ export class UnitController {
         modifiers: [],
         readonly: false,
       },
-      experience: {
-        name: 'experience',
-        value: Math.floor(Math.random() * 10),
-        baseValue: 0,
-        modifiers: [],
-        readonly: false,
-      },
-      wisdom: {
-        name: 'wisdom',
-        value: baseWisdom,
-        baseValue: baseWisdom,
-        modifiers: [],
-        readonly: false,
-      },
-      awareness: {
-        name: 'awareness',
-        value: baseAwareness,
-        baseValue: baseAwareness,
-        modifiers: [],
-        readonly: false,
-      },
-      stealth: {
-        name: 'stealth',
-        value: baseStealth,
-        baseValue: baseStealth,
-        modifiers: [],
-        readonly: false,
-      },
-      diplomacy: {
-        name: 'diplomacy',
-        value: baseDiplomacy,
-        baseValue: baseDiplomacy,
-        modifiers: [],
-        readonly: false,
-      },
-      knowledge: {
-        name: 'knowledge',
-        value: baseKnowledge,
-        baseValue: baseKnowledge,
-        modifiers: [],
-        readonly: false,
+
+      faction: {
+        name: 'faction',
+        value: this.defaultFaction,
+        baseValue: this.defaultFaction,
       },
     });
 
     // Add the new unit to the game units array
     this.gameUnits.push(newUnit);
+    this.ensureFaction(newUnit);
 
     console.log(`New unit ${newUnitName} (${newUnit.id}) has joined the game!`);
 
@@ -249,5 +221,16 @@ export class UnitController {
     DataManager.saveUnits(this.gameUnits);
 
     return newUnit;
+  }
+
+  /**
+   * Ensure a unit has a non-neutral faction so hostilities resolve correctly.
+   */
+  private ensureFaction(unit: BaseUnit): void {
+    const faction = unit.getPropertyValue('faction');
+    if (typeof faction === 'string' && faction.trim().length > 0) {
+      return;
+    }
+    unit.setProperty('faction', this.defaultFaction);
   }
 }

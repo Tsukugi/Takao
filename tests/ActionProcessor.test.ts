@@ -145,13 +145,35 @@ describe('ActionProcessor range validation', () => {
   });
 
   it('should allow action when no target unit specified', async () => {
+   const action = {
+     player: 'Player1',
+     type: 'rest',
+     description: 'Player1 rests',
+   };
+
+   const result = await actionProcessor.executeActionEffect(action, units);
+   expect(result.success).toBe(true);
+  });
+
+  it('adds missing properties with baseline value before applying effects', async () => {
     const action = {
       player: 'Player1',
-      type: 'rest',
-      description: 'Player1 rests',
+      type: 'custom_missing_prop',
+      description: 'Player1 gains courage',
+      effects: [
+        {
+          target: 'self',
+          property: 'courage',
+          operation: 'add',
+          value: { type: 'static', value: 2 },
+          permanent: false,
+        },
+      ],
     };
 
     const result = await actionProcessor.executeActionEffect(action, units);
+
     expect(result.success).toBe(true);
+    expect(units[0].getPropertyValue('courage')).toBe(3); // initialized to 1 then +2
   });
 });

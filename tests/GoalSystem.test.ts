@@ -49,13 +49,16 @@ const buildUnit = (
   health: number,
   maxHealth: number,
   mana: number,
-  maxMana: number
+  maxMana: number,
+  id: string = 'id',
+  faction: string = 'Adventurers'
 ) =>
-  new BaseUnit('id', 'TestUnit', 'type', {
+  new BaseUnit(id, 'TestUnit', 'type', {
     health: { name: 'health', value: health, baseValue: maxHealth },
     maxHealth: { name: 'maxHealth', value: maxHealth, baseValue: maxHealth },
     mana: { name: 'mana', value: mana, baseValue: maxMana },
     maxMana: { name: 'maxMana', value: maxMana, baseValue: maxMana },
+    faction: { name: 'faction', value: faction, baseValue: faction },
   });
 
 describe('GoalSystem', () => {
@@ -112,6 +115,36 @@ describe('GoalSystem', () => {
 
     expect(choice.goal.id).toBe('AttackEnemy');
     expect(choice.action?.type).toBe('attack');
+  });
+
+  it('chooses explore when no hostile units exist', () => {
+    const system = new GoalSystem(goals);
+    const actor = buildUnit(90, 100, 80, 100, 'actor', 'Adventurers');
+    const ally = buildUnit(90, 100, 80, 100, 'ally', 'Adventurers');
+
+    const choice = system.chooseAction(actor, {
+      availableActions: actions,
+      units: [actor, ally],
+      turn: 1,
+    });
+
+    expect(choice.goal.id).toBe('Explore');
+    expect(['explore', 'scout', 'patrol']).toContain(choice.action?.type);
+  });
+
+  it('prefers attack when hostile units are present', () => {
+    const system = new GoalSystem(goals);
+    const actor = buildUnit(90, 100, 80, 100, 'actor', 'Adventurers');
+    const hostile = buildUnit(90, 100, 80, 100, 'wolf', 'Wild Animals');
+
+    const choice = system.chooseAction(actor, {
+      availableActions: actions,
+      units: [actor, hostile],
+      turn: 1,
+    });
+
+    expect(choice.goal.id).toBe('AttackEnemy');
+    expect(['attack', 'desperate_attack']).toContain(choice.action?.type);
   });
 
   it('falls back gracefully when goal has no matching available action', () => {
