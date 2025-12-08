@@ -1,12 +1,14 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { StoryTeller } from '../src/core/StoryTeller';
 import { UnitController } from '../src/ai/UnitController';
 import { World, Map as ChoukaiMap, Position } from '@atsu/choukai';
 import { BaseUnit } from '@atsu/atago';
+import { MathUtils } from '../src/utils/Math';
 
 describe('StoryTeller range-aware movement logging', () => {
   let unitController: UnitController;
   let world: World;
+  let getRandomSpy: ReturnType<typeof vi.spyOn> | null = null;
 
   beforeEach(async () => {
     unitController = new UnitController();
@@ -15,6 +17,17 @@ describe('StoryTeller range-aware movement logging', () => {
     world = new World();
     const map = new ChoukaiMap(10, 10, 'Test Map');
     world.addMap(map);
+  });
+
+  beforeEach(() => {
+    getRandomSpy = vi
+      .spyOn(MathUtils, 'getRandomFromArray')
+      .mockImplementation(arr => arr[0]);
+  });
+
+  afterEach(() => {
+    getRandomSpy?.mockRestore();
+    getRandomSpy = null;
   });
 
   it('annotates diary description when moving closer to a target', async () => {

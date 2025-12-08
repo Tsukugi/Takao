@@ -6,14 +6,20 @@ import * as path from 'path';
 
 describe('World Save Integration', () => {
   const worldFile = path.join(DataManager.DATA_DIR, 'world.json');
+  const diaryFile = DataManager.DIARY_FILE;
 
   beforeEach(() => {
-    // Make sure the data directory exists
+    // Ensure the data directory exists
     DataManager.ensureDataDirectory();
 
-    // Clear any existing world data for a clean test
+    // Reset the world file to avoid stale map data
     if (fs.existsSync(worldFile)) {
       fs.writeFileSync(worldFile, JSON.stringify({ maps: [] }, null, 2));
+    }
+
+    // Reset the diary file so JSON parsing always succeeds
+    if (fs.existsSync(diaryFile)) {
+      fs.writeFileSync(diaryFile, JSON.stringify([], null, 2));
     }
   });
 
