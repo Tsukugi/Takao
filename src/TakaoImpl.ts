@@ -25,7 +25,7 @@ export class TakaoImpl {
     this.gameEngine = new GameEngine({
       onTurnStart: this.runTurn.bind(this),
       onTurnEnd: this.afterTurn.bind(this),
-      onStop: this.showFinalState.bind(this),
+      onStop: this.handleEngineStop.bind(this),
     });
   }
 
@@ -139,6 +139,7 @@ export class TakaoImpl {
   private _lastWorldHash: string | null = null;
   private inputHandler: ((data: Buffer) => void) | null = null;
   private stdinRawMode = false;
+  private isTurnInProgress = false;
 
   /**
    * Generate a hash to determine if the world state has changed
@@ -450,6 +451,29 @@ export class TakaoImpl {
     unit.setProperty(property, value);
   }
 
+  private handleEngineStop(): void {
+    this.isRunning = false;
+    this.isTurnInProgress = false;
+    this.detachInputHandler();
+    this.showFinalState();
+  }
+
+  private async handleManualTurnRequest(): Promise<void> {
+    if (!this.isRunning || this.isTurnInProgress) {
+      return;
+    }
+
+    this.isTurnInProgress = true;
+    try {
+      await this.gameEngine.playTurn();
+    } catch (error) {
+      this.logger.error('Error while processing turn:', error);
+      this.stop();
+    } finally {
+      this.isTurnInProgress = false;
+    }
+  }
+
   /**
    * Start the game loop
    */
@@ -464,22 +488,33 @@ export class TakaoImpl {
     // Start the separate renderer loop for Maya
     this.startRenderer();
 
-    // Listen for ESC to exit when running in a TTY
-    this.attachEscapeHandler();
+    // Listen for input to advance turns or exit; fall back to automatic turns if not available
+    const hasInput = this.attachInputHandler();
 
-    // Start the underlying game engine for game logic
-    this.gameEngine.start();
-    this.logger.info('Game started! Running...');
+    if (hasInput) {
+      this.gameEngine.startManual();
+      this.logger.info('Game started! Press Enter to play a turn, ESC to stop.');
+    } else {
+      this.gameEngine.start();
+      this.logger.warn(
+        'TTY input not available; running automatic turns instead of manual mode.'
+      );
+    }
   }
 
   /**
    * Stop the game loop
    */
   public stop(): void {
+    if (!this.isRunning && !this.gameEngine.getRunning()) {
+      return;
+    }
+
+    this.isTurnInProgress = false;
     this.isRunning = false;
 
     // Remove key handler if attached
-    this.detachEscapeHandler();
+    this.detachInputHandler();
 
     // Stop the renderer first
     this.stopRenderer();
@@ -624,19 +659,19 @@ export class TakaoImpl {
   }
 
   /**
-   * Attach an ESC key handler for graceful shutdown in TTY environments
+   * Attach input handlers for Enter (advance turn) and ESC (exit) in TTY environments.
    */
-  private attachEscapeHandler(): void {
-    if (typeof process === 'undefined') return;
+  private attachInputHandler(): boolean {
+    if (typeof process === 'undefined') return false;
     const stdin = process.stdin;
-    if (!stdin || !stdin.isTTY) return;
+    if (!stdin || !stdin.isTTY) return false;
 
     try {
       stdin.setRawMode?.(true);
       stdin.resume();
       this.stdinRawMode = true;
     } catch {
-      return;
+      return false;
     }
 
     this.inputHandler = (data: Buffer) => {
@@ -644,16 +679,22 @@ export class TakaoImpl {
       if (key === '\u001b') {
         this.logger.info('ESC pressed, stopping game...');
         this.stop();
+        return;
+      }
+
+      if (key === '\r' || key === '\n') {
+        void this.handleManualTurnRequest();
       }
     };
 
     stdin.on('data', this.inputHandler);
+    return true;
   }
 
   /**
-   * Detach ESC key handler and restore stdin state
+   * Detach input handlers and restore stdin state
    */
-  private detachEscapeHandler(): void {
+  private detachInputHandler(): void {
     if (typeof process === 'undefined') return;
     const stdin = process.stdin;
     if (!stdin) return;

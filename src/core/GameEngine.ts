@@ -75,10 +75,7 @@ export class GameEngine {
     this.logger.info('Game engine initialized successfully.');
   }
 
-  /**
-   * Starts the game loop
-   */
-  public start(): void {
+  private beginSession(): void {
     this.logger.info('Starting game engine...');
     this.isRunning = true;
     this.sessionTurnCount = 0; // Reset session turn count
@@ -88,15 +85,59 @@ export class GameEngine {
     // Adjust logger based on visual-only mode
     const isVisualOnlyMode = ConfigManager.getConfig().rendering.visualOnly;
     this.logger.setProps({ disable: isVisualOnlyMode });
+  }
+
+  /**
+   * Starts the game loop
+   */
+  public start(): void {
+    if (this.isRunning) {
+      this.logger.warn('Game engine is already running.');
+      return;
+    }
+
+    this.beginSession();
 
     // Start the game loop
-    this.gameLoop.start(() => this.processTurn());
+    this.gameLoop.start(() => this.processTurnInternal());
+  }
+
+  /**
+   * Starts the game engine without the automated loop; turns must be triggered manually.
+   */
+  public startManual(): void {
+    if (this.isRunning) {
+      this.logger.warn('Game engine is already running.');
+      return;
+    }
+
+    this.beginSession();
+    this.logger.info('Manual mode enabled: trigger turns manually.');
+  }
+
+  /**
+   * Play a single turn when running in manual mode.
+   */
+  public async playTurn(): Promise<void> {
+    if (!this.isRunning) {
+      this.logger.warn('Cannot play turn because the engine is not running.');
+      return;
+    }
+
+    await this.processTurnInternal();
+  }
+
+  /**
+   * Backwards-compatible alias for playing a single turn.
+   */
+  public async processTurn(): Promise<void> {
+    await this.playTurn();
   }
 
   /**
    * Processes a single turn in the game
    */
-  private async processTurn(): Promise<void> {
+  private async processTurnInternal(): Promise<void> {
     // Use the actual turn number from the turn manager, not the loop's turn number
     const actualTurn = this.turnManager.getCurrentTurn() + 1; // +1 because turnManager tracks the last completed turn
 
