@@ -4,7 +4,13 @@
  */
 
 import { UnitController } from '../ai/UnitController';
-import type { Action, ExecutedAction, ActionsData, DiaryEntry } from '../types';
+import type {
+  Action,
+  ExecutedAction,
+  ActionsData,
+  DiaryEntry,
+  StatChange,
+} from '../types';
 import { DataManager } from '../utils/DataManager';
 import { ConfigManager } from '../utils/ConfigManager';
 import { StatTracker } from '../utils/StatTracker';
@@ -108,6 +114,8 @@ export class StoryTeller {
         units
       );
       if (result.success) {
+        await this.applyPlannedMove(candidate);
+
         storyAction = candidate;
 
         // Mark that this unit acted this turn
@@ -174,7 +182,7 @@ export class StoryTeller {
 
     // Save the current unit states and diary entry
     this.saveUnits();
-    this.saveDiaryEntry(storyAction, turn);
+    this.saveDiaryEntry(storyAction, turn, changes);
 
     return storyAction;
   }
@@ -299,12 +307,12 @@ export class StoryTeller {
       let candidateTargets = otherUnits.filter(u => this.isUnitAlive(u));
 
       if (this.requiresHostileTarget(actionDef.type)) {
-        candidateTargets = otherUnits.filter(u =>
-          this.isUnitAlive(u) && RelationshipHelper.isHostile(unit, u)
+        candidateTargets = otherUnits.filter(
+          u => this.isUnitAlive(u) && RelationshipHelper.isHostile(unit, u)
         );
       } else if (this.requiresAllyTarget(actionDef.type)) {
-        candidateTargets = otherUnits.filter(u =>
-          this.isUnitAlive(u) && RelationshipHelper.isAlly(unit, u)
+        candidateTargets = otherUnits.filter(
+          u => this.isUnitAlive(u) && RelationshipHelper.isAlly(unit, u)
         );
       }
 
@@ -341,9 +349,13 @@ export class StoryTeller {
       actionPayload.targetUnit = targetUnit.id;
     }
 
-    // Handle exploration movement before action description
+    // Plan exploration movement before action description (applied after action succeeds)
     if (actionDef.type === 'explore') {
-      this.moveUnitRandomStep(unit);
+      const planned = this.planRandomStep(unit);
+      if (planned) {
+        actionPayload.plannedMove = planned;
+        actionPayload.movedTo = { x: planned.x, y: planned.y };
+      }
     }
 
     // If we have a target and are out of range, step toward the target before the action
@@ -380,9 +392,13 @@ export class StoryTeller {
             )
           );
 
-          await this.moveUnitToPosition(unit.id, nextStep.x, nextStep.y);
           actionPayload.movedTowardsTarget = true;
           actionPayload.movedTo = { x: nextStep.x, y: nextStep.y };
+          actionPayload.plannedMove = {
+            mapId: unitPos.mapId,
+            x: nextStep.x,
+            y: nextStep.y,
+          };
         }
       }
     }
@@ -586,15 +602,17 @@ export class StoryTeller {
     }
   }
 
-  private moveUnitRandomStep(unit: BaseUnit): boolean {
+  private planRandomStep(
+    unit: BaseUnit
+  ): { x: number; y: number; mapId: string } | null {
     const unitPos = unit.getPropertyValue<IUnitPosition>('position');
     if (!unitPos) {
-      return false;
+      return null;
     }
 
     const currentMap = this.world.getMap(unitPos.mapId);
     if (!currentMap) {
-      return false;
+      return null;
     }
 
     const directions = [
@@ -610,45 +628,7 @@ export class StoryTeller {
     const newX = Math.max(0, Math.min(unitPos.position.x + dir.x, maxX));
     const newY = Math.max(0, Math.min(unitPos.position.y + dir.y, maxY));
 
-    const newPosition = new Position(newX, newY, unitPos.position.z);
-    const newUnitPosition: IUnitPosition = {
-      unitId: unit.id,
-      mapId: unitPos.mapId,
-      position: newPosition,
-    };
-    unit.setProperty('position', newUnitPosition);
-    const positions = this.unitController
-      .getUnits()
-      .map(u => u.getPropertyValue<IUnitPosition>('position'))
-      .filter((pos): pos is IUnitPosition => Boolean(pos));
-    const occupants = positions.filter(
-      pos =>
-        pos.mapId === unitPos.mapId &&
-        pos.position.x === newX &&
-        pos.position.y === newY
-    );
-
-    if (occupants.length > 1) {
-      const free = findNearestFreeTile(
-        this.world,
-        unitPos.mapId,
-        positions,
-        newPosition
-      );
-      if (free) {
-        const adjusted: IUnitPosition = {
-          unitId: unit.id,
-          mapId: unitPos.mapId,
-          position: new Position(free.x, free.y, unitPos.position.z),
-        };
-        unit.setProperty('position', adjusted);
-        this.logCollisionIfAny(unitPos.mapId, free.x, free.y);
-        return true;
-      }
-    }
-
-    this.logCollisionIfAny(unitPos.mapId, newX, newY);
-    return true;
+    return { x: newX, y: newY, mapId: unitPos.mapId };
   }
   /**
    * Handles map transitions when a unit reaches a gate
@@ -894,11 +874,28 @@ export class StoryTeller {
   /**
    * Saves a diary entry about the current turn
    */
-  public saveDiaryEntry(executedAction: ExecutedAction, turn: number): void {
+  public saveDiaryEntry(
+    executedAction: ExecutedAction,
+    turn: number,
+    statChanges: StatChange[] = []
+  ): void {
+    const formattedChanges = this.formatStatChangeSummary(statChanges);
+    const statChangesByUnit = this.formatStatChangesByUnit(statChanges);
+    const statChangesFormatted = this.formatStatChangesBlocks(statChanges);
     const diaryEntry: DiaryEntry = {
       turn,
       timestamp: new Date().toISOString(),
       action: executedAction.action,
+      ...(statChanges.length > 0 && { statChanges }),
+      ...(formattedChanges.length > 0 && {
+        statChangesSummary: formattedChanges,
+      }),
+      ...(Object.keys(statChangesByUnit).length > 0 && {
+        statChangesByUnit,
+      }),
+      ...(statChangesFormatted.length > 0 && {
+        statChangesFormatted,
+      }),
     };
 
     DataManager.saveDiaryEntry(diaryEntry);
@@ -927,6 +924,109 @@ export class StoryTeller {
    */
   public getStoryHistory(): string[] {
     return [...this.storyHistory];
+  }
+
+  /**
+   * Builds human-readable stat change summaries grouped by unit.
+   */
+  private formatStatChangeSummary(statChanges: StatChange[]): string[] {
+    if (statChanges.length === 0) return [];
+
+    const grouped = StatTracker.groupChangesByUnit(statChanges);
+    const summaries: string[] = [];
+
+    for (const [_unitId, changes] of grouped) {
+      const label = changes[0]?.unitName || 'Unknown';
+      const formatted = StatTracker.formatStatChanges(changes);
+      summaries.push(`${label}: ${formatted.join(', ')}`);
+    }
+
+    return summaries;
+  }
+
+  /**
+   * Builds stat change arrays keyed by unit name (for clearer diary JSON).
+   */
+  private formatStatChangesByUnit(
+    statChanges: StatChange[]
+  ): Record<string, string[]> {
+    if (statChanges.length === 0) return {};
+
+    const grouped = StatTracker.groupChangesByUnit(statChanges);
+    const byUnit: Record<string, string[]> = {};
+
+    const sorted = Array.from(grouped.values()).sort((a, b) => {
+      const nameA = (a[0]?.unitName || '').toLowerCase();
+      const nameB = (b[0]?.unitName || '').toLowerCase();
+      return nameA.localeCompare(nameB);
+    });
+
+    for (const changes of sorted) {
+      const label = changes[0]?.unitName || 'Unknown';
+      byUnit[label] = StatTracker.formatStatChanges(changes);
+    }
+
+    return byUnit;
+  }
+
+  /**
+   * Builds stat change blocks with unit name and formatted change lines.
+   */
+  private formatStatChangesBlocks(
+    statChanges: StatChange[]
+  ): Array<{ unit: string; changes: string[] }> {
+    if (statChanges.length === 0) return [];
+
+    const grouped = StatTracker.groupChangesByUnit(statChanges);
+
+    const blocks = Array.from(grouped.values())
+      .map(changes => ({
+        unit: changes[0]?.unitName || 'Unknown',
+        changes: StatTracker.formatStatChanges(changes),
+      }))
+      .sort((a, b) => a.unit.toLowerCase().localeCompare(b.unit.toLowerCase()));
+
+    return blocks;
+  }
+
+  /**
+   * Applies any planned movement after an action succeeds.
+   */
+  private async applyPlannedMove(
+    executedAction: ExecutedAction
+  ): Promise<void> {
+    const payload = executedAction.action.payload as
+      | Record<string, any>
+      | undefined;
+    const plannedMove = payload?.plannedMove as
+      | { x: number; y: number; mapId?: string }
+      | undefined;
+
+    if (!plannedMove) return;
+
+    try {
+      const success = await this.moveUnitToPosition(
+        executedAction.action.player,
+        plannedMove.x,
+        plannedMove.y
+      );
+
+      if (success && payload) {
+        payload.executedMove = {
+          mapId: plannedMove.mapId,
+          x: plannedMove.x,
+          y: plannedMove.y,
+        };
+      }
+    } catch (error) {
+      this.logger.warn(
+        `Planned move failed for ${executedAction.action.player}: ${(error as Error).message}`
+      );
+    } finally {
+      if (payload) {
+        delete (payload as Record<string, unknown>).plannedMove;
+      }
+    }
   }
 
   /**

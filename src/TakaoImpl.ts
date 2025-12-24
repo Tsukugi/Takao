@@ -488,16 +488,18 @@ export class TakaoImpl {
     // Start the separate renderer loop for Maya
     this.startRenderer();
 
-    // Listen for input to advance turns or exit; fall back to automatic turns if not available
+    // Listen for input to advance turns or exit. Even if input is unavailable,
+    // keep the game in manual mode to avoid unexpected auto-turns.
     const hasInput = this.attachInputHandler();
+    this.gameEngine.startManual();
 
     if (hasInput) {
-      this.gameEngine.startManual();
-      this.logger.info('Game started! Press Enter to play a turn, ESC to stop.');
+      this.logger.info(
+        'Game started! Press Enter to play a turn, ESC to stop.'
+      );
     } else {
-      this.gameEngine.start();
       this.logger.warn(
-        'TTY input not available; running automatic turns instead of manual mode.'
+        'TTY input not available; staying paused in manual mode. Trigger turns programmatically if needed.'
       );
     }
   }

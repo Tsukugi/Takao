@@ -145,6 +145,13 @@ export interface DiaryEntry {
   turn: number;
   timestamp: string;
   action: Action;
+  statChanges?: StatChange[];
+  statChangesSummary?: string[];
+  statChangesByUnit?: Record<string, string[]>;
+  statChangesFormatted?: Array<{
+    unit: string;
+    changes: string[];
+  }>;
 }
 
 /**

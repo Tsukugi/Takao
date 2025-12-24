@@ -20,6 +20,7 @@ export default [
       '@typescript-eslint/no-explicit-any': 'warn',
       'prefer-const': 'error',
       'no-var': 'error',
+      'unused-vars': 'off',
       '@typescript-eslint/consistent-type-definitions': ['error', 'interface'],
     },
     ignores: ['dist/', 'node_modules/', '*.config.ts'],

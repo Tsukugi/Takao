@@ -32,6 +32,7 @@ export class StatTracker {
     units: BaseUnit[]
   ): StatChange[] {
     const changes: StatChange[] = [];
+    const ignoredProperties = new Set(['lastActionTurn']);
 
     for (const unit of units) {
       const initialProperties = initialStates[unit.id];
@@ -51,13 +52,10 @@ export class StatTracker {
           continue; // Skip if property doesn't exist in either state
         }
 
-        // Skip position changes since they're now visible in the fixed display
-        if (propName === 'position') {
-          continue;
-        }
+        if (ignoredProperties.has(propName)) continue;
 
         // Only log if values are defined and different
-        if (initialPropInfo.value !== currentPropInfo.value) {
+        if (!StatTracker.valuesEqual(initialPropInfo.value, currentPropInfo.value)) {
           changes.push({
             unitId: unit.id,
             unitName: unit.name,
@@ -118,5 +116,24 @@ export class StatTracker {
     }
 
     return grouped;
+  }
+
+  /**
+   * Deep-ish comparison for primitive/object values used in stat tracking.
+   */
+  private static valuesEqual(a: unknown, b: unknown): boolean {
+    if (a === b) return true;
+
+    // Compare unit positions and other objects structurally
+    if (
+      typeof a === 'object' &&
+      typeof b === 'object' &&
+      a !== null &&
+      b !== null
+    ) {
+      return JSON.stringify(a) === JSON.stringify(b);
+    }
+
+    return false;
   }
 }
