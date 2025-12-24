@@ -66,6 +66,17 @@ npm run dev
 npm run build
 ```
 
+### Manual turn control
+
+- The engine now runs in manual mode: press `Enter` to advance a turn and `ESC` to stop when running in a TTY.
+- If stdin is unavailable (e.g., headless runs), the engine stays paused; trigger turns programmatically via `gameEngine.playTurn()`.
+- Automatic turn fallback has been removed to avoid unintended movement or processing.
+
+### Action diary details
+
+- Diary entries include per-unit stat change summaries and structured blocks for JSON consumers (grouped by unit name).
+- Movement logged in the diary only applies after an action succeeds; idle turns no longer move units.
+
 ## Integration with Atago
 
 The engine is designed to work with the Atago library for AI decision making. The `UnitController` class handles communication with the Atago library and manages AI-controlled units that make intelligent decisions each turn.
