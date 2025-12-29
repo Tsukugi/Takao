@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { TakaoImpl } from '../../src/TakaoImpl';
 import { DataManager } from '../../src/utils/DataManager';
+import { World, Map as ChoukaiMap } from '@atsu/choukai';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -12,10 +13,10 @@ describe('World Save Integration', () => {
     // Ensure the data directory exists
     DataManager.ensureDataDirectory();
 
-    // Reset the world file to avoid stale map data
-    if (fs.existsSync(worldFile)) {
-      fs.writeFileSync(worldFile, JSON.stringify({ maps: [] }, null, 2));
-    }
+    // Seed the world file with a basic map to satisfy strict initialization
+    const world = new World();
+    world.addMap(new ChoukaiMap(5, 5, 'Seed Map'));
+    DataManager.saveWorld(world);
 
     // Reset the diary file so JSON parsing always succeeds
     if (fs.existsSync(diaryFile)) {

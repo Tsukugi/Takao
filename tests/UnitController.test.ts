@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { UnitController } from '../src/ai/UnitController';
 import { DataManager } from '../src/utils/DataManager';
@@ -40,6 +41,28 @@ vi.mock('@atsu/atago', async () => {
           };
         }
       }
+    },
+    isPosition: (value: unknown): value is { x: number; y: number } =>
+      !!value &&
+      typeof value === 'object' &&
+      typeof (value as any).x === 'number' &&
+      typeof (value as any).y === 'number',
+    isUnitPosition: (
+      value: unknown
+    ): value is {
+      unitId: string;
+      mapId: string;
+      position: { x: number; y: number };
+    } => {
+      if (!value || typeof value !== 'object') return false;
+      const candidate = value as any;
+      return (
+        typeof candidate.unitId === 'string' &&
+        typeof candidate.mapId === 'string' &&
+        !!candidate.position &&
+        typeof candidate.position.x === 'number' &&
+        typeof candidate.position.y === 'number'
+      );
     },
   };
 });

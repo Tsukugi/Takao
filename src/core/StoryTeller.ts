@@ -378,7 +378,9 @@ export class StoryTeller {
     // Plan exploration movement before action description (applied after action succeeds)
     if (actionDef.type === 'explore') {
       const planned = this.planRandomStep(unit);
-      actionPayload.plannedMove = planned;
+      actionPayload.unitId = unit.id;
+      actionPayload.mapId = planned.mapId;
+      actionPayload.position = new Position(planned.x, planned.y);
       actionPayload.movedTo = { x: planned.x, y: planned.y };
     }
 
@@ -418,11 +420,9 @@ export class StoryTeller {
 
           actionPayload.movedTowardsTarget = true;
           actionPayload.movedTo = { x: nextStep.x, y: nextStep.y };
-          actionPayload.plannedMove = {
-            mapId: unitPos.mapId,
-            x: nextStep.x,
-            y: nextStep.y,
-          };
+          actionPayload.unitId = unit.id;
+          actionPayload.mapId = unitPos.mapId;
+          actionPayload.position = new Position(nextStep.x, nextStep.y);
         }
       }
     }
@@ -1076,31 +1076,35 @@ export class StoryTeller {
     executedAction: ExecutedAction
   ): Promise<void> {
     const payload = executedAction.action.payload;
-
     if (!payload || !isUnitPosition(payload)) return;
-
-    const { position, mapId } = payload;
 
     try {
       const success = await this.moveUnitToPosition(
         executedAction.action.player,
-        position.x,
-        position.y
+        payload.position.x,
+        payload.position.y
       );
 
-      if (success && payload) {
-        payload.executedMove = {
-          mapId,
-          x: position.x,
-          y: position.y,
-        };
+      if (!success) {
+        const unit = this.unitController
+          .getUnits()
+          .find(u => u.id === executedAction.action.player);
+        if (!unit) {
+          throw new Error(
+            `Planned move failed because unit ${executedAction.action.player} was not found.`
+          );
+        }
+        const currentPos = unit.requirePropertyValue<IUnitPosition>('position');
+        unit.setProperty('position', {
+          unitId: unit.id,
+          mapId: payload.mapId ?? currentPos.mapId,
+          position: new Position(payload.position.x, payload.position.y),
+        });
       }
     } catch (error) {
       this.logger.warn(
         `Planned move failed for ${executedAction.action.player}: ${(error as Error).message}`
       );
-    } finally {
-      executedAction.action.payload = {};
     }
   }
 

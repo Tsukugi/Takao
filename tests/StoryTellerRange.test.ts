@@ -1,8 +1,9 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { StoryTeller } from '../src/core/StoryTeller';
 import { UnitController } from '../src/ai/UnitController';
 import { World, Map as ChoukaiMap, Position } from '@atsu/choukai';
-import { BaseUnit } from '@atsu/atago';
+import { BaseUnit, IUnitPosition } from '@atsu/atago';
 import { MathUtils } from '../src/utils/Math';
 
 describe('StoryTeller range-aware movement logging', () => {
@@ -34,6 +35,7 @@ describe('StoryTeller range-aware movement logging', () => {
     // Two units far apart on the same map
     const attacker = new BaseUnit('attacker', 'Attacker', 'warrior');
     attacker.setProperty('faction', 'Adventurers');
+    attacker.setProperty('health', 10);
     attacker.setProperty('position', {
       unitId: 'attacker',
       mapId: 'Test Map',
@@ -42,6 +44,7 @@ describe('StoryTeller range-aware movement logging', () => {
 
     const target = new BaseUnit('target', 'Target', 'archer');
     target.setProperty('faction', 'Wild Animals');
+    target.setProperty('health', 10);
     target.setProperty('position', {
       unitId: 'target',
       mapId: 'Test Map',
@@ -69,25 +72,30 @@ describe('StoryTeller range-aware movement logging', () => {
 
     const result = await (storyTeller as any).createStoryBasedOnUnits(
       [attacker, target],
-      1
+      1,
+      { round: 1, turnInRound: 1, turnOrder: ['attacker', 'target'] }
     );
 
     const primary = result.executions[0];
+    const plannedPosition = primary.action.payload as
+      | { position: { x: number; y: number }; mapId?: string }
+      | undefined;
     expect(primary.action.description).toBe(
       'Attacker is moving closer to Target'
     );
+    expect(plannedPosition).toBeTruthy();
     await (storyTeller as any).applyPlannedMove(primary);
-    const movedPos = attacker.getPropertyValue('position')?.position;
+    const movedPos =
+      attacker.getPropertyValue<IUnitPosition>('position')?.position;
     expect(movedPos).toBeTruthy();
-    const distanceAfter =
-      Math.abs((movedPos?.x ?? 0) - 5) + Math.abs((movedPos?.y ?? 0) - 5);
-    const distanceBefore = Math.abs(0 - 5) + Math.abs(0 - 5);
-    expect(distanceAfter).toBeLessThan(distanceBefore);
+    expect(movedPos?.x).toBe(plannedPosition?.position.x);
+    expect(movedPos?.y).toBe(plannedPosition?.position.y);
   });
 
   it('does not move when already in range', async () => {
     const attacker = new BaseUnit('attacker', 'Attacker', 'warrior');
     attacker.setProperty('faction', 'Adventurers');
+    attacker.setProperty('health', 10);
     attacker.setProperty('position', {
       unitId: 'attacker',
       mapId: 'Test Map',
@@ -96,6 +104,7 @@ describe('StoryTeller range-aware movement logging', () => {
 
     const target = new BaseUnit('target', 'Target', 'archer');
     target.setProperty('faction', 'Wild Animals');
+    target.setProperty('health', 10);
     target.setProperty('position', {
       unitId: 'target',
       mapId: 'Test Map',
@@ -121,10 +130,13 @@ describe('StoryTeller range-aware movement logging', () => {
       candidateActions: [customAction],
     });
 
-    await (storyTeller as any).createStoryBasedOnUnits([attacker, target], 1);
-
+    await (storyTeller as any).createStoryBasedOnUnits([attacker, target], 1, {
+      round: 1,
+      turnInRound: 1,
+      turnOrder: ['attacker', 'target'],
+    });
     expect(moveSpy).not.toHaveBeenCalled();
-    const pos = attacker.getPropertyValue('position')?.position;
+    const pos = attacker.getPropertyValue<IUnitPosition>('position')?.position;
     expect(pos?.x).toBe(1);
     expect(pos?.y).toBe(1);
   });
@@ -132,6 +144,7 @@ describe('StoryTeller range-aware movement logging', () => {
   it('prefers the closest hostile target when multiple are available', async () => {
     const attacker = new BaseUnit('attacker', 'Attacker', 'warrior');
     attacker.setProperty('faction', 'Adventurers');
+    attacker.setProperty('health', 10);
     attacker.setProperty('position', {
       unitId: 'attacker',
       mapId: 'Test Map',
@@ -140,6 +153,7 @@ describe('StoryTeller range-aware movement logging', () => {
 
     const nearTarget = new BaseUnit('near', 'Near', 'archer');
     nearTarget.setProperty('faction', 'Wild Animals');
+    nearTarget.setProperty('health', 10);
     nearTarget.setProperty('position', {
       unitId: 'near',
       mapId: 'Test Map',
@@ -148,6 +162,7 @@ describe('StoryTeller range-aware movement logging', () => {
 
     const farTarget = new BaseUnit('far', 'Far', 'archer');
     farTarget.setProperty('faction', 'Wild Animals');
+    farTarget.setProperty('health', 10);
     farTarget.setProperty('position', {
       unitId: 'far',
       mapId: 'Test Map',
@@ -174,7 +189,8 @@ describe('StoryTeller range-aware movement logging', () => {
 
     const result = await (storyTeller as any).createStoryBasedOnUnits(
       [attacker, nearTarget, farTarget],
-      1
+      1,
+      { round: 1, turnInRound: 1, turnOrder: ['attacker', 'near', 'far'] }
     );
 
     expect(result.executions[0].action.payload?.targetUnit).toBe('near');
@@ -183,6 +199,7 @@ describe('StoryTeller range-aware movement logging', () => {
   it('skips dead targets when selecting an enemy', async () => {
     const attacker = new BaseUnit('attacker', 'Attacker', 'warrior');
     attacker.setProperty('faction', 'Adventurers');
+    attacker.setProperty('health', 10);
     attacker.setProperty('position', {
       unitId: 'attacker',
       mapId: 'Test Map',
@@ -192,7 +209,7 @@ describe('StoryTeller range-aware movement logging', () => {
     const deadTarget = new BaseUnit('dead', 'Dead', 'archer');
     deadTarget.setProperty('faction', 'Wild Animals');
     deadTarget.setProperty('status', 'dead');
-    deadTarget.setProperty('health', { name: 'health', value: 0 });
+    deadTarget.setProperty('health', 0);
     deadTarget.setProperty('position', {
       unitId: 'dead',
       mapId: 'Test Map',
@@ -201,6 +218,7 @@ describe('StoryTeller range-aware movement logging', () => {
 
     const liveTarget = new BaseUnit('alive', 'Alive', 'archer');
     liveTarget.setProperty('faction', 'Wild Animals');
+    liveTarget.setProperty('health', 10);
     liveTarget.setProperty('position', {
       unitId: 'alive',
       mapId: 'Test Map',
@@ -227,7 +245,8 @@ describe('StoryTeller range-aware movement logging', () => {
 
     const result = await (storyTeller as any).createStoryBasedOnUnits(
       [attacker, deadTarget, liveTarget],
-      1
+      1,
+      { round: 1, turnInRound: 1, turnOrder: ['attacker', 'alive', 'dead'] }
     );
 
     expect(result.executions[0].action.payload?.targetUnit).toBe('alive');
@@ -236,6 +255,7 @@ describe('StoryTeller range-aware movement logging', () => {
   it('nudges to nearest free tile to avoid overlap when moving', async () => {
     const attacker = new BaseUnit('attacker', 'Attacker', 'warrior');
     attacker.setProperty('faction', 'Adventurers');
+    attacker.setProperty('health', 10);
     attacker.setProperty('position', {
       unitId: 'attacker',
       mapId: 'Test Map',
@@ -244,6 +264,7 @@ describe('StoryTeller range-aware movement logging', () => {
 
     const blocker = new BaseUnit('blocker', 'Blocker', 'archer');
     blocker.setProperty('faction', 'Wild Animals');
+    blocker.setProperty('health', 10);
     blocker.setProperty('position', {
       unitId: 'blocker',
       mapId: 'Test Map',
@@ -252,6 +273,7 @@ describe('StoryTeller range-aware movement logging', () => {
 
     const target = new BaseUnit('target', 'Target', 'archer');
     target.setProperty('faction', 'Wild Animals');
+    target.setProperty('health', 10);
     target.setProperty('position', {
       unitId: 'target',
       mapId: 'Test Map',
@@ -278,10 +300,11 @@ describe('StoryTeller range-aware movement logging', () => {
 
     await (storyTeller as any).createStoryBasedOnUnits(
       [attacker, blocker, target],
-      1
+      1,
+      { round: 1, turnInRound: 1, turnOrder: ['attacker', 'blocker', 'target'] }
     );
 
-    const pos = attacker.getPropertyValue('position')?.position;
+    const pos = attacker.getPropertyValue<IUnitPosition>('position')?.position;
     // Either stays or moves to a free adjacent tile; must not overlap blocker at (1,0)
     expect(pos?.x === 1 && pos?.y === 0).toBe(false);
   });
