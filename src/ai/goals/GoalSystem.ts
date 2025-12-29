@@ -73,10 +73,10 @@ export class GoalSystem {
   }
 
   private evaluateGoals(unit: BaseUnit, context: GoalContext): GoalCandidate[] {
-    const health = this.getNumericProperty(unit, 'health');
-    const maxHealth = this.getNumericProperty(unit, 'maxHealth');
-    const mana = this.getNumericProperty(unit, 'mana');
-    const maxMana = this.getNumericProperty(unit, 'maxMana');
+    const health = unit.getPropertyValue<number>('health') ?? 0;
+    const maxHealth = unit.getPropertyValue<number>('maxHealth') ?? 0;
+    const mana = unit.getPropertyValue<number>('mana') ?? 0;
+    const maxMana = unit.getPropertyValue<number>('maxMana') ?? 0;
     const healthPct = maxHealth > 0 ? health / maxHealth : 1;
     const manaPct = maxMana > 0 ? mana / maxMana : 1;
     const hostilesAvailable = this.hasHostileTarget(unit, context.units);
@@ -151,24 +151,6 @@ export class GoalSystem {
 
   private findGoalById(goalId: string): GoalDefinition | undefined {
     return this.goals.find(goal => goal.id === goalId);
-  }
-
-  private getNumericProperty(unit: BaseUnit, propertyName: string): number {
-    const propertyValue = unit.getPropertyValue(propertyName);
-    if (typeof propertyValue === 'number') {
-      return propertyValue;
-    }
-
-    if (
-      typeof propertyValue === 'object' &&
-      propertyValue !== null &&
-      'value' in propertyValue &&
-      typeof (propertyValue as { value?: unknown }).value === 'number'
-    ) {
-      return (propertyValue as { value: number }).value;
-    }
-
-    return 0;
   }
 
   private createDefaultGoal(): GoalDefinition {

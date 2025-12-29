@@ -76,6 +76,7 @@ describe('StoryTeller range-aware movement logging', () => {
     expect(primary.action.description).toBe(
       'Attacker is moving closer to Target'
     );
+    await (storyTeller as any).applyPlannedMove(primary);
     const movedPos = attacker.getPropertyValue('position')?.position;
     expect(movedPos).toBeTruthy();
     const distanceAfter =

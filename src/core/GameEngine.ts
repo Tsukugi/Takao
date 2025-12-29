@@ -6,6 +6,7 @@ import { StoryTeller } from './StoryTeller';
 import { DataManager } from '../utils/DataManager';
 import { ConfigManager, type FullConfig } from '../utils/ConfigManager';
 import { Logger } from '../utils/Logger';
+import type { BaseUnit } from '@atsu/atago';
 import type { EngineProps, GameState } from '../types';
 
 /**
@@ -21,6 +22,7 @@ export class GameEngine {
   private logger: Logger;
   private isRunning: boolean = false;
   private sessionTurnCount: number = 0;
+  private persistentTurnOrder: string[] = [];
   private maxTurnsPerSession: number =
     ConfigManager.getConfig().maxTurnsPerSession;
   private runIndefinitely: boolean =
@@ -138,21 +140,67 @@ export class GameEngine {
    * Processes a single turn in the game
    */
   private async processTurnInternal(): Promise<void> {
+    // Ensure we have a round and turn order ready
+    if (!this.turnManager.hasPendingTurns()) {
+      const turnOrder = this.buildTurnOrder(this.unitController.getUnits());
+
+      if (turnOrder.length === 0) {
+        this.logger.warn('No available units to act this round. Stopping.');
+        this.stop();
+        return;
+      }
+
+      const nextRoundNumber = Math.max(
+        1,
+        this.turnManager.getCurrentRound() + 1
+      );
+      this.turnManager.startNewRound(turnOrder, nextRoundNumber);
+
+      this.logger.info(
+        `Starting round ${nextRoundNumber} with order: ${turnOrder.join(', ')}`
+      );
+    }
+
+    const turnOrder = this.turnManager.getTurnOrder();
+    const actor = this.getNextActor();
+
+    if (!actor) {
+      this.logger.warn('Unable to find an actor for this turn, skipping.');
+      return;
+    }
+
     // Use the actual turn number from the turn manager, not the loop's turn number
     const actualTurn = this.turnManager.getCurrentTurn() + 1; // +1 because turnManager tracks the last completed turn
+    const currentRound = this.turnManager.getCurrentRound();
+    const turnInRound = this.turnManager.getTurnIndexInRound() + 1;
 
     this.props.onTurnStart(actualTurn);
 
-    this.logger.info(`\n--- Engine: Turn ${actualTurn} ---`);
+    this.logger.info(
+      `\n--- Engine: Round ${currentRound}, Turn ${actualTurn} (unit ${turnInRound}/${turnOrder.length}) ---`
+    );
 
     try {
       // Use the StoryTeller to generate a story action for this turn
-      const { action } = await this.storyTeller.generateStoryAction(actualTurn);
+      const { action } = await this.storyTeller.generateStoryAction(
+        actualTurn,
+        {
+          actorId: actor.id,
+          round: currentRound,
+          turnInRound,
+          turnOrder,
+        }
+      );
 
       this.logger.info(`Story Action: ${action.description || action.type}`);
 
       // Process the action through the turn manager
-      await this.turnManager.processAction(action);
+      await this.turnManager.processAction(action, {
+        actorId: actor.id,
+        round: currentRound,
+        turnInRound,
+        turnOrder,
+      });
 
       // Show the latest story
       const latestStory = this.storyTeller.getLatestStory();
@@ -208,6 +256,13 @@ export class GameEngine {
    */
   private saveWorldSync(): void {
     try {
+      const world = this.worldController.getWorld();
+      if (world.getAllMaps().length === 0) {
+        throw new Error(
+          'Cannot save world state because no maps are available. Please create or load maps before saving.'
+        );
+      }
+
       this.worldController.saveWorldSync();
       this.logger.info('World state saved successfully');
     } catch (error) {
@@ -276,5 +331,67 @@ export class GameEngine {
    */
   public getCooldownPeriod(): number {
     return ConfigManager.getConfig().cooldownPeriod || 1;
+  }
+
+  private buildTurnOrder(units: BaseUnit[]): string[] {
+    const aliveUnits = this.getAliveUnits(units);
+    const aliveIds = new Set(aliveUnits.map(unit => unit.id));
+
+    // Establish an initial, experience-weighted order once.
+    if (this.persistentTurnOrder.length === 0) {
+      this.persistentTurnOrder = [...aliveUnits]
+        .sort((a, b) => {
+          const expDiff = this.getUnitExperience(b) - this.getUnitExperience(a);
+          if (expDiff !== 0) return expDiff;
+          // Stable-ish tiebreaker: random first, then name to avoid identical sort results every run
+          const randomTie = Math.random() - 0.5;
+          if (randomTie !== 0) return randomTie;
+          return a.name.localeCompare(b.name);
+        })
+        .map(unit => unit.id);
+    }
+
+    // Append new units (e.g., joins mid-run) to the end of the order
+    const newIds = aliveUnits
+      .map(unit => unit.id)
+      .filter(id => !this.persistentTurnOrder.includes(id));
+
+    if (newIds.length > 0) {
+      this.persistentTurnOrder.push(...newIds);
+    }
+
+    // Return the current order filtered to alive units
+    return this.persistentTurnOrder.filter(id => aliveIds.has(id));
+  }
+
+  private getAliveUnits(units: BaseUnit[]): BaseUnit[] {
+    return units.filter(unit => {
+      const status = unit.getPropertyValue<string>('status');
+      const healthValue = unit.getPropertyValue<number>('health') ?? 0;
+
+      return status !== 'dead' && healthValue > 0;
+    });
+  }
+
+  private getNextActor(): BaseUnit | null {
+    const aliveUnits = this.getAliveUnits(this.unitController.getUnits());
+    let actorId = this.turnManager.getCurrentActorId();
+    let actor = actorId ? aliveUnits.find(unit => unit.id === actorId) : null;
+
+    while (!actor && this.turnManager.hasPendingTurns()) {
+      this.logger.warn(
+        `Unit ${actorId ?? 'unknown'} is unavailable; skipping their turn.`
+      );
+      this.turnManager.endTurn();
+      actorId = this.turnManager.getCurrentActorId();
+      actor = actorId ? aliveUnits.find(unit => unit.id === actorId) : null;
+    }
+
+    return actor ?? null;
+  }
+
+  private getUnitExperience(unit: BaseUnit): number {
+    const exp = unit.getPropertyValue<number>('experience');
+    return exp ?? 0;
   }
 }

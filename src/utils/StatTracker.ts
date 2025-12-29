@@ -55,7 +55,9 @@ export class StatTracker {
         if (ignoredProperties.has(propName)) continue;
 
         // Only log if values are defined and different
-        if (!StatTracker.valuesEqual(initialPropInfo.value, currentPropInfo.value)) {
+        if (
+          !StatTracker.valuesEqual(initialPropInfo.value, currentPropInfo.value)
+        ) {
           changes.push({
             unitId: unit.id,
             unitName: unit.name,

@@ -517,11 +517,8 @@ export class ActionProcessor {
           modifier: number;
         };
         if (targetUnit && calcDef.base) {
-          const baseValue = targetUnit.getPropertyValue(calcDef.base);
-          processedPayload[key] = Math.max(
-            0,
-            baseValue + (calcDef.modifier || 0)
-          );
+          const base = targetUnit.getPropertyValue<number>(calcDef.base) ?? 0;
+          processedPayload[key] = Math.max(0, base + (calcDef.modifier || 0));
         } else {
           processedPayload[key] = calcDef.modifier || 0;
         }
@@ -576,12 +573,33 @@ export class ActionProcessor {
    */
   public getDefaultExecutedAction(
     unit: BaseUnit,
-    turn: number
+    turn: number,
+    context: Partial<
+      Pick<ExecutedAction, 'round' | 'turnInRound' | 'turnOrder'>
+    > = {}
   ): ExecutedAction {
+    const safeContext: Partial<
+      Pick<ExecutedAction, 'round' | 'turnInRound' | 'turnOrder'>
+    > = {};
+
+    if (context.round !== undefined) {
+      safeContext.round = context.round;
+    }
+
+    if (context.turnInRound !== undefined) {
+      safeContext.turnInRound = context.turnInRound;
+    }
+
+    if (context.turnOrder && context.turnOrder.length > 0) {
+      safeContext.turnOrder = [...context.turnOrder];
+    }
+
     return {
       action: this.getDefaultAction(unit),
       turn,
       timestamp: Date.now(),
+      actorId: unit.id,
+      ...safeContext,
     };
   }
 }

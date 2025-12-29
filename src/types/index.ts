@@ -5,6 +5,9 @@ import type { IMapCell, IMapConfig } from '@atsu/choukai';
  */
 export interface GameState {
   turn: number;
+  round?: number;
+  turnOrder?: string[];
+  turnInRound?: number;
 }
 
 /**
@@ -83,6 +86,10 @@ export interface ExecutedAction {
   turn: number;
   timestamp: number;
   action: Action;
+  round?: number;
+  turnInRound?: number;
+  turnOrder?: string[];
+  actorId?: string;
 }
 
 /**
@@ -90,9 +97,25 @@ export interface ExecutedAction {
  */
 export interface Turn {
   number: number;
+  round?: number;
+  turnInRound?: number;
+  turnOrder?: string[];
+  actorId?: string;
   actions: Action[];
   stateBefore: GameState;
   stateAfter: GameState;
+}
+
+export interface Round {
+  number: number;
+  turnOrder: string[];
+}
+
+export interface TurnContext {
+  round: number;
+  turnInRound: number;
+  turnOrder: string[];
+  actorId?: string;
 }
 
 /**
@@ -143,6 +166,10 @@ export type GoalsData = GoalDefinition[];
 
 export interface DiaryEntry {
   turn: number;
+  round?: number;
+  turnInRound?: number;
+  turnOrder?: string[];
+  actorId?: string;
   timestamp: string;
   action: Action;
   statChanges?: StatChange[];

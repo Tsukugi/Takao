@@ -10,6 +10,7 @@ import type {
   ActionsData,
   DiaryEntry,
   StatChange,
+  TurnContext,
 } from '../types';
 import { DataManager } from '../utils/DataManager';
 import { ConfigManager } from '../utils/ConfigManager';
@@ -18,7 +19,7 @@ import { ActionProcessor } from '../utils/ActionProcessor';
 import { MathUtils } from '../utils/Math';
 import { ConditionParser } from '../utils/ConditionParser';
 import { BaseUnit, type IUnitPosition } from '@atsu/atago';
-import { isComparison } from '../types/typeGuards';
+import { isComparison, isUnitPosition } from '../types/typeGuards';
 import { MapGenerator } from '../utils/MapGenerator';
 import {
   World,
@@ -71,17 +72,17 @@ export class StoryTeller {
         `using provided world with ${world.getAllMaps().length} maps`
       );
     } else {
-      // Load existing world from file if available, otherwise create a new one
+      // Load existing world from file if available, otherwise fail early
       const loadedWorld = DataManager.loadWorld();
-      if (loadedWorld) {
-        this.logger.info(
-          `loaded world with ${loadedWorld.getAllMaps().length} maps from saved state`
+      if (!loadedWorld) {
+        throw new Error(
+          'No world available; please create or load maps before starting StoryTeller.'
         );
-        this.world = loadedWorld;
-      } else {
-        this.logger.info('creating new world');
-        this.world = new World();
       }
+      this.logger.info(
+        `loaded world with ${loadedWorld.getAllMaps().length} maps from saved state`
+      );
+      this.world = loadedWorld;
     }
 
     this.gateSystem = new GateSystem();
@@ -93,20 +94,27 @@ export class StoryTeller {
   /**
    * Generates a story action based on the current unit states
    */
-  public async generateStoryAction(turn: number): Promise<ExecutedAction> {
+  public async generateStoryAction(
+    turn: number,
+    context: Partial<TurnContext> = {}
+  ): Promise<ExecutedAction> {
     // Get the current state of units from the UnitController
     const units = await this.unitController.getUnitState();
+    const preferredActor = context.actorId
+      ? units.find(unit => unit.id === context.actorId)
+      : undefined;
 
     // Build candidate actions (in priority order) for the turn
     const { executions: actionCandidates, actor } =
-      await this.createStoryBasedOnUnits(units, turn);
+      await this.createStoryBasedOnUnits(units, turn, context, preferredActor);
 
     // Take a snapshot of unit properties before action execution
     const initialStates = StatTracker.takeSnapshot(units);
 
     // Try candidates until one succeeds; fall back to default idle action
+    const safeContext = this.getSafeContext(context);
     let storyAction: ExecutedAction =
-      this.actionProcessor.getDefaultExecutedAction(actor, turn);
+      this.actionProcessor.getDefaultExecutedAction(actor, turn, safeContext);
 
     for (const candidate of actionCandidates) {
       const result = await this.actionProcessor.executeActionEffect(
@@ -119,11 +127,7 @@ export class StoryTeller {
         storyAction = candidate;
 
         // Mark that this unit acted this turn
-        actor.setProperty('lastActionTurn', {
-          name: 'lastActionTurn',
-          value: turn,
-          baseValue: turn,
-        });
+        actor.setProperty('lastActionTurn', turn);
         break;
       }
 
@@ -180,9 +184,13 @@ export class StoryTeller {
       `Turn ${turn}: ${this.describeAction(storyAction.action)}`
     );
 
+    // Enrich the executed action with contextual metadata
+    const metadata = this.getExecutionMetadata(storyAction, context);
+    storyAction = { ...storyAction, ...metadata };
+
     // Save the current unit states and diary entry
     this.saveUnits();
-    this.saveDiaryEntry(storyAction, turn, changes);
+    this.saveDiaryEntry(storyAction, turn, changes, context);
 
     return storyAction;
   }
@@ -192,7 +200,9 @@ export class StoryTeller {
    */
   private async createStoryBasedOnUnits(
     units: BaseUnit[],
-    turn: number
+    turn: number,
+    context: Partial<TurnContext>,
+    forcedActor?: BaseUnit
   ): Promise<{ executions: ExecutedAction[]; actor: BaseUnit }> {
     // If no units exist, create a default action
     if (units.length === 0) {
@@ -212,23 +222,33 @@ export class StoryTeller {
     }
 
     // Filter out dead units - only consider alive units for taking actions
-    const aliveUnits = units.filter(unit => {
-      const statusProperty = unit.properties?.status;
-      return !statusProperty || statusProperty.value !== 'dead';
-    });
+    const aliveUnits = units.filter(unit => this.isUnitAlive(unit));
+
+    if (forcedActor && !this.isUnitAlive(forcedActor)) {
+      return {
+        actor: forcedActor,
+        executions: [
+          this.actionProcessor.getDefaultExecutedAction(forcedActor, turn),
+        ],
+      };
+    }
 
     // Filter units by cooldown - units can only act once every few turns
     const cooldownPeriod = ConfigManager.getConfig().cooldownPeriod || 1; // Default to 1 (every turn)
     const now = turn;
     const availableUnits = aliveUnits.filter(unit => {
-      const lastTurnProperty = unit.getPropertyValue('lastActionTurn');
-      const lastTurn = lastTurnProperty ? lastTurnProperty.value : -Infinity;
+      const lastTurn =
+        unit.getPropertyValue<number>('lastActionTurn') ?? -Infinity;
       return now - lastTurn >= cooldownPeriod;
     });
 
     // If no units are available due to cooldown, use all alive units (reset cooldowns)
     const unitsToConsider =
-      availableUnits.length > 0 ? availableUnits : aliveUnits;
+      forcedActor && this.isUnitAlive(forcedActor)
+        ? [forcedActor]
+        : availableUnits.length > 0
+          ? availableUnits
+          : aliveUnits;
 
     // If no alive units exist, return a default action
     if (aliveUnits.length === 0) {
@@ -244,7 +264,9 @@ export class StoryTeller {
     }
 
     // Choose a random alive unit to center the story around
-    const randomUnit = MathUtils.getRandomFromArray(unitsToConsider);
+    const randomUnit =
+      (forcedActor && this.isUnitAlive(forcedActor) ? forcedActor : null) ??
+      MathUtils.getRandomFromArray(unitsToConsider);
 
     const availableActions = this.getAvailableActionsForUnit(randomUnit);
 
@@ -275,7 +297,11 @@ export class StoryTeller {
 
     // Always include a safe default at the end
     executions.push(
-      this.actionProcessor.getDefaultExecutedAction(randomUnit, turn)
+      this.actionProcessor.getDefaultExecutedAction(
+        randomUnit,
+        turn,
+        this.getSafeContext(context)
+      )
     );
 
     return { executions, actor: randomUnit };
@@ -352,10 +378,8 @@ export class StoryTeller {
     // Plan exploration movement before action description (applied after action succeeds)
     if (actionDef.type === 'explore') {
       const planned = this.planRandomStep(unit);
-      if (planned) {
-        actionPayload.plannedMove = planned;
-        actionPayload.movedTo = { x: planned.x, y: planned.y };
-      }
+      actionPayload.plannedMove = planned;
+      actionPayload.movedTo = { x: planned.x, y: planned.y };
     }
 
     // If we have a target and are out of range, step toward the target before the action
@@ -409,13 +433,7 @@ export class StoryTeller {
       .replace('{{targetUnitName}}', targetUnitName);
 
     if (actionPayload.movedTowardsTarget) {
-      const movedTo = actionPayload.movedTo as
-        | { x: number; y: number }
-        | undefined;
-      const movedText = movedTo
-        ? `${unitName} is moving closer to ${targetUnitName}`
-        : `${unitName} is moving closer to ${targetUnitName}`;
-      description = movedText;
+      description = `${unitName} is moving closer to ${targetUnitName}`;
     }
 
     return {
@@ -447,22 +465,14 @@ export class StoryTeller {
   }
 
   private isUnitAlive(unit: BaseUnit): boolean {
-    const statusProperty = unit.getPropertyValue('status');
-    const status =
-      typeof statusProperty === 'string'
-        ? statusProperty
-        : statusProperty?.value;
+    const status = unit.getPropertyValue<string>('status');
     if (status === 'dead') {
       return false;
     }
 
-    const healthProperty = unit.getPropertyValue('health');
-    const healthValue =
-      typeof healthProperty === 'number'
-        ? healthProperty
-        : healthProperty?.value;
+    const healthValue = unit.getPropertyValue<number>('health');
 
-    if (typeof healthValue === 'number' && healthValue <= 0) {
+    if (!healthValue || healthValue <= 0) {
       return false;
     }
 
@@ -487,7 +497,9 @@ export class StoryTeller {
         let meetsAllRequirements = true;
         for (const requirement of action.requirements) {
           if (isComparison(requirement)) {
-            const unitValue = unit.getPropertyValue(requirement.property);
+            const unitValue = unit.requirePropertyValue<number>(
+              requirement.property
+            );
             const conditionString = `${requirement.property} ${requirement.operator} ${requirement.value}`;
             if (
               !ConditionParser.evaluateCondition(conditionString, unitValue)
@@ -602,17 +614,21 @@ export class StoryTeller {
     }
   }
 
-  private planRandomStep(
-    unit: BaseUnit
-  ): { x: number; y: number; mapId: string } | null {
+  private planRandomStep(unit: BaseUnit): {
+    x: number;
+    y: number;
+    mapId: string;
+  } {
     const unitPos = unit.getPropertyValue<IUnitPosition>('position');
     if (!unitPos) {
-      return null;
+      throw new Error(`Unit ${unit.id} is missing a position property.`);
     }
 
     const currentMap = this.world.getMap(unitPos.mapId);
     if (!currentMap) {
-      return null;
+      throw new Error(
+        `Map ${unitPos.mapId} not found while planning movement for unit ${unit.id}.`
+      );
     }
 
     const directions = [
@@ -703,6 +719,14 @@ export class StoryTeller {
    */
   public getWorld(): World {
     return this.world;
+  }
+
+  /**
+   * Replace the current world reference (used by integration fallback).
+   */
+  public setWorld(world: World): void {
+    this.world = world;
+    this.actionProcessor.setWorld(world);
   }
 
   /**
@@ -877,25 +901,34 @@ export class StoryTeller {
   public saveDiaryEntry(
     executedAction: ExecutedAction,
     turn: number,
-    statChanges: StatChange[] = []
+    statChanges: StatChange[] = [],
+    context: Partial<TurnContext> = {}
   ): void {
     const formattedChanges = this.formatStatChangeSummary(statChanges);
     const statChangesByUnit = this.formatStatChangesByUnit(statChanges);
     const statChangesFormatted = this.formatStatChangesBlocks(statChanges);
+    const round = context.round ?? executedAction.round;
+    const turnInRound = context.turnInRound ?? executedAction.turnInRound;
+
+    if (round === undefined || turnInRound === undefined) {
+      throw new Error('Diary entry is missing round or turnInRound data.');
+    }
+
+    const turnOrder = context.turnOrder ?? executedAction.turnOrder ?? [];
+    const actorId =
+      context.actorId ?? executedAction.actorId ?? executedAction.action.player;
     const diaryEntry: DiaryEntry = {
       turn,
       timestamp: new Date().toISOString(),
       action: executedAction.action,
-      ...(statChanges.length > 0 && { statChanges }),
-      ...(formattedChanges.length > 0 && {
-        statChangesSummary: formattedChanges,
-      }),
-      ...(Object.keys(statChangesByUnit).length > 0 && {
-        statChangesByUnit,
-      }),
-      ...(statChangesFormatted.length > 0 && {
-        statChangesFormatted,
-      }),
+      round,
+      turnInRound,
+      turnOrder,
+      actorId,
+      statChanges,
+      statChangesSummary: formattedChanges,
+      statChangesByUnit,
+      statChangesFormatted,
     };
 
     DataManager.saveDiaryEntry(diaryEntry);
@@ -935,7 +968,7 @@ export class StoryTeller {
     const grouped = StatTracker.groupChangesByUnit(statChanges);
     const summaries: string[] = [];
 
-    for (const [_unitId, changes] of grouped) {
+    for (const [, changes] of grouped) {
       const label = changes[0]?.unitName || 'Unknown';
       const formatted = StatTracker.formatStatChanges(changes);
       summaries.push(`${label}: ${formatted.join(', ')}`);
@@ -990,32 +1023,76 @@ export class StoryTeller {
   }
 
   /**
+   * Build a direct context object for executed actions.
+   */
+  private getSafeContext(
+    context: Partial<TurnContext>
+  ): Pick<ExecutedAction, 'round' | 'turnInRound' | 'turnOrder'> {
+    const { round, turnInRound, turnOrder } = context;
+
+    if (round === undefined || turnInRound === undefined) {
+      throw new Error(
+        'Turn context requires both round and turnInRound to be defined.'
+      );
+    }
+
+    return {
+      round,
+      turnInRound,
+      turnOrder: turnOrder ? [...turnOrder] : [],
+    };
+  }
+
+  /**
+   * Merge contextual metadata into an executed action.
+   */
+  private getExecutionMetadata(
+    executedAction: ExecutedAction,
+    context: Partial<TurnContext>
+  ): Partial<ExecutedAction> {
+    const round = context.round ?? executedAction.round;
+    const turnInRound = context.turnInRound ?? executedAction.turnInRound;
+
+    if (round === undefined || turnInRound === undefined) {
+      throw new Error('Executed action is missing round or turnInRound data.');
+    }
+
+    const turnOrder = context.turnOrder ?? executedAction.turnOrder ?? [];
+    const actorId =
+      context.actorId ?? executedAction.actorId ?? executedAction.action.player;
+
+    return {
+      round,
+      turnInRound,
+      turnOrder: [...turnOrder],
+      actorId: actorId,
+    };
+  }
+
+  /**
    * Applies any planned movement after an action succeeds.
    */
   private async applyPlannedMove(
     executedAction: ExecutedAction
   ): Promise<void> {
-    const payload = executedAction.action.payload as
-      | Record<string, any>
-      | undefined;
-    const plannedMove = payload?.plannedMove as
-      | { x: number; y: number; mapId?: string }
-      | undefined;
+    const payload = executedAction.action.payload;
 
-    if (!plannedMove) return;
+    if (!payload || !isUnitPosition(payload)) return;
+
+    const { position, mapId } = payload;
 
     try {
       const success = await this.moveUnitToPosition(
         executedAction.action.player,
-        plannedMove.x,
-        plannedMove.y
+        position.x,
+        position.y
       );
 
       if (success && payload) {
         payload.executedMove = {
-          mapId: plannedMove.mapId,
-          x: plannedMove.x,
-          y: plannedMove.y,
+          mapId,
+          x: position.x,
+          y: position.y,
         };
       }
     } catch (error) {
@@ -1023,9 +1100,7 @@ export class StoryTeller {
         `Planned move failed for ${executedAction.action.player}: ${(error as Error).message}`
       );
     } finally {
-      if (payload) {
-        delete (payload as Record<string, unknown>).plannedMove;
-      }
+      executedAction.action.payload = {};
     }
   }
 

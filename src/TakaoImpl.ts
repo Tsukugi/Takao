@@ -13,6 +13,7 @@ import { UnitController } from './ai/UnitController';
 import { Logger } from './utils/Logger';
 import { isUnitPosition } from './types/typeGuards';
 import type { Action, ActionPayload, DiaryEntry } from './types';
+import { targetFromPayload } from './utils/TargetUtils';
 
 export class TakaoImpl {
   private gameEngine: GameEngine;
@@ -55,7 +56,9 @@ export class TakaoImpl {
     const existingMaps = world.getAllMaps();
 
     if (existingMaps.length === 0) {
-      this.createInitialMaps(world);
+      throw new Error(
+        'No maps available; please create or load maps before initializing TakaoImpl.'
+      );
     } else {
       this.logger.info(
         `Found ${existingMaps.length} existing maps from saved state, skipping initial map creation.`
@@ -99,7 +102,7 @@ export class TakaoImpl {
       };
 
       // Look for position in the unit's own properties first
-      const unitPosition = unit.getPropertyValue<IUnitPosition>('position');
+      const unitPosition = unit.getPropertyValue('position');
 
       if (unitPosition && isUnitPosition(unitPosition)) {
         // If position exists in IUnitPosition format, use it
@@ -159,8 +162,8 @@ export class TakaoImpl {
 
     // Add unit positions
     for (const [id, unit] of units) {
-      const pos = unit.getPropertyValue<IUnitPosition>('position');
-      if (pos) {
+      const pos = unit.getPropertyValue('position');
+      if (isUnitPosition(pos)) {
         states.push(`${id}:${pos.mapId}:${pos.position.x},${pos.position.y}`);
       }
     }
@@ -205,7 +208,8 @@ export class TakaoImpl {
     }
   }
 
-  private afterTurn(_turn: number): void {
+  private afterTurn(turn: number): void {
+    void turn; // turn number currently unused but preserved for future hooks
     const newEntries = this.getNewDiaryEntries();
     if (newEntries.length === 0) return;
 
@@ -290,8 +294,8 @@ export class TakaoImpl {
       const unitsMap: Record<string, BaseUnit> = {};
       for (const unit of unitsList) {
         // Only include units that are not dead
-        const statusProperty = unit.getPropertyValue('status');
-        if (statusProperty && statusProperty.value === 'dead') continue;
+        const statusProperty = unit.getPropertyValue<string>('status');
+        if (statusProperty === 'dead') continue;
         unitsMap[unit.id] = unit;
       }
 
@@ -366,11 +370,7 @@ export class TakaoImpl {
             killerUnit,
             'resources'
           );
-          this.setNumericPropertyValue(
-            killerUnit,
-            'resources',
-            currentResources + loot
-          );
+          killerUnit.setProperty('resources', currentResources + loot);
         }
       }
 
@@ -380,75 +380,29 @@ export class TakaoImpl {
   }
 
   private getTargetIdFromAction(action: Action): string | null {
-    const payload = action.payload as ActionPayload | undefined;
-    const target =
-      payload?.targetUnit ||
-      payload?.target ||
-      (payload as any)?.targetUnitId ||
-      (payload as any)?.unitId;
-    return typeof target === 'string' ? target : null;
+    return targetFromPayload(action.payload as ActionPayload | undefined);
   }
 
   private isWildAnimal(unit: BaseUnit): boolean {
-    const factionProperty = unit.getPropertyValue('faction');
-    const faction =
-      typeof factionProperty === 'string'
-        ? factionProperty
-        : factionProperty?.value;
+    const faction = unit.getPropertyValue<string>('faction');
+    if (!faction) return unit.type === 'wolf';
     return faction === 'Wild Animals' || unit.type === 'wolf';
   }
 
   private isUnitDead(unit: BaseUnit): boolean {
-    const health = unit.getPropertyValue('health');
-    const status = unit.getPropertyValue('status');
+    const healthValue = unit.getPropertyValue<number>('health');
+    const statusValue = unit.getPropertyValue<string>('status');
 
-    const healthValue =
-      typeof health === 'number' ? health : (health as any)?.value;
-
-    if (typeof healthValue === 'number' && healthValue <= 0) {
+    if (!healthValue || healthValue <= 0) {
       return true;
     }
-
-    const statusValue =
-      typeof status === 'string' ? status : (status as any)?.value;
 
     return statusValue === 'dead';
   }
 
   private getNumericPropertyValue(unit: BaseUnit, property: string): number {
-    const value = unit.getPropertyValue(property);
-    if (typeof value === 'number') {
-      return value;
-    }
-
-    if (value && typeof value === 'object' && 'value' in value) {
-      const numeric = (value as { value: number }).value;
-      return typeof numeric === 'number' ? numeric : 0;
-    }
-
-    return 0;
-  }
-
-  private setNumericPropertyValue(
-    unit: BaseUnit,
-    property: string,
-    value: number
-  ): void {
-    const existing = unit.getPropertyValue(property);
-    if (existing && typeof existing === 'object') {
-      const baseValue =
-        typeof (existing as any).baseValue === 'number'
-          ? (existing as any).baseValue
-          : value;
-      unit.setProperty(property, {
-        ...(existing as object),
-        value,
-        baseValue,
-      });
-      return;
-    }
-
-    unit.setProperty(property, value);
+    const value = unit.getPropertyValue<number>(property);
+    return value ?? 0;
   }
 
   private handleEngineStop(): void {
@@ -508,10 +462,6 @@ export class TakaoImpl {
    * Stop the game loop
    */
   public stop(): void {
-    if (!this.isRunning && !this.gameEngine.getRunning()) {
-      return;
-    }
-
     this.isTurnInProgress = false;
     this.isRunning = false;
 
@@ -548,7 +498,7 @@ export class TakaoImpl {
     for (const unit of allUnits) {
       // Only include units that are not dead
       const statusProperty = unit.getPropertyValue('status');
-      if (statusProperty && statusProperty.value === 'dead') continue;
+      if (statusProperty === 'dead') continue; // skip dead units
       unitsMap[unit.id] = unit;
     }
 
@@ -597,41 +547,6 @@ export class TakaoImpl {
     this.logger.info('\nWorld saved to file.');
   }
 
-  private createInitialMaps(world: World): void {
-    this.logger.info('No existing maps found, creating initial maps...');
-
-    // Create initial maps since none exist
-    const mainMap = this.storyTeller.createMap('Main Continent', 80, 20);
-    const forestMap = this.storyTeller.createMap('Dark Forest', 50, 20);
-    const mountainMap = this.storyTeller.createMap('High Mountains', 40, 20);
-
-    // Add maps to world
-    world.addMap(mainMap);
-    world.addMap(forestMap);
-    world.addMap(mountainMap);
-
-    // Create gate connections between maps
-    this.storyTeller.addGate({
-      mapFrom: 'Main Continent',
-      positionFrom: { x: 0, y: 7 },
-      mapTo: 'Dark Forest',
-      positionTo: { x: 14, y: 5 },
-      name: 'MainToForestGate',
-      bidirectional: true,
-    });
-
-    this.storyTeller.addGate({
-      mapFrom: 'Main Continent',
-      positionFrom: { x: 19, y: 10 },
-      mapTo: 'High Mountains',
-      positionTo: { x: 0, y: 3 },
-      name: 'MainToMountainGate',
-      bidirectional: true,
-    });
-
-    this.logger.info('Initial maps and gates created.');
-  }
-
   /**
    * Get the StoryTeller instance for direct access
    */
@@ -650,7 +565,13 @@ export class TakaoImpl {
    * Get the game's World instance for direct access
    */
   public getWorld(): World {
-    return this.storyTeller.getWorld();
+    const world = this.storyTeller.getWorld();
+
+    if (world.getAllMaps().length === 0) {
+      throw new Error('No maps available in the world.');
+    }
+
+    return world;
   }
 
   /**
