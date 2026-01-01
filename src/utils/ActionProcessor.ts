@@ -8,7 +8,7 @@ import type {
   ActionProcessingResult,
 } from '../types';
 import { DataManager } from './DataManager';
-import { isNumber, isRandomValue } from '../types/typeGuards';
+import { isNumber } from '../types/typeGuards';
 import { Logger } from './Logger';
 import { UnitPosition } from './UnitPosition';
 import { RelationshipHelper } from './RelationshipHelper';
@@ -43,55 +43,46 @@ export class ActionProcessor {
     units: BaseUnit[]
   ): { isValid: boolean; errorMessage?: string } {
     try {
-      if (!this.world) {
-        return { isValid: true }; // If no world is set, skip range validation
-      }
+      if (!this.world) return { isValid: true };
 
-      // Get the acting unit
       const actingUnit =
         units?.find?.(unit => unit?.id === action?.player) ||
         units?.find?.(unit => unit?.name === action?.player);
-      if (!actingUnit) {
-        return { isValid: true }; // If no acting unit found, skip validation
+      if (!actingUnit) return { isValid: true };
+
+      const targetUnitId = action?.payload?.targetUnit;
+      if (!targetUnitId || typeof targetUnitId !== 'string') {
+        return { isValid: true };
       }
 
-      // Check if action has a target unit in the payload
-      const targetUnitId = action?.payload?.targetUnit;
-      if (targetUnitId && typeof targetUnitId === 'string') {
-        // Find the target unit
-        const targetUnit = units?.find?.(unit => unit?.id === targetUnitId);
-        if (!targetUnit) {
-          return {
-            isValid: false,
-            errorMessage: `Target unit ${targetUnitId} not found`,
-          };
-        }
+      const targetUnit = units?.find?.(unit => unit?.id === targetUnitId);
+      if (!targetUnit) {
+        return {
+          isValid: false,
+          errorMessage: `Target unit ${targetUnitId} not found`,
+        };
+      }
 
-        const maxRange = this.getActionRange(action);
+      const maxRange = this.getActionRange(action);
+      const distance = UnitPosition.getDistanceBetweenUnits(
+        units,
+        actingUnit.id,
+        targetUnitId,
+        true
+      );
 
-        // Calculate distance between units
-        const distance = UnitPosition.getDistanceBetweenUnits(
-          units,
-          actingUnit.id,
-          targetUnitId,
-          true // Use Manhattan distance
-        );
+      if (distance === Infinity) {
+        return {
+          isValid: false,
+          errorMessage: `Units ${actingUnit.id} and ${targetUnitId} are on different maps`,
+        };
+      }
 
-        // If distance is infinity, units are on different maps
-        if (distance === Infinity) {
-          return {
-            isValid: false,
-            errorMessage: `Units ${actingUnit.id} and ${targetUnitId} are on different maps`,
-          };
-        }
-
-        // Check if the target is within range
-        if (distance > maxRange) {
-          return {
-            isValid: false,
-            errorMessage: `Target unit ${targetUnitId} is out of range. Distance: ${distance}, Max range: ${maxRange}`,
-          };
-        }
+      if (distance > maxRange) {
+        return {
+          isValid: false,
+          errorMessage: `Target unit ${targetUnitId} is out of range. Distance: ${distance}, Max range: ${maxRange}`,
+        };
       }
 
       return { isValid: true };
@@ -111,28 +102,8 @@ export class ActionProcessor {
     units: BaseUnit[]
   ): Promise<ActionProcessingResult> {
     try {
-      // Load action definitions from DataManager
-      const actionsData = DataManager.loadActions();
-
-      // Since actionsData is now a flat array, use it directly
-      const allActions = actionsData;
-
-      // Find the specific action definition by type
-      const actionDef = allActions.find(a => a.type === action.type);
-
-      let effectsToExecute: EffectDefinition[] = [];
-
-      if (actionDef && Array.isArray(actionDef.effects)) {
-        // Use effects from action definition
-        effectsToExecute = actionDef.effects;
-      } else if (action?.effects && Array.isArray(action.effects)) {
-        // If no action def found, try to use effects from action payload
-        effectsToExecute = action.effects;
-        this.logger?.info(
-          `Using effects from payload for action type: ${action.type}`
-        );
-      } else {
-        // If no effects found in either place, just log and return
+      const effectsToExecute = this.getEffectsForAction(action);
+      if (effectsToExecute.length === 0) {
         this.logger?.info(
           `No effects found for action type: ${action.type}, skipping effects execution`
         );
@@ -240,40 +211,13 @@ export class ActionProcessor {
 
       case 'enemy':
         // Apply to enemy units - apply to target unit
-        if (action.payload?.targetUnit) {
-          const candidate = units.find(
-            unit => unit.id === action.payload?.targetUnit
-          );
-          if (
-            candidate &&
-            RelationshipHelper.isHostile(actingUnit, candidate)
-          ) {
-            targetUnit = candidate;
-          }
-        } else {
-          // If no specific target, pick a different unit than the acting unit
-          targetUnit = units.find(
-            unit =>
-              unit.id !== actingUnit?.id &&
-              RelationshipHelper.isHostile(actingUnit, unit)
-          );
-        }
+        targetUnit = this.getHostileTarget(action, actingUnit, units);
         break;
 
       case 'world':
         // Handle new unit creation - add to newUnitsList for processing by StoryTeller
         if (effect.operation === 'create' && effect.property === 'unit') {
-          let newUnitType = 'warrior'; // default type
-
-          if (effect.value.type === 'variable' && effect.value.variable) {
-            const variableValue = action.payload?.[effect.value.variable];
-            if (variableValue && typeof variableValue === 'string') {
-              newUnitType = variableValue;
-            }
-          } else if (effect.value.type === 'static' && effect.value.value) {
-            newUnitType = effect.value.value.toString();
-          }
-
+          const newUnitType = this.resolveNewUnitType(effect);
           this.logger?.info(
             `New unit of type ${newUnitType} should be added to the game!`
           );
@@ -315,17 +259,16 @@ export class ActionProcessor {
     targetUnit: BaseUnit,
     action: Action
   ): Promise<void> {
-    // Calculate the value to apply based on the effect's value definition
-    const valueToApply = this.calculateEffectValue(
-      effect.value,
+    const { propertyName, valueToApply } = this.resolveEffectApplication(
+      effect,
       action,
       targetUnit
     );
 
     // Ensure the property exists; if missing, initialize it with value 1
-    const existingValue = targetUnit.getPropertyValue(effect.property);
+    const existingValue = targetUnit.getPropertyValue(propertyName);
     if (existingValue === undefined) {
-      targetUnit.setProperty(effect.property, 1);
+      targetUnit.setProperty(propertyName, 1);
     }
     const currentValue = isNumber(existingValue) ? existingValue : 1;
     let newValue: number;
@@ -351,9 +294,9 @@ export class ActionProcessor {
     }
 
     // Ensure health doesn't exceed maximum (if it's a health property)
-    if (effect.property === 'health') {
+    if (propertyName === 'health') {
       newValue = Math.min(100, Math.max(0, newValue));
-    } else if (effect.property === 'mana') {
+    } else if (propertyName === 'mana') {
       newValue = Math.min(100, Math.max(0, newValue));
     } else {
       newValue = Math.max(0, newValue);
@@ -361,57 +304,149 @@ export class ActionProcessor {
 
     // Apply the effect based on whether it's permanent or temporary
     if (effect.permanent) {
-      targetUnit.setBaseProperty(effect.property, newValue);
+      targetUnit.setBaseProperty(propertyName, newValue);
     } else {
-      targetUnit.setProperty(effect.property, newValue);
+      targetUnit.setProperty(propertyName, newValue);
     }
 
-    if (effect.property === 'health' && newValue <= 0) {
+    if (propertyName === 'health' && newValue <= 0) {
       targetUnit.setProperty('status', 'dead');
     }
+  }
+
+  private resolveEffectApplication(
+    effect: EffectDefinition,
+    action: Action,
+    targetUnit: BaseUnit
+  ): { propertyName: string; valueToApply: number } {
+    const valueDef = effect.value;
+    if (valueDef?.type === 'modifyProperty') {
+      const nested = valueDef.value ?? { type: 'static', value: 0 };
+      const propertyName = valueDef.key || effect.property;
+      const valueToApply = this.calculateEffectValue(
+        nested,
+        action,
+        targetUnit
+      );
+      return { propertyName, valueToApply };
+    }
+
+    return {
+      propertyName: effect.property,
+      valueToApply: this.calculateEffectValue(effect.value, action, targetUnit),
+    };
+  }
+
+  private getEffectsForAction(action: Action): EffectDefinition[] {
+    const actionDef = DataManager.loadActions().find(
+      a => a.type === action.type
+    );
+
+    if (actionDef?.effects?.length) {
+      return actionDef.effects;
+    }
+
+    if (action?.effects && Array.isArray(action.effects)) {
+      this.logger?.info(
+        `Using effects from payload for action type: ${action.type}`
+      );
+      return action.effects;
+    }
+
+    return [];
+  }
+
+  private getHostileTarget(
+    action: Action,
+    actingUnit: BaseUnit | undefined,
+    units: BaseUnit[]
+  ): BaseUnit | undefined {
+    if (action.payload?.targetUnit) {
+      const candidate = units.find(
+        unit => unit.id === action.payload?.targetUnit
+      );
+      if (candidate && RelationshipHelper.isHostile(actingUnit, candidate)) {
+        return candidate;
+      }
+      return undefined;
+    }
+
+    return units.find(
+      unit =>
+        unit.id !== actingUnit?.id &&
+        RelationshipHelper.isHostile(actingUnit, unit)
+    );
+  }
+
+  private resolveNewUnitType(effect: EffectDefinition): string {
+    const valueDef = effect.value;
+    if (valueDef?.type === 'modifyProperty') {
+      return this.resolveUnitTypeValue(valueDef.value) ?? 'warrior';
+    }
+
+    if (valueDef?.type === 'static' && valueDef.value !== undefined) {
+      return String(valueDef.value);
+    }
+
+    return 'warrior';
+  }
+
+  private resolveUnitTypeValue(
+    raw: EffectValue | number | string | undefined
+  ): string | undefined {
+    if (raw === undefined) return undefined;
+    if (typeof raw === 'string' || typeof raw === 'number') {
+      return String(raw);
+    }
+
+    if (raw.type === 'random') {
+      return ActionProcessor.getRandomValue(
+        raw.min ?? 0,
+        raw.max ?? 0
+      ).toString();
+    }
+
+    if (raw.type === 'static' && raw.value !== undefined) {
+      return String(raw.value);
+    }
+
+    return undefined;
   }
 
   /**
    * Calculates the value to apply based on the effect value definition
    */
   private calculateEffectValue(
-    valueDef: EffectValue,
+    valueDef: EffectValue | number | string,
     action: Action,
     targetUnit: BaseUnit
   ): number {
+    if (typeof valueDef === 'number') {
+      return valueDef;
+    }
+    if (typeof valueDef === 'string') {
+      const parsed = parseFloat(valueDef);
+      return isNaN(parsed) ? 0 : parsed;
+    }
+
     switch (valueDef.type) {
       case 'static':
         return valueDef.value ?? 0;
       case 'calculation':
         // For now, just return value or default if calculation is complex
         return valueDef.value ?? 0;
-      case 'variable':
-        // Return value from action payload or unit properties based on the variable name
-        if (!valueDef.variable) return 0;
-        if (action.payload && action.payload[valueDef.variable] !== undefined) {
-          const payloadValue = action.payload[valueDef.variable];
-          // If payload value is a random range definition, generate the value
-          if (isRandomValue(payloadValue))
-            return ActionProcessor.getRandomValue(
-              payloadValue.min,
-              payloadValue.max
-            );
-
-          // Otherwise return the payload value directly
-          if (isNumber(payloadValue)) return payloadValue;
-
-          // If not in payload, could check unit properties
-          return targetUnit.getPropertyValue(valueDef.variable) ?? 0;
-        }
-        return 0;
       case 'random':
         // Generate random value based on min/max in the definition
         if (valueDef.min !== undefined && valueDef.max !== undefined) {
           return ActionProcessor.getRandomValue(valueDef.min, valueDef.max);
         }
         return 0;
+      case 'modifyProperty': {
+        const nested = valueDef.value ?? { type: 'static', value: 0 };
+        return this.calculateEffectValue(nested, action, targetUnit);
+      }
       default:
-        return valueDef.value ?? 0;
+        return 0;
     }
   }
 
@@ -484,7 +519,7 @@ export class ActionProcessor {
    */
   public static processActionPayload(
     actionPayload: ActionPayload,
-    targetUnit?: BaseUnit
+    targetUnit: BaseUnit | null
   ): ActionPayload {
     const processedPayload = { ...actionPayload };
 

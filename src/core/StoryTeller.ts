@@ -6,6 +6,7 @@
 import { UnitController } from '../ai/UnitController';
 import type {
   Action,
+  ActionPayload,
   ExecutedAction,
   ActionsData,
   DiaryEntry,
@@ -316,125 +317,36 @@ export class StoryTeller {
     units: BaseUnit[],
     turn: number
   ): Promise<ExecutedAction | null> {
-    const unitName = unit.name;
-    const unitType = unit.type;
-    let targetUnit = null;
-    let targetUnitName = 'another unit';
-    const actionPayload = { ...(actionDef.payload || {}) };
-
-    // Auto-target another unit for interaction-type actions
-    if (
-      ['interact', 'attack', 'support', 'trade', 'inspire'].includes(
-        actionDef.type
-      ) &&
-      units.length > 1
-    ) {
-      const otherUnits = units.filter(u => u.id !== unit.id);
-      let candidateTargets = otherUnits.filter(u => this.isUnitAlive(u));
-
-      if (this.requiresHostileTarget(actionDef.type)) {
-        candidateTargets = otherUnits.filter(
-          u => this.isUnitAlive(u) && RelationshipHelper.isHostile(unit, u)
-        );
-      } else if (this.requiresAllyTarget(actionDef.type)) {
-        candidateTargets = otherUnits.filter(
-          u => this.isUnitAlive(u) && RelationshipHelper.isAlly(unit, u)
-        );
-      }
-
-      if (candidateTargets.length === 0) {
-        return null; // No valid target for this action
-      }
-
-      const actionRange = this.actionProcessor.getActionRange(actionDef);
-      const candidatesWithDistance = candidateTargets.map(target => ({
-        target,
-        distance: UnitPosition.getDistanceBetweenUnits(
-          units,
-          unit.id,
-          target.id,
-          true
-        ),
-      }));
-
-      const reachable = candidatesWithDistance.filter(
-        c => c.distance !== Infinity
-      );
-      const considered =
-        reachable.length > 0 ? reachable : candidatesWithDistance;
-      const inRange = considered.filter(c => c.distance <= actionRange);
-      const selectionPool = inRange.length > 0 ? inRange : considered;
-      selectionPool.sort((a, b) => a.distance - b.distance);
-
-      targetUnit = selectionPool[0]?.target ?? null;
-      if (!targetUnit) {
-        return null;
-      }
-
-      targetUnitName = targetUnit.name;
-      actionPayload.targetUnit = targetUnit.id;
+    const targetUnit = this.selectTargetForAction(unit, actionDef, units);
+    if (this.requiresTarget(actionDef.type) && !targetUnit) {
+      return null;
     }
 
-    // Plan exploration movement before action description (applied after action succeeds)
-    if (actionDef.type === 'explore') {
-      const planned = this.planRandomStep(unit);
-      actionPayload.unitId = unit.id;
-      actionPayload.mapId = planned.mapId;
-      actionPayload.position = new Position(planned.x, planned.y);
-      actionPayload.movedTo = { x: planned.x, y: planned.y };
-    }
+    const basePayload = this.buildBasePayload(actionDef, targetUnit);
+    const payloadWithTarget: ActionPayload = {
+      ...basePayload,
+      ...(targetUnit ? { targetUnit: targetUnit.id } : {}),
+    };
 
-    // If we have a target and are out of range, step toward the target before the action
-    if (targetUnit) {
-      const actionRange = this.actionProcessor.getActionRange(actionDef);
-      const distance = UnitPosition.getDistanceBetweenUnits(
-        units,
-        unit.id,
-        targetUnit.id,
-        true
-      );
+    const movementPlan = this.planMovementForAction({
+      actionDef,
+      unit,
+      targetUnit,
+      units,
+    });
 
-      if (distance === Infinity) {
-        this.logger.warn(
-          `Units ${unit.id} and ${targetUnit.id} are on different maps; cannot move toward target`
-        );
-      } else if (distance > actionRange) {
-        const unitPos = unit.getPropertyValue<IUnitPosition>('position');
-        const targetPos =
-          targetUnit.getPropertyValue<IUnitPosition>('position');
-        if (unitPos && targetPos && unitPos.mapId === targetPos.mapId) {
-          const nextStep = UnitPosition.stepTowards(
-            this.world,
-            unitPos.mapId,
-            new Position(
-              unitPos.position.x,
-              unitPos.position.y,
-              unitPos.position.z
-            ),
-            new Position(
-              targetPos.position.x,
-              targetPos.position.y,
-              targetPos.position.z
-            )
-          );
+    const finalPayload: ActionPayload = {
+      ...payloadWithTarget,
+      ...movementPlan.payload,
+    };
 
-          actionPayload.movedTowardsTarget = true;
-          actionPayload.movedTo = { x: nextStep.x, y: nextStep.y };
-          actionPayload.unitId = unit.id;
-          actionPayload.mapId = unitPos.mapId;
-          actionPayload.position = new Position(nextStep.x, nextStep.y);
-        }
-      }
-    }
-
-    let description = actionDef.description
-      .replace('{{unitName}}', unitName)
-      .replace('{{unitType}}', unitType)
-      .replace('{{targetUnitName}}', targetUnitName);
-
-    if (actionPayload.movedTowardsTarget) {
-      description = `${unitName} is moving closer to ${targetUnitName}`;
-    }
+    const description = this.buildDescription(
+      actionDef,
+      unit.name,
+      unit.type,
+      targetUnit?.name ?? 'another unit',
+      movementPlan.movedTowardsTarget
+    );
 
     return {
       turn,
@@ -443,9 +355,164 @@ export class StoryTeller {
         ...actionDef,
         description,
         player: unit.id,
-        payload: actionPayload,
+        payload: finalPayload,
       },
     };
+  }
+
+  private buildDescription(
+    actionDef: Action,
+    unitName: string,
+    unitType: string,
+    targetUnitName: string,
+    movedTowardsTarget: boolean
+  ): string {
+    if (movedTowardsTarget) {
+      return `${unitName} is moving closer to ${targetUnitName}`;
+    }
+
+    return actionDef.description
+      .replace('{{unitName}}', unitName)
+      .replace('{{unitType}}', unitType)
+      .replace('{{targetUnitName}}', targetUnitName);
+  }
+
+  private buildBasePayload(
+    actionDef: Action,
+    targetUnit: BaseUnit | null
+  ): ActionPayload {
+    if (!actionDef.payload) {
+      return {};
+    }
+
+    return ActionProcessor.processActionPayload(actionDef.payload, targetUnit);
+  }
+
+  private selectTargetForAction(
+    unit: BaseUnit,
+    actionDef: Action,
+    units: BaseUnit[]
+  ): BaseUnit | null {
+    if (!this.requiresTarget(actionDef.type) || units.length <= 1) {
+      return null;
+    }
+
+    const otherUnits = units.filter(u => u.id !== unit.id);
+    const aliveTargets = otherUnits.filter(u => this.isUnitAlive(u));
+    let candidateTargets = aliveTargets;
+
+    if (this.requiresHostileTarget(actionDef.type)) {
+      candidateTargets = aliveTargets.filter(u =>
+        RelationshipHelper.isHostile(unit, u)
+      );
+    } else if (this.requiresAllyTarget(actionDef.type)) {
+      candidateTargets = aliveTargets.filter(u =>
+        RelationshipHelper.isAlly(unit, u)
+      );
+    }
+
+    if (candidateTargets.length === 0) {
+      candidateTargets = aliveTargets;
+    }
+
+    if (candidateTargets.length === 0) {
+      return null; // No valid target for this action
+    }
+
+    const actionRange = this.actionProcessor.getActionRange(actionDef);
+    const candidatesWithDistance = candidateTargets.map(target => ({
+      target,
+      distance: UnitPosition.getDistanceBetweenUnits(
+        units,
+        unit.id,
+        target.id,
+        true
+      ),
+    }));
+
+    const reachable = candidatesWithDistance.filter(
+      c => c.distance !== Infinity
+    );
+    const considered =
+      reachable.length > 0 ? reachable : candidatesWithDistance;
+    const inRange = considered.filter(c => c.distance <= actionRange);
+    const selectionPool = inRange.length > 0 ? inRange : considered;
+    selectionPool.sort((a, b) => a.distance - b.distance);
+
+    const chosen = selectionPool[0]?.target ?? null;
+    return chosen;
+  }
+
+  private planMovementForAction({
+    actionDef,
+    unit,
+    targetUnit,
+    units,
+  }: {
+    actionDef: Action;
+    unit: BaseUnit;
+    targetUnit: BaseUnit | null;
+    units: BaseUnit[];
+  }): { payload: ActionPayload; movedTowardsTarget: boolean } {
+    const payload: ActionPayload = {};
+
+    if (actionDef.type === 'explore') {
+      const planned = this.planRandomStep(unit);
+      payload.unitId = unit.id;
+      payload.mapId = planned.mapId;
+      payload.position = new Position(planned.x, planned.y);
+      payload.movedTo = { x: planned.x, y: planned.y };
+
+      return { payload, movedTowardsTarget: false };
+    }
+
+    if (!targetUnit) {
+      return { payload, movedTowardsTarget: false };
+    }
+
+    const actionRange = this.actionProcessor.getActionRange(actionDef);
+    const distance = UnitPosition.getDistanceBetweenUnits(
+      units,
+      unit.id,
+      targetUnit.id,
+      true
+    );
+
+    if (distance === Infinity) {
+      this.logger.warn(
+        `Units ${unit.id} and ${targetUnit.id} are on different maps; cannot move toward target`
+      );
+      return { payload, movedTowardsTarget: false };
+    }
+
+    if (distance > actionRange) {
+      const unitPos = unit.getPropertyValue<IUnitPosition>('position');
+      const targetPos = targetUnit.getPropertyValue<IUnitPosition>('position');
+      if (unitPos && targetPos && unitPos.mapId === targetPos.mapId) {
+        const nextStep = UnitPosition.stepTowards(
+          this.world,
+          unitPos.mapId,
+          new Position(
+            unitPos.position.x,
+            unitPos.position.y,
+            unitPos.position.z
+          ),
+          new Position(
+            targetPos.position.x,
+            targetPos.position.y,
+            targetPos.position.z
+          )
+        );
+
+        payload.movedTowardsTarget = true;
+        payload.movedTo = { x: nextStep.x, y: nextStep.y };
+        payload.unitId = unit.id;
+        payload.mapId = unitPos.mapId;
+        payload.position = new Position(nextStep.x, nextStep.y);
+      }
+    }
+
+    return { payload, movedTowardsTarget: Boolean(payload.movedTowardsTarget) };
   }
 
   private requiresHostileTarget(actionType: string): boolean {
@@ -462,6 +529,12 @@ export class StoryTeller {
 
   private requiresAllyTarget(actionType: string): boolean {
     return ['support', 'heal', 'inspire'].includes(actionType);
+  }
+
+  private requiresTarget(actionType: string): boolean {
+    return ['interact', 'attack', 'support', 'trade', 'inspire'].includes(
+      actionType
+    );
   }
 
   private isUnitAlive(unit: BaseUnit): boolean {

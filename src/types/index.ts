@@ -132,14 +132,26 @@ export interface StatChange<T = unknown> {
 /**
  * Represents value specification for an effect
  */
-export interface EffectValue {
-  type: 'static' | 'calculation' | 'variable' | 'random';
-  value?: number;
-  expression?: string;
-  variable?: string;
-  min?: number;
-  max?: number;
-}
+export type EffectValue =
+  | {
+      type: 'static';
+      value?: number;
+    }
+  | {
+      type: 'calculation';
+      value?: number;
+      expression?: string;
+    }
+  | {
+      type: 'random';
+      min?: number;
+      max?: number;
+    }
+  | {
+      type: 'modifyProperty';
+      key: string;
+      value?: EffectValue | number | string;
+    };
 
 /**
  * Represents a random value definition
