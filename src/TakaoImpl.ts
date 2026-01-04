@@ -7,10 +7,12 @@
 import { renderGame, type IGameRendererConfig } from '@atsu/maya';
 import { World, Position, Map as ChoukaiMap } from '@atsu/choukai';
 import type { BaseUnit, IUnitPosition } from '@atsu/atago';
+import { InputManager } from '@atsu/noshiro';
 import { GameEngine } from './core/GameEngine';
 import { StoryTeller } from './core/StoryTeller';
 import { UnitController } from './ai/UnitController';
 import { Logger } from './utils/Logger';
+import { MapGenerator } from './utils/MapGenerator';
 import { isUnitPosition } from './types/typeGuards';
 import type { Action, ActionPayload, DiaryEntry } from './types';
 import { targetFromPayload } from './utils/TargetUtils';
@@ -18,6 +20,9 @@ import { targetFromPayload } from './utils/TargetUtils';
 export class TakaoImpl {
   private gameEngine: GameEngine;
   private logger: Logger = new Logger({ prefix: 'TakaoImpl', disable: false });
+  private inputManager: InputManager = new InputManager({
+    logger: this.logger,
+  });
   private isRunning: boolean = false;
   private processedDeadUnits: Set<string> = new Set();
   private lastDiaryIndex: number = 0;
@@ -49,16 +54,36 @@ export class TakaoImpl {
       prefix: 'TakaoImpl',
       disable: this.gameEngine.getConfig().rendering.visualOnly,
     });
+    this.inputManager = new InputManager({ logger: this.logger });
     // Get the world instance
     const world = this.storyTeller.getWorld();
 
     // Check if there are already saved maps in the world
-    const existingMaps = world.getAllMaps();
+    let existingMaps = world.getAllMaps();
 
     if (existingMaps.length === 0) {
-      throw new Error(
-        'No maps available; please create or load maps before initializing TakaoImpl.'
+      const shouldCreateMap = await this.inputManager.promptYesNo(
+        'No maps available. Generate a default map now?',
+        { defaultValue: false }
       );
+
+      if (!shouldCreateMap) {
+        throw new Error(
+          'No maps available; please create or load maps before initializing TakaoImpl.'
+        );
+      }
+
+      const mapGenerator = new MapGenerator();
+      const mapName = 'Main Continent';
+      const newMap = mapGenerator.generateMap(mapName);
+      world.addMap(newMap);
+      existingMaps = world.getAllMaps();
+      this.logger.info(
+        `Generated a new map "${mapName}" because none were available.`
+      );
+
+      // Persist immediately so subsequent runs can load the new map
+      this.storyTeller.saveWorld();
     } else {
       this.logger.info(
         `Found ${existingMaps.length} existing maps from saved state, skipping initial map creation.`
@@ -140,8 +165,6 @@ export class TakaoImpl {
   } | null = null;
   private renderConfig: IGameRendererConfig = {};
   private _lastWorldHash: string | null = null;
-  private inputHandler: ((data: Buffer) => void) | null = null;
-  private stdinRawMode = false;
   private isTurnInProgress = false;
 
   /**
@@ -585,20 +608,7 @@ export class TakaoImpl {
    * Attach input handlers for Enter (advance turn) and ESC (exit) in TTY environments.
    */
   private attachInputHandler(): boolean {
-    if (typeof process === 'undefined') return false;
-    const stdin = process.stdin;
-    if (!stdin || !stdin.isTTY) return false;
-
-    try {
-      stdin.setRawMode?.(true);
-      stdin.resume();
-      this.stdinRawMode = true;
-    } catch {
-      return false;
-    }
-
-    this.inputHandler = (data: Buffer) => {
-      const key = data.toString();
+    const attached = this.inputManager.enableRawMode(key => {
       if (key === '\u001b') {
         this.logger.info('ESC pressed, stopping game...');
         this.stop();
@@ -608,33 +618,15 @@ export class TakaoImpl {
       if (key === '\r' || key === '\n') {
         void this.handleManualTurnRequest();
       }
-    };
+    });
 
-    stdin.on('data', this.inputHandler);
-    return true;
+    return attached;
   }
 
   /**
    * Detach input handlers and restore stdin state
    */
   private detachInputHandler(): void {
-    if (typeof process === 'undefined') return;
-    const stdin = process.stdin;
-    if (!stdin) return;
-
-    if (this.inputHandler) {
-      stdin.off('data', this.inputHandler);
-      this.inputHandler = null;
-    }
-
-    if (this.stdinRawMode) {
-      try {
-        stdin.setRawMode?.(false);
-        stdin.pause();
-      } catch {
-        // ignore cleanup errors
-      }
-      this.stdinRawMode = false;
-    }
+    this.inputManager.disableRawMode();
   }
 }

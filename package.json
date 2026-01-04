@@ -53,6 +53,7 @@
   "dependencies": {
     "@atsu/atago": "file:../Atago",
     "@atsu/choukai": "file:../Choukai",
-    "@atsu/maya": "file:../Maya"
+    "@atsu/maya": "file:../Maya",
+    "@atsu/noshiro": "file:../Noshiro"
   }
 }
