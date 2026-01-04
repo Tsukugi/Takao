@@ -7,7 +7,7 @@
 import { renderGame, type IGameRendererConfig } from '@atsu/maya';
 import { World, Position, Map as ChoukaiMap } from '@atsu/choukai';
 import type { BaseUnit, IUnitPosition } from '@atsu/atago';
-import { InputManager } from '@atsu/noshiro';
+import { GameInputController, InputManager } from '@atsu/noshiro';
 import { GameEngine } from './core/GameEngine';
 import { StoryTeller } from './core/StoryTeller';
 import { UnitController } from './ai/UnitController';
@@ -23,6 +23,8 @@ export class TakaoImpl {
   private inputManager: InputManager = new InputManager({
     logger: this.logger,
   });
+  private gameInputController: GameInputController =
+    new GameInputController(this.inputManager);
   private isRunning: boolean = false;
   private processedDeadUnits: Set<string> = new Set();
   private lastDiaryIndex: number = 0;
@@ -55,6 +57,7 @@ export class TakaoImpl {
       disable: this.gameEngine.getConfig().rendering.visualOnly,
     });
     this.inputManager = new InputManager({ logger: this.logger });
+    this.gameInputController = new GameInputController(this.inputManager);
     // Get the world instance
     const world = this.storyTeller.getWorld();
 
@@ -608,25 +611,19 @@ export class TakaoImpl {
    * Attach input handlers for Enter (advance turn) and ESC (exit) in TTY environments.
    */
   private attachInputHandler(): boolean {
-    const attached = this.inputManager.enableRawMode(key => {
-      if (key === '\u001b') {
+    return this.gameInputController.attachManualControls({
+      onExit: () => {
         this.logger.info('ESC pressed, stopping game...');
         this.stop();
-        return;
-      }
-
-      if (key === '\r' || key === '\n') {
-        void this.handleManualTurnRequest();
-      }
+      },
+      onAdvance: () => this.handleManualTurnRequest(),
     });
-
-    return attached;
   }
 
   /**
    * Detach input handlers and restore stdin state
    */
   private detachInputHandler(): void {
-    this.inputManager.disableRawMode();
+    this.gameInputController.detachManualControls();
   }
 }
