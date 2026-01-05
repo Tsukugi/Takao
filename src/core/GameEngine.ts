@@ -142,7 +142,8 @@ export class GameEngine {
   private async processTurnInternal(): Promise<void> {
     // Ensure we have a round and turn order ready
     if (!this.turnManager.hasPendingTurns()) {
-      const turnOrder = this.buildTurnOrder(this.unitController.getUnits());
+      const units = this.unitController.getUnits();
+      const turnOrder = this.buildTurnOrder(units);
 
       if (turnOrder.length === 0) {
         this.logger.warn('No available units to act this round. Stopping.');
@@ -156,8 +157,14 @@ export class GameEngine {
       );
       this.turnManager.startNewRound(turnOrder, nextRoundNumber);
 
+      const turnOrderLabels = turnOrder.map(unitId =>
+        this.formatUnitLabel(
+          units.find(unit => unit.id === unitId),
+          unitId
+        )
+      );
       this.logger.info(
-        `Starting round ${nextRoundNumber} with order: ${turnOrder.join(', ')}`
+        `Starting round ${nextRoundNumber} with order: ${turnOrderLabels.join(', ')}`
       );
     }
 
@@ -176,8 +183,9 @@ export class GameEngine {
 
     this.props.onTurnStart(actualTurn);
 
+    const actorLabel = this.formatUnitLabel(actor);
     this.logger.info(
-      `\n--- Engine: Round ${currentRound}, Turn ${actualTurn} (unit ${turnInRound}/${turnOrder.length}) ---`
+      `\n--- Engine: Round ${currentRound}, Turn ${actualTurn} (unit ${turnInRound}/${turnOrder.length}: ${actorLabel}) ---`
     );
 
     try {
@@ -220,7 +228,16 @@ export class GameEngine {
         this.stop();
       }
     } catch (error) {
-      this.logger.error('Error processing turn:', error);
+      const err = error instanceof Error ? error : new Error(String(error));
+      this.logger.error('Error processing turn:', err);
+      this.storyTeller.logSystemDiaryEntry(err.message, {
+        turn: actualTurn,
+        round: currentRound,
+        turnInRound,
+        turnOrder,
+        actorId: actor.id,
+        type: 'engine_error',
+      });
       this.stop();
     }
   }
@@ -374,13 +391,18 @@ export class GameEngine {
   }
 
   private getNextActor(): BaseUnit | null {
-    const aliveUnits = this.getAliveUnits(this.unitController.getUnits());
+    const units = this.unitController.getUnits();
+    const aliveUnits = this.getAliveUnits(units);
     let actorId = this.turnManager.getCurrentActorId();
     let actor = actorId ? aliveUnits.find(unit => unit.id === actorId) : null;
 
     while (!actor && this.turnManager.hasPendingTurns()) {
+      const actorLabel = this.formatUnitLabel(
+        units.find(unit => unit.id === actorId),
+        actorId
+      );
       this.logger.warn(
-        `Unit ${actorId ?? 'unknown'} is unavailable; skipping their turn.`
+        `Unit ${actorLabel} is unavailable; skipping their turn.`
       );
       this.turnManager.endTurn();
       actorId = this.turnManager.getCurrentActorId();
@@ -393,5 +415,19 @@ export class GameEngine {
   private getUnitExperience(unit: BaseUnit): number {
     const exp = unit.getPropertyValue<number>('experience');
     return exp ?? 0;
+  }
+
+  private formatUnitLabel(
+    unit?: BaseUnit | null,
+    fallbackId?: string | null
+  ): string {
+    const unitId = unit?.id ?? fallbackId;
+    if (unit?.name) {
+      return unitId ? `${unit.name} (${unitId})` : unit.name;
+    }
+    if (unitId) {
+      return unitId;
+    }
+    return 'unknown unit';
   }
 }

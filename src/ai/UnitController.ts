@@ -48,6 +48,7 @@ export class UnitController {
           unitData.properties
         );
         this.ensureFaction(unit);
+        this.ensureDiplomacy(unit);
         this.gameUnits.push(unit);
       }
       console.log(
@@ -69,6 +70,7 @@ export class UnitController {
           value: this.defaultFaction,
           baseValue: this.defaultFaction,
         },
+        diplomacy: { name: 'diplomacy', value: 0, baseValue: 0 },
       });
 
       const archerName = this.getRandomName(false); // Female name for archer
@@ -85,10 +87,13 @@ export class UnitController {
           value: this.defaultFaction,
           baseValue: this.defaultFaction,
         },
+        diplomacy: { name: 'diplomacy', value: 0, baseValue: 0 },
       });
 
       this.ensureFaction(unit1);
       this.ensureFaction(unit2);
+      this.ensureDiplomacy(unit1);
+      this.ensureDiplomacy(unit2);
       this.gameUnits.push(unit1, unit2);
       console.log(
         `Initialized ${this.gameUnits.length} new game units with Atago library`
@@ -209,11 +214,13 @@ export class UnitController {
         value: this.defaultFaction,
         baseValue: this.defaultFaction,
       },
+      diplomacy: { name: 'diplomacy', value: 0, baseValue: 0 },
     });
 
     // Add the new unit to the game units array
     this.gameUnits.push(newUnit);
     this.ensureFaction(newUnit);
+    this.ensureDiplomacy(newUnit);
 
     console.log(`New unit ${newUnitName} (${newUnit.id}) has joined the game!`);
 
@@ -246,5 +253,16 @@ export class UnitController {
       return;
     }
     unit.setProperty('faction', this.defaultFaction);
+  }
+
+  /**
+   * Ensure a unit always has a diplomacy stat so requirements that reference it don't throw.
+   */
+  private ensureDiplomacy(unit: BaseUnit): void {
+    const diplomacy = unit.getPropertyValue<number>('diplomacy');
+    if (typeof diplomacy === 'number') {
+      return;
+    }
+    unit.setProperty('diplomacy', 0);
   }
 }

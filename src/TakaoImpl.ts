@@ -23,8 +23,9 @@ export class TakaoImpl {
   private inputManager: InputManager = new InputManager({
     logger: this.logger,
   });
-  private gameInputController: GameInputController =
-    new GameInputController(this.inputManager);
+  private gameInputController: GameInputController = new GameInputController(
+    this.inputManager
+  );
   private isRunning: boolean = false;
   private processedDeadUnits: Set<string> = new Set();
   private lastDiaryIndex: number = 0;

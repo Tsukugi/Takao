@@ -14,6 +14,20 @@ import { UnitPosition } from './UnitPosition';
 import { RelationshipHelper } from './RelationshipHelper';
 import { World } from '@atsu/choukai';
 
+const formatUnitLabel = (
+  unit?: BaseUnit | null,
+  fallbackId?: string
+): string => {
+  const unitId = unit?.id ?? fallbackId;
+  if (unit?.name) {
+    return unitId ? `${unit.name} (${unitId})` : unit.name;
+  }
+  if (unitId) {
+    return unitId;
+  }
+  return 'unknown unit';
+};
+
 /**
  * Utility class for processing action effects
  */
@@ -59,7 +73,10 @@ export class ActionProcessor {
       if (!targetUnit) {
         return {
           isValid: false,
-          errorMessage: `Target unit ${targetUnitId} not found`,
+          errorMessage: `Target unit ${formatUnitLabel(
+            undefined,
+            targetUnitId
+          )} not found`,
         };
       }
 
@@ -74,14 +91,18 @@ export class ActionProcessor {
       if (distance === Infinity) {
         return {
           isValid: false,
-          errorMessage: `Units ${actingUnit.id} and ${targetUnitId} are on different maps`,
+          errorMessage: `Units ${formatUnitLabel(actingUnit)} and ${formatUnitLabel(
+            targetUnit
+          )} are on different maps`,
         };
       }
 
       if (distance > maxRange) {
         return {
           isValid: false,
-          errorMessage: `Target unit ${targetUnitId} is out of range. Distance: ${distance}, Max range: ${maxRange}`,
+          errorMessage: `Target unit ${formatUnitLabel(
+            targetUnit
+          )} is out of range. Distance: ${distance}, Max range: ${maxRange}`,
         };
       }
 

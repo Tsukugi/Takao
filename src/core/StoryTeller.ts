@@ -480,7 +480,9 @@ export class StoryTeller {
 
     if (distance === Infinity) {
       this.logger.warn(
-        `Units ${unit.id} and ${targetUnit.id} are on different maps; cannot move toward target`
+        `Units ${this.formatUnitLabel(unit)} and ${this.formatUnitLabel(
+          targetUnit
+        )} are on different maps; cannot move toward target`
       );
       return { payload, movedTowardsTarget: false };
     }
@@ -610,12 +612,15 @@ export class StoryTeller {
       const units = this.unitController.getUnits();
       const unit = units.find(u => u.id === unitId);
       if (!unit) {
-        throw new Error(`Unit ${unitId} not found`);
+        throw new Error(
+          `Unit ${this.formatUnitLabel(undefined, unitId)} not found`
+        );
       }
 
+      const unitLabel = this.formatUnitLabel(unit, unitId);
       const unitPos = unit.getPropertyValue<IUnitPosition>('position');
       if (!unitPos) {
-        throw new Error(`Unit ${unitId} has no position property`);
+        throw new Error(`Unit ${unitLabel} has no position property`);
       }
 
       // Check if there's a gate at the target position - if so, perform gate transition instead of regular move
@@ -694,13 +699,17 @@ export class StoryTeller {
   } {
     const unitPos = unit.getPropertyValue<IUnitPosition>('position');
     if (!unitPos) {
-      throw new Error(`Unit ${unit.id} is missing a position property.`);
+      throw new Error(
+        `Unit ${this.formatUnitLabel(unit)} is missing a position property.`
+      );
     }
 
     const currentMap = this.world.getMap(unitPos.mapId);
     if (!currentMap) {
       throw new Error(
-        `Map ${unitPos.mapId} not found while planning movement for unit ${unit.id}.`
+        `Map ${unitPos.mapId} not found while planning movement for unit ${this.formatUnitLabel(
+          unit
+        )}.`
       );
     }
 
@@ -734,15 +743,19 @@ export class StoryTeller {
 
       if (gate) {
         // Attempt to move the unit through the gate to the destination map
+        let unitLabel = this.formatUnitLabel(undefined, unitId);
         try {
           // Get the actual unit from the unit controller
           const units = this.unitController.getUnits();
           const unit = units.find(u => u.id === unitId);
           if (!unit) {
-            this.logger.error(`Unit ${unitId} not found for gate transition`);
+            this.logger.error(
+              `Unit ${unitLabel} not found for gate transition`
+            );
             return;
           }
 
+          unitLabel = this.formatUnitLabel(unit, unitId);
           // Update the unit's position using the unit's property directly
           const positionToUse =
             gate.positionTo instanceof Position
@@ -762,15 +775,26 @@ export class StoryTeller {
           );
 
           this.logger.info(
-            `Unit ${unitId} moved through gate from ${currentMapId}(${x},${y}) to ${gate.mapTo}(${gate.positionTo.x},${gate.positionTo.y})`
+            `Unit ${unitLabel} moved through gate from ${currentMapId}(${x},${y}) to ${gate.mapTo}(${gate.positionTo.x},${gate.positionTo.y})`
           );
         } catch (error) {
           this.logger.error(
-            `Error during gate transition for unit ${unitId}: ${(error as Error).message}`
+            `Error during gate transition for unit ${unitLabel}: ${(error as Error).message}`
           );
         }
       }
     }
+  }
+
+  private formatUnitLabel(unit?: BaseUnit | null, fallbackId?: string): string {
+    const unitId = unit?.id ?? fallbackId;
+    if (unit?.name) {
+      return unitId ? `${unit.name} (${unitId})` : unit.name;
+    }
+    if (unitId) {
+      return unitId;
+    }
+    return 'unknown unit';
   }
 
   /**
@@ -1002,6 +1026,52 @@ export class StoryTeller {
       statChangesSummary: formattedChanges,
       statChangesByUnit,
       statChangesFormatted,
+    };
+
+    DataManager.saveDiaryEntry(diaryEntry);
+    this.diary.push(diaryEntry);
+  }
+
+  /**
+   * Logs a system-level diary entry (e.g., errors) so renderers can display it.
+   */
+  public logSystemDiaryEntry(
+    message: string,
+    context: {
+      turn?: number;
+      round?: number;
+      turnInRound?: number;
+      turnOrder?: string[];
+      actorId?: string;
+      type?: string;
+    } = {}
+  ): void {
+    const last = this.diary[this.diary.length - 1];
+    const turn = context.turn ?? last?.turn ?? 0;
+    const round = context.round ?? last?.round ?? 0;
+    const turnInRound = context.turnInRound ?? last?.turnInRound ?? 0;
+    const turnOrder = context.turnOrder ?? last?.turnOrder ?? [];
+    const actorId = context.actorId ?? 'system';
+
+    const action: Action = {
+      player: actorId,
+      type: context.type ?? 'system_error',
+      description: message,
+      payload: { severity: 'error' },
+    };
+
+    const diaryEntry: DiaryEntry = {
+      turn,
+      timestamp: new Date().toISOString(),
+      action,
+      round,
+      turnInRound,
+      turnOrder,
+      actorId,
+      statChanges: [],
+      statChangesSummary: [],
+      statChangesByUnit: {},
+      statChangesFormatted: [],
     };
 
     DataManager.saveDiaryEntry(diaryEntry);
