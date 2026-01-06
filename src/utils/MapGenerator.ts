@@ -5,7 +5,7 @@
 
 import { Map, World } from '@atsu/choukai';
 import { ConfigManager } from './ConfigManager';
-import type { MapGenerationConfig } from './ConfigManager';
+import type { MapGenerationConfig } from './engineConfig';
 
 export class MapGenerator {
   private config: MapGenerationConfig;

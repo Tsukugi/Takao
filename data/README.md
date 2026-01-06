@@ -8,6 +8,7 @@ The following files are generated during runtime and contain game session data:
 
 - `diary.json` - Stores the narrative history of actions taken
 - `units.json` - Stores the current state of game units
+- `engine.config.ts` - Local engine configuration (TypeScript)
 - `world.json` - Stores the current state of maps and world configuration
 
 These files are automatically created and updated during gameplay, and are excluded from Git via `.gitignore`.

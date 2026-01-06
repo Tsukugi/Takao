@@ -4,7 +4,8 @@ import { GameLoop } from './GameLoop';
 import { TurnManager } from './TurnManager';
 import { StoryTeller } from './StoryTeller';
 import { DataManager } from '../utils/DataManager';
-import { ConfigManager, type FullConfig } from '../utils/ConfigManager';
+import { ConfigManager } from '../utils/ConfigManager';
+import type { FullConfig } from '../utils/engineConfig';
 import { Logger } from '../utils/Logger';
 import type { BaseUnit } from '@atsu/atago';
 import type { EngineProps, GameState } from '../types';
@@ -338,7 +339,7 @@ export class GameEngine {
   }
 
   /**
-   * Retrieves the full configuration of the game engine, used from config.json
+   * Retrieves the full configuration of the game engine, used from engine.config.ts
    * @returns FullConfig object
    */
   public getConfig(): FullConfig {

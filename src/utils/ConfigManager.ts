@@ -1,78 +1,74 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import { createRequire } from 'module';
+import type { FullConfig, MapGenerationConfig } from './engineConfig';
 
-// Main application configuration
-interface AppConfig {
-  maxTurnsPerSession: number;
-  runIndefinitely?: boolean;
-  overrideAvailableActions?: string[];
-  cooldownPeriod?: number; // Units can act once every N turns (default: 1)
-  clearUnitsOnStart?: boolean;
-}
+const require = createRequire(import.meta.url);
+let tsNodeRegistered = false;
 
-// Map generation configuration
-export interface MapGenerationConfig {
-  // Map dimensions settings
-  defaultMapWidth: number;
-  defaultMapHeight: number;
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  value !== null && typeof value === 'object';
 
-  // Terrain frequency settings (0-1 probability)
-  waterFrequency: number;
-  mountainFrequency: number;
-  forestFrequency: number;
-  desertFrequency: number;
-  roadFrequency: number;
-  swampFrequency: number;
-  snowFrequency: number;
-  sandFrequency: number;
+const hasRegister = (
+  value: unknown
+): value is {
+  register: (options: {
+    transpileOnly: boolean;
+    compilerOptions: { module: string };
+  }) => void;
+} => isRecord(value) && typeof value.register === 'function';
 
-  // Feature generation settings
-  minWaterBodySize: number;
-  maxWaterBodySize: number;
-  minMountainRangeLength: number;
-  maxMountainRangeLength: number;
-  minForestAreaSize: number;
-  maxForestAreaSize: number;
-  minTerrainFeatureSpacing: number;
+const registerTsNode = (): void => {
+  if (tsNodeRegistered) {
+    return;
+  }
 
-  // Unit placement settings
-  unitSpawnNearTerrain: string[];
-  minDistanceBetweenUnits: number;
+  try {
+    const tsNodeModule: unknown = require('ts-node');
+    if (!hasRegister(tsNodeModule)) {
+      throw new Error('ts-node does not expose a register function');
+    }
+    tsNodeModule.register({
+      transpileOnly: true,
+      compilerOptions: {
+        module: 'CommonJS',
+      },
+    });
+    tsNodeRegistered = true;
+  } catch (error) {
+    console.warn('ts-node is required to load engine.config.ts', error);
+  }
+};
 
-  // Map connection settings
-  createRoadsBetweenMaps: boolean;
-  maxMapsInWorld: number;
+const isFullConfig = (value: unknown): value is FullConfig => {
+  if (!isRecord(value)) {
+    return false;
+  }
 
-  // Procedural generation settings
-  enablePerlinNoise: boolean; // For more natural terrain generation
-  noiseScale: number;
-  seed: string;
-}
+  if (typeof value.maxTurnsPerSession !== 'number') {
+    return false;
+  }
 
-// Maya rendering configuration
-export interface MayaRenderingConfig {
-  visualOnly: boolean;
-  showDiary?: boolean;
-  diaryMaxHeight?: number;
-  diaryMaxEntries?: number;
-  diaryTitle?: string;
-  showConsole?: boolean;
-  consoleMaxHeight?: number;
-  consoleMaxEntries?: number;
-  consoleTitle?: string;
-}
+  if (!isRecord(value.rendering)) {
+    return false;
+  }
 
-// Combined configuration interface
-export interface FullConfig extends AppConfig {
-  mapGeneration: Partial<MapGenerationConfig>;
-  rendering: MayaRenderingConfig;
-}
+  if (typeof value.rendering.visualOnly !== 'boolean') {
+    return false;
+  }
+
+  if (value.mapGeneration !== undefined && !isRecord(value.mapGeneration)) {
+    return false;
+  }
+
+  return true;
+};
 
 export class ConfigManager {
   private static config: FullConfig | null = null;
 
   /**
-   * Load the configuration from the JSON file
+   * Load the configuration from engine.config.ts
    */
   public static loadConfig(): FullConfig {
     if (this.config) {
@@ -80,18 +76,26 @@ export class ConfigManager {
     }
 
     // Try to load from config file in data directory
-    const configPath = path.resolve('data', 'config.json');
+    const configPath = path.resolve('data', 'engine.config.ts');
 
     if (fs.existsSync(configPath)) {
-      const configRaw = fs.readFileSync(configPath, 'utf8');
       try {
-        this.config = JSON.parse(configRaw) as FullConfig;
+        registerTsNode();
+        const configModule: unknown = require(configPath);
+        const configCandidate =
+          isRecord(configModule) && 'default' in configModule
+            ? configModule.default
+            : configModule;
+        if (!isFullConfig(configCandidate)) {
+          throw new Error('engine.config.ts does not export a valid config');
+        }
+        this.config = configCandidate;
       } catch (error) {
-        console.warn('Invalid config.json format, using defaults:', error);
+        console.warn('Invalid engine.config.ts format, using defaults:', error);
         this.config = this.getDefaultConfig();
       }
     } else {
-      console.warn('config.json not found, using defaults');
+      console.warn('engine.config.ts not found, using defaults');
       this.config = this.getDefaultConfig();
     }
 
@@ -181,3 +185,10 @@ export class ConfigManager {
     this.config = null;
   }
 }
+
+export { defineEngineConfig } from './engineConfig';
+export type {
+  FullConfig,
+  MapGenerationConfig,
+  MayaRenderingConfig,
+} from './engineConfig';

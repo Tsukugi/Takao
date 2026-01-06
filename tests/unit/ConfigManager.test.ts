@@ -4,7 +4,7 @@ import * as path from 'path';
 import { ConfigManager } from '../../src/utils/ConfigManager';
 
 // Create a backup of the original config
-const originalConfigPath = path.resolve('data', 'config.json');
+const originalConfigPath = path.resolve('data', 'engine.config.ts');
 let originalConfig: string | null = null;
 
 describe('ConfigManager', () => {
@@ -25,13 +25,17 @@ describe('ConfigManager', () => {
     ConfigManager.resetConfig();
   });
 
-  it('loads configuration from config.json when it exists', () => {
+  it('loads configuration from engine.config.ts when it exists', () => {
     // Write a config file for this test
     const testConfig = {
       maxTurnsPerSession: 75,
       overrideAvailableActions: ['attack', 'defend'],
+      rendering: { visualOnly: false },
     };
-    fs.writeFileSync(originalConfigPath, JSON.stringify(testConfig));
+    fs.writeFileSync(
+      originalConfigPath,
+      `export default ${JSON.stringify(testConfig)};`
+    );
 
     // Reset static cache to force reload
     ConfigManager.resetConfig();
@@ -41,9 +45,9 @@ describe('ConfigManager', () => {
     expect(config.overrideAvailableActions).toEqual(['attack', 'defend']);
   });
 
-  it('uses default configuration when config.json is invalid', () => {
-    // Write invalid JSON to config file
-    fs.writeFileSync(originalConfigPath, '{ invalid json }');
+  it('uses default configuration when engine.config.ts is invalid', () => {
+    // Write invalid TS to config file
+    fs.writeFileSync(originalConfigPath, 'export default { invalid');
 
     // Reset static cache
     ConfigManager.resetConfig();
@@ -53,7 +57,7 @@ describe('ConfigManager', () => {
     // Default config does not include overrideAvailableActions
   });
 
-  it('uses default configuration when config.json does not exist', () => {
+  it('uses default configuration when engine.config.ts does not exist', () => {
     // Remove config file temporarily
     if (fs.existsSync(originalConfigPath)) {
       fs.renameSync(originalConfigPath, originalConfigPath + '.backup');
@@ -72,13 +76,17 @@ describe('ConfigManager', () => {
     }
   });
 
-  it('loads updated configuration when config.json is modified', () => {
+  it('loads updated configuration when engine.config.ts is modified', () => {
     // Write new config to file
     const newConfig = {
       maxTurnsPerSession: 200,
       overrideAvailableActions: ['attack', 'defend', 'special_action'],
+      rendering: { visualOnly: false },
     };
-    fs.writeFileSync(originalConfigPath, JSON.stringify(newConfig));
+    fs.writeFileSync(
+      originalConfigPath,
+      `export default ${JSON.stringify(newConfig)};`
+    );
 
     // Reset static cache to force reload
     ConfigManager.resetConfig();
@@ -100,8 +108,12 @@ describe('ConfigManager', () => {
     const modifiedConfig = {
       maxTurnsPerSession: 999,
       overrideAvailableActions: ['modified'],
+      rendering: { visualOnly: false },
     };
-    fs.writeFileSync(originalConfigPath, JSON.stringify(modifiedConfig));
+    fs.writeFileSync(
+      originalConfigPath,
+      `export default ${JSON.stringify(modifiedConfig)};`
+    );
 
     // Load config second time - should be cached
     const secondConfig = ConfigManager.getConfig();
@@ -118,15 +130,15 @@ describe('ConfigManager', () => {
     expect(firstCall).toBe(secondCall);
   });
 
-  it('loads map generation configuration from config.json', () => {
+  it('loads map generation configuration from engine.config.ts', () => {
     // Use the actual config file
     const config = ConfigManager.getConfig();
 
     expect(config.mapGeneration).toBeDefined();
-    expect(config.mapGeneration?.defaultMapWidth).toBe(25); // From our config.json
-    expect(config.mapGeneration?.defaultMapHeight).toBe(25); // From our config.json
-    expect(config.mapGeneration?.waterFrequency).toBe(0.08); // From our config.json
-    expect(config.mapGeneration?.createRoadsBetweenMaps).toBe(true); // From our config.json
+    expect(config.mapGeneration?.defaultMapWidth).toBe(25); // From our engine.config.ts
+    expect(config.mapGeneration?.defaultMapHeight).toBe(25); // From our engine.config.ts
+    expect(config.mapGeneration?.waterFrequency).toBe(0.08); // From our engine.config.ts
+    expect(config.mapGeneration?.createRoadsBetweenMaps).toBe(true); // From our engine.config.ts
   });
 
   it('gets only map generation configuration', () => {
@@ -138,10 +150,10 @@ describe('ConfigManager', () => {
     expect(mapConfig.createRoadsBetweenMaps).toBe(true);
   });
 
-  it('uses default map generation config when not specified in config.json', () => {
+  it('uses default map generation config when not specified in engine.config.ts', () => {
     // Create a temporary config file without mapGeneration
-    const tempConfigPath = path.resolve('data', 'temp_config.json');
-    const originalConfigPath = path.resolve('data', 'config.json');
+    const tempConfigPath = path.resolve('data', 'temp_config.ts');
+    const originalConfigPath = path.resolve('data', 'engine.config.ts');
 
     if (fs.existsSync(originalConfigPath)) {
       originalConfig = fs.readFileSync(originalConfigPath, 'utf8');
@@ -149,8 +161,14 @@ describe('ConfigManager', () => {
 
     try {
       // Write config without mapGeneration
-      const tempConfig = { maxTurnsPerSession: 15 };
-      fs.writeFileSync(tempConfigPath, JSON.stringify(tempConfig));
+      const tempConfig = {
+        maxTurnsPerSession: 15,
+        rendering: { visualOnly: false },
+      };
+      fs.writeFileSync(
+        tempConfigPath,
+        `export default ${JSON.stringify(tempConfig)};`
+      );
 
       // Rename the files to use our temp config
       if (fs.existsSync(originalConfigPath)) {
@@ -189,9 +207,9 @@ describe('ConfigManager', () => {
     }
   });
 
-  it('handles invalid JSON in config.json gracefully for map generation', () => {
-    const tempConfigPath = path.resolve('data', 'temp_config_invalid.json');
-    const originalConfigPath = path.resolve('data', 'config.json');
+  it('handles invalid engine.config.ts gracefully for map generation', () => {
+    const tempConfigPath = path.resolve('data', 'temp_config_invalid.ts');
+    const originalConfigPath = path.resolve('data', 'engine.config.ts');
 
     if (fs.existsSync(originalConfigPath)) {
       originalConfig = fs.readFileSync(originalConfigPath, 'utf8');
@@ -199,7 +217,7 @@ describe('ConfigManager', () => {
 
     try {
       // Write invalid config
-      fs.writeFileSync(tempConfigPath, '{ invalid json');
+      fs.writeFileSync(tempConfigPath, 'export default { invalid');
 
       // Rename the files to use our invalid config
       if (fs.existsSync(originalConfigPath)) {
