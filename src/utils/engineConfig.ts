@@ -5,6 +5,8 @@ export interface AppConfig {
   maxTurnsPerSession: number;
   /** When true, ignores maxTurnsPerSession and keeps running. */
   runIndefinitely?: boolean;
+  /** When true, requires manual turn advancement; false runs the loop automatically. */
+  manualTurnMode?: boolean;
   /** Restrict available actions to this allowlist (matches action.type). */
   overrideAvailableActions?: string[];
   /** Turns a unit must wait between actions; defaults to 1 when omitted. */

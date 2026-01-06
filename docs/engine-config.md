@@ -29,6 +29,7 @@ import type { FullConfig } from '../src/utils/engineConfig';
 const config: FullConfig = {
   maxTurnsPerSession: 50,
   runIndefinitely: true,
+  manualTurnMode: true,
   cooldownPeriod: 1,
   clearUnitsOnStart: false,
   mapGeneration: { defaultMapWidth: 25, defaultMapHeight: 25 },
@@ -51,6 +52,8 @@ Note: `defineEngineConfig` was removed; use a plain typed object instead.
 ### AppConfig
 - `maxTurnsPerSession` and `runIndefinitely` are read by `GameEngine` to decide
   when to stop the loop.
+- `manualTurnMode` is read by `TakaoImpl` to decide between manual turn
+  advancement and the automatic loop.
 - `cooldownPeriod` gates unit actions in `StoryTeller` and is exposed by
   `GameEngine.getCooldownPeriod()`.
 - `overrideAvailableActions` restricts candidate actions in `StoryTeller`.

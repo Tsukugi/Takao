@@ -57,6 +57,13 @@ const isFullConfig = (value: unknown): value is FullConfig => {
     return false;
   }
 
+  if (
+    value.manualTurnMode !== undefined &&
+    typeof value.manualTurnMode !== 'boolean'
+  ) {
+    return false;
+  }
+
   if (!isRecord(value.rendering)) {
     return false;
   }
@@ -114,6 +121,7 @@ export class ConfigManager {
     return {
       maxTurnsPerSession: 10,
       runIndefinitely: false,
+      manualTurnMode: true,
       cooldownPeriod: 1, // Default: every unit can act each turn (current behavior)
       clearUnitsOnStart: false,
       mapGeneration: {
@@ -191,6 +199,11 @@ export class ConfigManager {
    */
   public static resetConfig(): void {
     this.config = null;
+    const configPath = path.resolve('data', 'engine.config.ts');
+    if (fs.existsSync(configPath)) {
+      const resolvedPath = require.resolve(configPath);
+      delete require.cache[resolvedPath];
+    }
   }
 }
 

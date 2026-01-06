@@ -529,20 +529,35 @@ export class TakaoImpl {
     // Start the separate renderer loop for Maya
     this.startRenderer();
 
-    // Listen for input to advance turns or exit. Even if input is unavailable,
-    // keep the game in manual mode to avoid unexpected auto-turns.
-    const hasInput = this.attachInputHandler();
-    this.gameEngine.startManual();
+    const config = this.gameEngine.getConfig();
+    const manualTurnMode = config.manualTurnMode ?? true;
 
-    if (hasInput) {
-      this.logger.info(
-        'Game started! Press Enter to play a turn, ESC to stop.'
-      );
-    } else {
-      this.logger.warn(
-        'TTY input not available; staying paused in manual mode. Trigger turns programmatically if needed.'
-      );
+    // Listen for input to advance turns or exit. Even if input is unavailable,
+    // keep manual mode enabled when configured to avoid unexpected auto-turns.
+    const hasInput = this.attachInputHandler(manualTurnMode);
+
+    if (manualTurnMode) {
+      this.gameEngine.startManual();
+
+      if (hasInput) {
+        this.logger.info(
+          'Game started! Press Enter to play a turn, ESC to stop.'
+        );
+      } else {
+        this.logger.warn(
+          'TTY input not available; staying paused in manual mode. Trigger turns programmatically if needed.'
+        );
+      }
+      return;
     }
+
+    this.gameEngine.start();
+    if (hasInput) {
+      this.logger.info('Game started in auto mode. Press ESC to stop.');
+      return;
+    }
+
+    this.logger.info('Game started in auto mode.');
   }
 
   /**
@@ -666,13 +681,18 @@ export class TakaoImpl {
   /**
    * Attach input handlers for Enter (advance turn) and ESC (exit) in TTY environments.
    */
-  private attachInputHandler(): boolean {
+  private attachInputHandler(enableManualAdvance: boolean): boolean {
     return this.gameInputController.attachManualControls({
       onExit: () => {
         this.logger.info('ESC pressed, stopping game...');
         this.stop();
       },
-      onAdvance: () => this.handleManualTurnRequest(),
+      onAdvance: () => {
+        if (!enableManualAdvance) {
+          return;
+        }
+        void this.handleManualTurnRequest();
+      },
     });
   }
 
