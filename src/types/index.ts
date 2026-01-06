@@ -1,4 +1,5 @@
 import type { IMapCell, IMapConfig } from '@atsu/choukai';
+import type { IPropertyCollection } from '@atsu/atago';
 
 /**
  * Represents the basic game state interface
@@ -169,6 +170,21 @@ export interface NamesData {
   male?: string[];
   female?: string[];
 }
+
+/**
+ * Represents a unit definition loaded from bestiary data.
+ */
+export interface UnitDefinition {
+  id: string;
+  name: string;
+  type: string;
+  properties: IPropertyCollection;
+}
+
+/**
+ * Represents the structure of beastiary.json.
+ */
+export type BestiaryData = UnitDefinition[];
 
 /**
  * Represents the structure of actions.json

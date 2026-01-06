@@ -60,7 +60,7 @@ describe('TakaoImpl defeated animal handling', () => {
       status: { name: 'status', value: 'alive', baseValue: 'alive' },
     });
 
-    const wolf = new BaseUnit('wolf-1', 'Wolf', 'wolf', {
+    const wolf = new BaseUnit('wolf-1', 'Wolf', 'beast', {
       health: { name: 'health', value: 0, baseValue: 10 },
       resources: { name: 'resources', value: 3, baseValue: 3 },
       faction: {

@@ -2,9 +2,15 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { BaseUnit } from '@atsu/atago';
 import type { World as ChoukaiWorld } from '@atsu/choukai';
-import type { NamesData, ActionsData, DiaryEntry, GoalsData } from '../types';
+import type {
+  NamesData,
+  ActionsData,
+  DiaryEntry,
+  GoalsData,
+  UnitDefinition,
+} from '../types';
 import { WorldSnapshotSerializer } from './WorldSnapshotSerializer';
-import { isUnitPosition } from '../types/typeGuards';
+import { isBestiaryData, isUnitPosition } from '../types/typeGuards';
 import { Logger } from './Logger';
 
 /**
@@ -16,6 +22,10 @@ export class DataManager {
   public static GOALS_FILE = path.join(DataManager.DATA_DIR, 'goals.json');
   public static NAMES_FILE = path.join(DataManager.DATA_DIR, 'names.json');
   public static UNITS_FILE = path.join(DataManager.DATA_DIR, 'units.json');
+  public static BEASTIARY_FILE = path.join(
+    DataManager.DATA_DIR,
+    'beastiary.json'
+  );
   public static DIARY_FILE = path.join(DataManager.DATA_DIR, 'diary.json');
   public static WORLD_FILE = path.join(DataManager.DATA_DIR, 'world.json');
 
@@ -41,6 +51,24 @@ export class DataManager {
 
     const data = fs.readFileSync(this.GOALS_FILE, 'utf-8');
     return JSON.parse(data);
+  }
+
+  /**
+   * Loads bestiary definitions from the beastiary.json file
+   */
+  public static loadBeastiary(): UnitDefinition[] {
+    if (!fs.existsSync(this.BEASTIARY_FILE)) {
+      throw new Error(`Beastiary file not found: ${this.BEASTIARY_FILE}`);
+    }
+
+    const data = fs.readFileSync(this.BEASTIARY_FILE, 'utf-8');
+    const parsed: unknown = JSON.parse(data);
+
+    if (!isBestiaryData(parsed)) {
+      throw new Error('Beastiary file has invalid format');
+    }
+
+    return parsed;
   }
 
   /**

@@ -305,12 +305,7 @@ export class TakaoImpl {
       return;
     }
 
-    const newUnit = await this.unitController.addNewUnit();
-    if (!newUnit) return;
-
-    // Animals don't need unique names; override to a simple label
-    newUnit.name = 'Wolf';
-    newUnit.type = 'wolf';
+    const newUnit = await this.unitController.addUnitFromBeastiary('wolf');
     newUnit.setProperty('faction', 'Wild Animals');
 
     // Relationships: mark as hostile toward all non-Wild Animals
@@ -472,8 +467,8 @@ export class TakaoImpl {
 
   private isWildAnimal(unit: BaseUnit): boolean {
     const faction = unit.getPropertyValue<string>('faction');
-    if (!faction) return unit.type === 'wolf';
-    return faction === 'Wild Animals' || unit.type === 'wolf';
+    if (!faction) return unit.type === 'beast';
+    return faction === 'Wild Animals' || unit.type === 'beast';
   }
 
   private isUnitDead(unit: BaseUnit): boolean {

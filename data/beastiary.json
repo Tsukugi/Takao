@@ -1,0 +1,106 @@
+[
+  {
+    "id": "wolf",
+    "name": "Wolf",
+    "type": "beast",
+    "properties": {
+      "health": {
+        "name": "health",
+        "value": 60,
+        "baseValue": 60
+      },
+      "mana": {
+        "name": "mana",
+        "value": 10,
+        "baseValue": 10
+      },
+      "attack": {
+        "name": "attack",
+        "value": 18,
+        "baseValue": 18
+      },
+      "defense": {
+        "name": "defense",
+        "value": 8,
+        "baseValue": 8
+      },
+      "status": {
+        "name": "status",
+        "value": "alive",
+        "baseValue": "alive"
+      },
+      "maxHealth": {
+        "name": "maxHealth",
+        "value": 60,
+        "baseValue": 60
+      },
+      "maxMana": {
+        "name": "maxMana",
+        "value": 10,
+        "baseValue": 10
+      },
+      "faction": {
+        "name": "faction",
+        "value": "Wild Animals",
+        "baseValue": "Wild Animals"
+      },
+      "diplomacy": {
+        "name": "diplomacy",
+        "value": 0,
+        "baseValue": 0
+      }
+    }
+  },
+  {
+    "id": "goblin",
+    "name": "Goblin",
+    "type": "goblin",
+    "properties": {
+      "health": {
+        "name": "health",
+        "value": 45,
+        "baseValue": 45
+      },
+      "mana": {
+        "name": "mana",
+        "value": 15,
+        "baseValue": 15
+      },
+      "attack": {
+        "name": "attack",
+        "value": 12,
+        "baseValue": 12
+      },
+      "defense": {
+        "name": "defense",
+        "value": 6,
+        "baseValue": 6
+      },
+      "status": {
+        "name": "status",
+        "value": "alive",
+        "baseValue": "alive"
+      },
+      "maxHealth": {
+        "name": "maxHealth",
+        "value": 45,
+        "baseValue": 45
+      },
+      "maxMana": {
+        "name": "maxMana",
+        "value": 15,
+        "baseValue": 15
+      },
+      "faction": {
+        "name": "faction",
+        "value": "Goblins",
+        "baseValue": "Goblins"
+      },
+      "diplomacy": {
+        "name": "diplomacy",
+        "value": -10,
+        "baseValue": -10
+      }
+    }
+  }
+]

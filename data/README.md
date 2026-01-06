@@ -22,6 +22,7 @@ The following template files show the expected structure:
 - `world.template.json` - Shows the structure for world and map data
 - `actions.json` - Defines all possible actions (tracked in Git)
 - `names.json` - Contains names catalog for units (tracked in Git)
+- `beastiary.json` - Defines unit templates for spawning (tracked in Git)
 
 ## File Structures
 
@@ -100,5 +101,21 @@ The following template files show the expected structure:
       }
     }
   ]
+}
+```
+
+### Bestiary Entry Structure
+```json
+{
+  "id": "wolf",
+  "name": "Wolf",
+  "type": "beast",
+  "properties": {
+    "health": {
+      "name": "health",
+      "value": 60,
+      "baseValue": 60
+    }
+  }
 }
 ```

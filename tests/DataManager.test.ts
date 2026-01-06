@@ -9,6 +9,7 @@ const ACTIONS_FILE = path.join(TEST_DATA_DIR, 'actions.json');
 const NAMES_FILE = path.join(TEST_DATA_DIR, 'names.json');
 const UNITS_FILE = path.join(TEST_DATA_DIR, 'units.json');
 const DIARY_FILE = path.join(TEST_DATA_DIR, 'diary.json');
+const BEASTIARY_FILE = path.join(TEST_DATA_DIR, 'beastiary.json');
 
 describe('DataManager', () => {
   beforeEach(() => {
@@ -71,19 +72,33 @@ describe('DataManager', () => {
       },
     ];
 
+    const beastiaryData = [
+      {
+        id: 'wolf',
+        name: 'Wolf',
+        type: 'beast',
+        properties: {
+          health: { name: 'health', value: 60, baseValue: 60 },
+        },
+      },
+    ];
+
     fs.writeFileSync(ACTIONS_FILE, JSON.stringify(actionsData, null, 2));
     fs.writeFileSync(NAMES_FILE, JSON.stringify(namesData, null, 2));
     fs.writeFileSync(UNITS_FILE, JSON.stringify(unitsData, null, 2));
     fs.writeFileSync(DIARY_FILE, JSON.stringify(diaryData, null, 2));
+    fs.writeFileSync(BEASTIARY_FILE, JSON.stringify(beastiaryData, null, 2));
   });
 
   afterEach(() => {
     // Clean up test files
-    [ACTIONS_FILE, NAMES_FILE, UNITS_FILE, DIARY_FILE].forEach(filePath => {
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
+    [ACTIONS_FILE, NAMES_FILE, UNITS_FILE, DIARY_FILE, BEASTIARY_FILE].forEach(
+      filePath => {
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
       }
-    });
+    );
 
     if (fs.existsSync(TEST_DATA_DIR)) {
       fs.rmdirSync(TEST_DATA_DIR, { recursive: true });
@@ -161,6 +176,32 @@ describe('DataManager', () => {
 
     // Restore original path
     DataManager.DIARY_FILE = originalDiaryFile;
+  });
+
+  it('loads bestiary entries from JSON file correctly', () => {
+    const originalBestiaryFile = DataManager.BEASTIARY_FILE;
+    DataManager.BEASTIARY_FILE = BEASTIARY_FILE;
+
+    const bestiary = DataManager.loadBeastiary();
+
+    expect(bestiary).toHaveLength(1);
+    expect(bestiary[0].id).toBe('wolf');
+    expect(bestiary[0].properties.health.value).toBe(60);
+
+    DataManager.BEASTIARY_FILE = originalBestiaryFile;
+  });
+
+  it('throws when bestiary file contents are invalid', () => {
+    const originalBestiaryFile = DataManager.BEASTIARY_FILE;
+    DataManager.BEASTIARY_FILE = BEASTIARY_FILE;
+
+    fs.writeFileSync(BEASTIARY_FILE, JSON.stringify({ bad: true }, null, 2));
+
+    expect(() => DataManager.loadBeastiary()).toThrow(
+      'Beastiary file has invalid format'
+    );
+
+    DataManager.BEASTIARY_FILE = originalBestiaryFile;
   });
 
   it('gets last turn number from diary correctly', () => {

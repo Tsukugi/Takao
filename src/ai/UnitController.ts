@@ -1,8 +1,16 @@
 // Import types from the Atago library
 import { BaseUnit } from '@atsu/atago';
+import type { IPropertyCollection } from '@atsu/atago';
 import { DataManager } from '../utils/DataManager';
-import type { GameState, NamesData } from '../types';
+import type { GameState, NamesData, UnitDefinition } from '../types';
 import { randomUUID } from 'crypto';
+
+interface BestiarySpawnOptions {
+  id?: string;
+  name?: string;
+  type?: string;
+  properties?: IPropertyCollection;
+}
 
 /**
  * Represents the Unit controller that connects to the Atago library
@@ -14,6 +22,7 @@ export class UnitController {
   private gameUnits: BaseUnit[] = [];
   private namesCatalog: NamesData = {};
   private readonly defaultFaction = 'Neutral';
+  private bestiaryIndex: Map<string, UnitDefinition> = new Map();
 
   /**
    * Initializes the Unit controller with the game state
@@ -21,6 +30,7 @@ export class UnitController {
   public async initialize(gameState: GameState): Promise<void> {
     this.gameState = gameState;
     this.namesCatalog = DataManager.loadNames();
+    this.loadBestiary();
     this.initialized = true;
     console.log('Unit Controller initialized');
 
@@ -99,6 +109,47 @@ export class UnitController {
         `Initialized ${this.gameUnits.length} new game units with Atago library`
       );
     }
+  }
+
+  /**
+   * Loads the bestiary entries and prepares a lookup map.
+   */
+  private loadBestiary(): void {
+    const entries = DataManager.loadBeastiary();
+    const index = new Map<string, UnitDefinition>();
+
+    for (const entry of entries) {
+      if (index.has(entry.id)) {
+        throw new Error(`Duplicate beastiary entry id: ${entry.id}`);
+      }
+      index.set(entry.id, entry);
+    }
+
+    this.bestiaryIndex = index;
+  }
+
+  private clonePropertyCollection(
+    properties: IPropertyCollection
+  ): IPropertyCollection {
+    const cloned: IPropertyCollection = {};
+
+    for (const [key, property] of Object.entries(properties)) {
+      cloned[key] = {
+        name: property.name,
+        value: structuredClone(property.value),
+        ...(property.baseValue !== undefined
+          ? { baseValue: structuredClone(property.baseValue) }
+          : {}),
+        ...(property.modifiers !== undefined
+          ? { modifiers: structuredClone(property.modifiers) }
+          : {}),
+        ...(property.readonly !== undefined
+          ? { readonly: property.readonly }
+          : {}),
+      };
+    }
+
+    return cloned;
   }
 
   /**
@@ -225,6 +276,45 @@ export class UnitController {
     console.log(`New unit ${newUnitName} (${newUnit.id}) has joined the game!`);
 
     // Save the updated units to the data manager
+    DataManager.saveUnits(this.gameUnits);
+
+    return newUnit;
+  }
+
+  /**
+   * Adds a new unit based on a bestiary definition.
+   */
+  public async addUnitFromBeastiary(
+    templateId: string,
+    options: BestiarySpawnOptions = {}
+  ): Promise<BaseUnit> {
+    if (this.bestiaryIndex.size === 0) {
+      throw new Error('Bestiary not loaded; initialize the controller first.');
+    }
+
+    const template = this.bestiaryIndex.get(templateId);
+    if (!template) {
+      throw new Error(`Beastiary entry not found: ${templateId}`);
+    }
+
+    const properties = this.clonePropertyCollection(template.properties);
+    if (options.properties) {
+      const overrideProperties = this.clonePropertyCollection(
+        options.properties
+      );
+      for (const [key, property] of Object.entries(overrideProperties)) {
+        properties[key] = property;
+      }
+    }
+
+    const unitId = options.id ?? randomUUID();
+    const name = options.name ?? template.name;
+    const type = options.type ?? template.type;
+    const newUnit = new BaseUnit(unitId, name, type, properties);
+
+    this.gameUnits.push(newUnit);
+    this.ensureFaction(newUnit);
+    this.ensureDiplomacy(newUnit);
     DataManager.saveUnits(this.gameUnits);
 
     return newUnit;

@@ -4,6 +4,18 @@ import { UnitController } from '../src/ai/UnitController';
 import { DataManager } from '../src/utils/DataManager';
 import { GameState } from '../src/types';
 
+const mockBestiary = [
+  {
+    id: 'wolf',
+    name: 'Wolf',
+    type: 'beast',
+    properties: {
+      health: { name: 'health', value: 60, baseValue: 60 },
+      status: { name: 'status', value: 'alive', baseValue: 'alive' },
+    },
+  },
+];
+
 // Mock the Atago library
 vi.mock('@atsu/atago', async () => {
   return {
@@ -77,7 +89,9 @@ vi.mock('../src/utils/DataManager', async () => {
         male: ['WarriorName', 'BraveWarrior'],
         female: ['ArcherName', 'SwiftArcher'],
       })),
+      loadBeastiary: vi.fn(() => mockBestiary),
       loadUnits: vi.fn(() => []),
+      saveUnits: vi.fn(() => undefined),
       ensureDataDirectory: vi.fn(),
     },
   };
@@ -93,6 +107,7 @@ describe('UnitController', () => {
       male: ['WarriorName', 'BraveWarrior'],
       female: ['ArcherName', 'SwiftArcher'],
     });
+    (DataManager.loadBeastiary as any).mockReturnValue(mockBestiary);
     (DataManager.loadUnits as any).mockReturnValue([]);
 
     unitController = new UnitController();
@@ -180,6 +195,39 @@ describe('UnitController', () => {
 
     // Should not throw and should complete without errors
     expect(unitController.getInitialized()).toBe(true);
+  });
+
+  it('creates units from bestiary entries', async () => {
+    const gameState = { turn: 0, players: [] };
+    await unitController.initialize(gameState);
+
+    const unit = await unitController.addUnitFromBeastiary('wolf', {
+      name: 'Alpha Wolf',
+    });
+
+    expect(unit.name).toBe('Alpha Wolf');
+    expect(unit.type).toBe('beast');
+    expect(unit.getPropertyValue('health')).toBe(60);
+    expect(unitController.getUnits()).toContain(unit);
+  });
+
+  it('does not mutate bestiary templates when spawning units', async () => {
+    const gameState = { turn: 0, players: [] };
+    await unitController.initialize(gameState);
+
+    const unit = await unitController.addUnitFromBeastiary('wolf');
+    unit.setProperty('health', 10);
+
+    expect(mockBestiary[0].properties.health.value).toBe(60);
+  });
+
+  it('throws when spawning from missing bestiary entry', async () => {
+    const gameState = { turn: 0, players: [] };
+    await unitController.initialize(gameState);
+
+    await expect(
+      unitController.addUnitFromBeastiary('missing')
+    ).rejects.toThrow('Beastiary entry not found: missing');
   });
 
   it('generates random names from catalog by type', () => {
