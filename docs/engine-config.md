@@ -21,20 +21,24 @@ Notes:
   defaults are used.
 
 ## Type-Safe Configuration
-Use `defineEngineConfig` for IntelliSense and type checking:
+Use a typed config object for IntelliSense and type checking:
 
 ```ts
-import { defineEngineConfig } from '../src/utils/engineConfig';
+import type { FullConfig } from '../src/utils/engineConfig';
 
-export default defineEngineConfig({
+const config: FullConfig = {
   maxTurnsPerSession: 50,
   runIndefinitely: true,
   cooldownPeriod: 1,
   clearUnitsOnStart: false,
   mapGeneration: { defaultMapWidth: 25, defaultMapHeight: 25 },
   rendering: { visualOnly: false },
-});
+};
+
+export default config;
 ```
+
+Note: `defineEngineConfig` was removed; use a plain typed object instead.
 
 ## Defaults and Merging
 - `ConfigManager.getDefaultConfig()` defines the fallback values.

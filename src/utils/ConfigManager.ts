@@ -9,13 +9,16 @@ let tsNodeRegistered = false;
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   value !== null && typeof value === 'object';
 
+interface TsNodeRegisterOptions {
+  transpileOnly: boolean;
+  compilerOptions: Record<string, unknown>;
+  moduleTypes?: Record<string, 'cjs' | 'esm' | 'package'>;
+}
+
 const hasRegister = (
   value: unknown
 ): value is {
-  register: (options: {
-    transpileOnly: boolean;
-    compilerOptions: { module: string };
-  }) => void;
+  register: (options: TsNodeRegisterOptions) => void;
 } => isRecord(value) && typeof value.register === 'function';
 
 const registerTsNode = (): void => {
@@ -28,12 +31,17 @@ const registerTsNode = (): void => {
     if (!hasRegister(tsNodeModule)) {
       throw new Error('ts-node does not expose a register function');
     }
-    tsNodeModule.register({
+    const registerOptions: TsNodeRegisterOptions = {
       transpileOnly: true,
       compilerOptions: {
         module: 'CommonJS',
+        moduleResolution: 'node',
       },
-    });
+      moduleTypes: {
+        '**/engine.config.ts': 'cjs',
+      },
+    };
+    tsNodeModule.register(registerOptions);
     tsNodeRegistered = true;
   } catch (error) {
     console.warn('ts-node is required to load engine.config.ts', error);
@@ -186,7 +194,6 @@ export class ConfigManager {
   }
 }
 
-export { defineEngineConfig } from './engineConfig';
 export type {
   FullConfig,
   MapGenerationConfig,

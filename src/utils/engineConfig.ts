@@ -102,5 +102,3 @@ export interface FullConfig extends AppConfig {
   /** Rendering settings consumed by Maya and logger configuration. */
   rendering: MayaRenderingConfig;
 }
-
-export const defineEngineConfig = (config: FullConfig): FullConfig => config;
