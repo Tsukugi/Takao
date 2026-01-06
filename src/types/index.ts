@@ -199,6 +199,7 @@ export interface DiaryEntry {
 export interface ActionProcessingResult {
   success: boolean;
   errorMessage?: string;
+  failureType?: 'range' | 'error';
 }
 
 /**

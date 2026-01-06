@@ -16,11 +16,19 @@ interface GoalCandidate {
   reason?: string;
 }
 
+interface GoalActionCandidate {
+  goal: GoalDefinition;
+  score: number;
+  reason: string;
+  actions: Action[];
+}
+
 interface GoalChoice {
   goal: GoalDefinition;
   action: Action | null;
   candidateActions: Action[];
   reason: string;
+  goalCandidates: GoalActionCandidate[];
 }
 
 /**
@@ -39,18 +47,30 @@ export class GoalSystem {
       (a, b) => b.score - a.score
     );
 
-    for (const candidate of evaluatedGoals) {
-      const actionsForGoal = this.getActionsForGoal(
-        candidate.goal,
-        context.availableActions
-      );
-      if (actionsForGoal.length > 0) {
-        const chosenAction = actionsForGoal[0] ?? null;
+    const goalCandidates: GoalActionCandidate[] = evaluatedGoals.map(
+      candidate => {
+        const actionsForGoal = this.getActionsForGoal(
+          candidate.goal,
+          context.availableActions
+        );
+        return {
+          goal: candidate.goal,
+          score: candidate.score,
+          reason: candidate.reason ?? 'Fulfilled goal criteria',
+          actions: actionsForGoal,
+        };
+      }
+    );
+
+    for (const candidate of goalCandidates) {
+      if (candidate.actions.length > 0) {
+        const chosenAction = candidate.actions[0] ?? null;
         return {
           goal: candidate.goal,
           action: chosenAction,
-          candidateActions: actionsForGoal,
-          reason: candidate.reason ?? 'Scored goal',
+          candidateActions: candidate.actions,
+          reason: candidate.reason,
+          goalCandidates,
         };
       }
     }
@@ -69,6 +89,7 @@ export class GoalSystem {
       action: fallbackAction,
       candidateActions: context.availableActions,
       reason: evaluatedGoals[0]?.reason ?? 'Fallback selection',
+      goalCandidates,
     };
   }
 

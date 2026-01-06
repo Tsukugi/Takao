@@ -120,24 +120,51 @@ export class StoryTeller {
     let storyAction: ExecutedAction =
       this.actionProcessor.getDefaultExecutedAction(actor, turn, safeContext);
 
+    const finalizeAction = async (
+      candidate: ExecutedAction
+    ): Promise<ExecutedAction> => {
+      await this.applyPlannedMove(candidate);
+      actor.setProperty('lastActionTurn', turn);
+      return candidate;
+    };
+
     for (const candidate of actionCandidates) {
       const result = await this.actionProcessor.executeActionEffect(
         candidate.action,
         units
       );
       if (result.success) {
-        await this.applyPlannedMove(candidate);
+        storyAction = await finalizeAction(candidate);
+        break;
+      }
 
-        storyAction = candidate;
-
-        // Mark that this unit acted this turn
-        actor.setProperty('lastActionTurn', turn);
+      const movedTowardsTarget =
+        Boolean(candidate.action.payload?.movedTowardsTarget) &&
+        result.failureType === 'range';
+      if (movedTowardsTarget) {
+        this.logger.info(
+          `Action ${candidate.action.type} could not execute; applying planned move instead`
+        );
+        storyAction = await finalizeAction(candidate);
         break;
       }
 
       this.logger.warn(
         `Action ${candidate.action.type} failed (${result.errorMessage || 'unknown reason'}), trying next candidate`
       );
+
+      if (candidate.action.payload?.movedTowardsTarget) {
+        const targetId = candidate.action.payload?.targetUnit;
+        const targetIdValue =
+          typeof targetId === 'string' ? targetId : undefined;
+        const targetUnit = targetIdValue
+          ? units.find(unit => unit.id === targetIdValue)
+          : undefined;
+        const targetLabel = this.formatUnitLabel(targetUnit, targetIdValue);
+        this.logger.info(
+          `Planned move toward ${targetLabel} skipped because ${candidate.action.type} failed`
+        );
+      }
     }
 
     // Handle new units if any were created
@@ -211,30 +238,14 @@ export class StoryTeller {
     // If no units exist, create a default action
     if (units.length === 0) {
       // Return a default narrative action instead of throwing
-      const defaultActor = new BaseUnit(
-        'default-unit',
-        'DefaultUnit',
-        'unknown',
-        {}
-      );
-      return {
-        actor: defaultActor,
-        executions: [
-          this.actionProcessor.getDefaultExecutedAction(defaultActor, turn),
-        ],
-      };
+      return this.buildDefaultStory(turn);
     }
 
     // Filter out dead units - only consider alive units for taking actions
     const aliveUnits = units.filter(unit => this.isUnitAlive(unit));
 
     if (forcedActor && !this.isUnitAlive(forcedActor)) {
-      return {
-        actor: forcedActor,
-        executions: [
-          this.actionProcessor.getDefaultExecutedAction(forcedActor, turn),
-        ],
-      };
+      return this.buildDefaultStory(turn, forcedActor);
     }
 
     // Filter units by cooldown - units can only act once every few turns
@@ -256,15 +267,7 @@ export class StoryTeller {
 
     // If no alive units exist, return a default action
     if (aliveUnits.length === 0) {
-      return {
-        actor: new BaseUnit('default-unit', 'DefaultUnit', 'unknown', {}),
-        executions: [
-          this.actionProcessor.getDefaultExecutedAction(
-            new BaseUnit('default-unit', 'DefaultUnit', 'unknown', {}),
-            turn
-          ),
-        ],
-      };
+      return this.buildDefaultStory(turn);
     }
 
     // Choose a random alive unit to center the story around
@@ -280,10 +283,60 @@ export class StoryTeller {
       turn,
     });
 
+    const goalCandidates = goalChoice.goalCandidates ?? [];
+
+    if (goalCandidates.length > 0) {
+      this.logger.info(
+        `Goal evaluation for ${this.formatUnitLabel(randomUnit)} (turn ${turn}):`
+      );
+      for (const candidate of goalCandidates) {
+        const goalLabel = candidate.goal.label
+          ? `${candidate.goal.label} (${candidate.goal.id})`
+          : candidate.goal.id;
+        const actionList =
+          candidate.actions.length > 0
+            ? candidate.actions.map(action => action.type).join(', ')
+            : 'none';
+        this.logger.info(
+          `  ${goalLabel} score ${candidate.score}: ${candidate.reason}. Actions: ${actionList}`
+        );
+      }
+    } else {
+      this.logger.info(
+        `Goal evaluation for ${this.formatUnitLabel(randomUnit)} (turn ${turn}): no scored goals`
+      );
+    }
+
+    const chosenActionType = goalChoice.action?.type ?? 'none';
+    if (goalChoice.goal) {
+      const chosenGoalLabel = goalChoice.goal.label
+        ? `${goalChoice.goal.label} (${goalChoice.goal.id})`
+        : goalChoice.goal.id;
+      this.logger.info(
+        `Goal selection: ${chosenGoalLabel} -> ${chosenActionType} (${goalChoice.reason ?? 'no reason'})`
+      );
+    } else {
+      this.logger.info(
+        `Goal selection: none -> ${chosenActionType} (${goalChoice.reason ?? 'no reason'})`
+      );
+    }
+
     const prioritizedActions =
       goalChoice?.candidateActions && goalChoice.candidateActions.length > 0
         ? goalChoice.candidateActions
         : availableActions;
+
+    const prioritizedActionTypes =
+      prioritizedActions.length > 0
+        ? prioritizedActions.map(action => action.type).join(', ')
+        : 'none';
+    const hasGoalActions = goalCandidates.some(
+      candidate => candidate.actions.length > 0
+    );
+    const prioritizedSource = hasGoalActions ? 'goal' : 'fallback';
+    this.logger.info(
+      `Prioritized actions (${prioritizedSource}): ${prioritizedActionTypes}`
+    );
 
     const executions: ExecutedAction[] = [];
 
@@ -322,6 +375,11 @@ export class StoryTeller {
   ): Promise<ExecutedAction | null> {
     const targetUnit = this.selectTargetForAction(unit, actionDef, units);
     if (this.requiresTarget(actionDef.type) && !targetUnit) {
+      this.logger.info(
+        `Skipping action ${actionDef.type} for ${this.formatUnitLabel(
+          unit
+        )}: no valid target`
+      );
       return null;
     }
 
@@ -514,7 +572,25 @@ export class StoryTeller {
         payload.unitId = unit.id;
         payload.mapId = unitPos.mapId;
         payload.position = new Position(nextStep.x, nextStep.y);
+
+        this.logger.info(
+          `Planned move for ${this.formatUnitLabel(unit)} -> ${this.formatUnitLabel(
+            targetUnit
+          )} (${actionDef.type}): distance ${distance} > range ${actionRange}, step to (${nextStep.x}, ${nextStep.y})`
+        );
+      } else {
+        this.logger.warn(
+          `Unable to plan move for ${this.formatUnitLabel(
+            unit
+          )} toward ${this.formatUnitLabel(targetUnit)} (${actionDef.type}): missing position data`
+        );
       }
+    } else {
+      this.logger.info(
+        `Target already in range for ${this.formatUnitLabel(unit)} -> ${this.formatUnitLabel(
+          targetUnit
+        )} (${actionDef.type}): distance ${distance} <= range ${actionRange}`
+      );
     }
 
     return { payload, movedTowardsTarget: Boolean(payload.movedTowardsTarget) };
@@ -611,6 +687,23 @@ export class StoryTeller {
       return unitId;
     }
     return 'unknown unit';
+  }
+
+  private createDefaultActor(): BaseUnit {
+    return new BaseUnit('default-unit', 'DefaultUnit', 'unknown', {});
+  }
+
+  private buildDefaultStory(
+    turn: number,
+    actor?: BaseUnit
+  ): { executions: ExecutedAction[]; actor: BaseUnit } {
+    const resolvedActor = actor ?? this.createDefaultActor();
+    return {
+      actor: resolvedActor,
+      executions: [
+        this.actionProcessor.getDefaultExecutedAction(resolvedActor, turn),
+      ],
+    };
   }
 
   /**

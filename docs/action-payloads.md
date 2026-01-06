@@ -33,6 +33,7 @@ When building an `ExecutedAction`, `StoryTeller` (`src/core/StoryTeller.ts`) lay
 ## Range handling
 - `ActionProcessor.getActionRange` reads `payload.range` when numeric; otherwise defaults to `1`.
 - Range is used for distance checks and for deciding whether to plan a step toward the target.
+- If a step is planned and the action fails specifically due to range, `StoryTeller` applies the planned move and ends the turn with that movement.
 
 ## Example (attack)
 ```json

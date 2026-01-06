@@ -144,6 +144,7 @@ export class ActionProcessor {
           return {
             success: false,
             errorMessage: rangeValidationResult.errorMessage,
+            failureType: 'range',
           };
         } else if (!rangeValidationResult.isValid) {
           // If validation failed but no specific error message, return a generic failure
@@ -153,6 +154,7 @@ export class ActionProcessor {
           return {
             success: false,
             errorMessage: `Range validation failed for action ${action.type}`,
+            failureType: 'range',
           };
         }
       }
@@ -164,7 +166,11 @@ export class ActionProcessor {
 
       return { success: true };
     } catch (error) {
-      return { success: false, errorMessage: (error as Error).message };
+      return {
+        success: false,
+        errorMessage: (error as Error).message,
+        failureType: 'error',
+      };
     }
   }
 
