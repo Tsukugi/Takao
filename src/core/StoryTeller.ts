@@ -468,6 +468,9 @@ export class StoryTeller {
       candidateTargets = aliveTargets.filter(u =>
         RelationshipHelper.isHostile(unit, u)
       );
+      if (candidateTargets.length === 0) {
+        return null;
+      }
     } else if (this.requiresAllyTarget(actionDef.type)) {
       candidateTargets = aliveTargets.filter(u =>
         RelationshipHelper.isAlly(unit, u)

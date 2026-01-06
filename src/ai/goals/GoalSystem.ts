@@ -190,7 +190,23 @@ export class GoalSystem {
     if (!units || units.length === 0) return true; // Unknown context: allow attack goal
     return units.some(
       other =>
-        other.id !== actor.id && RelationshipHelper.isHostile(actor, other)
+        other.id !== actor.id &&
+        this.isUnitAlive(other) &&
+        RelationshipHelper.isHostile(actor, other)
     );
+  }
+
+  private isUnitAlive(unit: BaseUnit): boolean {
+    const status = unit.getPropertyValue<string>('status');
+    if (status === 'dead') {
+      return false;
+    }
+
+    const healthValue = unit.getPropertyValue<number>('health');
+    if (!healthValue || healthValue <= 0) {
+      return false;
+    }
+
+    return true;
   }
 }
