@@ -562,7 +562,7 @@ export class TakaoImpl {
 
     // Show gate connections
     this.logger.info('\nGate Connections:');
-    const allGates = this.storyTeller.getAllGates();
+    const allGates = this.storyTeller.getWorldManager().getAllGates();
     for (const gate of allGates) {
       this.logger.info(
         `  ${gate.name}: ${gate.mapFrom}(${gate.positionFrom.x},${gate.positionFrom.y}) <-> ${gate.mapTo}(${gate.positionTo.x},${gate.positionTo.y})`

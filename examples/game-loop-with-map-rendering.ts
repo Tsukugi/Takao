@@ -27,7 +27,7 @@ async function runGameLoopWithMapRendering() {
   world.addMap(map2);
 
   // Add gates between maps
-  storyTeller.addGate({
+  storyTeller.getWorldManager().addGate({
     mapFrom: 'MainLand',
     positionFrom: { x: 0, y: 5 },
     mapTo: 'Forest',

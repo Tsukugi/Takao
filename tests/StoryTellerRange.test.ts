@@ -114,7 +114,8 @@ describe('StoryTeller range-aware movement logging', () => {
     (unitController as any).gameUnits = [attacker, target];
 
     const storyTeller = new StoryTeller(unitController, world);
-    const moveSpy = vi.spyOn(storyTeller, 'moveUnitToPosition');
+    const worldManager = storyTeller.getWorldManager();
+    const moveSpy = vi.spyOn(worldManager, 'moveUnitToPosition');
 
     const customAction = {
       type: 'attack',

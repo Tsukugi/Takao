@@ -5,21 +5,21 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { StoryTeller } from '../src/core/StoryTeller';
 import { UnitController } from '../src/ai/UnitController';
-import { GateSystem } from '../src/utils/GateSystem';
 
 describe('StoryTeller Gate System', () => {
   let storyTeller: StoryTeller;
   let unitController: UnitController;
+  let worldManager: ReturnType<StoryTeller['getWorldManager']>;
 
   beforeEach(async () => {
     unitController = new UnitController();
     await unitController.initialize({ turn: 0 });
     storyTeller = new StoryTeller(unitController);
+    worldManager = storyTeller.getWorldManager();
   });
 
   it('should initialize with a GateSystem', () => {
-    expect(storyTeller['gateSystem']).toBeDefined();
-    expect(storyTeller['gateSystem']).toBeInstanceOf(GateSystem);
+    expect(worldManager).toBeDefined();
   });
 
   it('should add and manage gates', () => {
@@ -32,15 +32,15 @@ describe('StoryTeller Gate System', () => {
       bidirectional: true,
     };
 
-    const success = storyTeller.addGate(gate);
+    const success = worldManager.addGate(gate);
     expect(success).toBe(true);
 
     // Verify that the gate was added
-    const hasGate = storyTeller.hasGate('Map1', 5, 5);
+    const hasGate = worldManager.hasGate('Map1', 5, 5);
     expect(hasGate).toBe(true);
 
     // Verify that the gate destination is correct
-    const destination = storyTeller.getGateDestination('Map1', 5, 5);
+    const destination = worldManager.getGateDestination('Map1', 5, 5);
     expect(destination).toBeDefined();
     expect(destination!.mapTo).toBe('Map2');
     expect(destination!.positionTo.x).toBe(3);
@@ -57,16 +57,16 @@ describe('StoryTeller Gate System', () => {
       bidirectional: true,
     };
 
-    const success = storyTeller.addGate(gate);
+    const success = worldManager.addGate(gate);
     expect(success).toBe(true);
 
     // Check forward gate
-    const forwardDest = storyTeller.getGateDestination('MapA', 0, 0);
+    const forwardDest = worldManager.getGateDestination('MapA', 0, 0);
     expect(forwardDest).toBeDefined();
     expect(forwardDest!.mapTo).toBe('MapB');
 
     // Check reverse gate exists
-    const reverseDest = storyTeller.getGateDestination('MapB', 9, 9);
+    const reverseDest = worldManager.getGateDestination('MapB', 9, 9);
     expect(reverseDest).toBeDefined();
     expect(reverseDest!.mapTo).toBe('MapA');
   });
@@ -81,19 +81,19 @@ describe('StoryTeller Gate System', () => {
       bidirectional: false,
     };
 
-    const addSuccess = storyTeller.addGate(gate);
+    const addSuccess = worldManager.addGate(gate);
     expect(addSuccess).toBe(true);
 
     // Verify gate exists
-    const hasGateBefore = storyTeller.hasGate('TestMap', 2, 2);
+    const hasGateBefore = worldManager.hasGate('TestMap', 2, 2);
     expect(hasGateBefore).toBe(true);
 
     // Remove the gate
-    const removeSuccess = storyTeller.removeGate('ToRemove');
+    const removeSuccess = worldManager.removeGate('ToRemove');
     expect(removeSuccess).toBe(true);
 
     // Verify gate no longer exists
-    const hasGateAfter = storyTeller.hasGate('TestMap', 2, 2);
+    const hasGateAfter = worldManager.hasGate('TestMap', 2, 2);
     expect(hasGateAfter).toBe(false);
   });
 
@@ -116,10 +116,10 @@ describe('StoryTeller Gate System', () => {
       bidirectional: false,
     };
 
-    storyTeller.addGate(gate1);
-    storyTeller.addGate(gate2);
+    worldManager.addGate(gate1);
+    worldManager.addGate(gate2);
 
-    const gatesForMap = storyTeller.getGatesForMap('SourceMap');
+    const gatesForMap = worldManager.getGatesForMap('SourceMap');
     expect(gatesForMap.length).toBe(2);
     expect(gatesForMap.some(g => g.name === 'Gate1')).toBe(true);
     expect(gatesForMap.some(g => g.name === 'Gate2')).toBe(true);
@@ -135,8 +135,8 @@ describe('StoryTeller Gate System', () => {
       bidirectional: true,
     };
 
-    storyTeller.addGate(gate);
-    const allGates = storyTeller.getAllGates();
+    worldManager.addGate(gate);
+    const allGates = worldManager.getAllGates();
 
     // Should have both forward and reverse gates due to bidirectional
     expect(allGates.length).toBe(2);
@@ -145,7 +145,7 @@ describe('StoryTeller Gate System', () => {
   });
 
   it('should return undefined for nonexistent gates', () => {
-    const destination = storyTeller.getGateDestination('NonexistentMap', 0, 0);
+    const destination = worldManager.getGateDestination('NonexistentMap', 0, 0);
     expect(destination).toBeUndefined();
   });
 });
