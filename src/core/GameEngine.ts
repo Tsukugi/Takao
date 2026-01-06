@@ -85,8 +85,10 @@ export class GameEngine {
     this.props.onStart();
 
     // Adjust logger based on visual-only mode
-    const isVisualOnlyMode = ConfigManager.getConfig().rendering.visualOnly;
-    this.logger.setProps({ disable: isVisualOnlyMode });
+    const renderingConfig = ConfigManager.getConfig().rendering;
+    const disableLogger =
+      renderingConfig.visualOnly && renderingConfig.showConsole !== true;
+    this.logger.setProps({ disable: disableLogger });
   }
 
   /**

@@ -4,18 +4,23 @@
  * Uses GameEngine internally for turn management and world saving
  */
 
-import { renderGame, type IGameRendererConfig } from '@atsu/maya';
+import {
+  renderGame,
+  type IGameRendererConfig,
+  type ConsoleEntry,
+} from '@atsu/maya';
 import { World, Position, Map as ChoukaiMap } from '@atsu/choukai';
 import type { BaseUnit, IUnitPosition } from '@atsu/atago';
 import { GameInputController, InputManager } from '@atsu/noshiro';
 import { GameEngine } from './core/GameEngine';
 import { StoryTeller } from './core/StoryTeller';
 import { UnitController } from './ai/UnitController';
-import { Logger } from './utils/Logger';
+import { Logger, type LogEntry } from './utils/Logger';
 import { MapGenerator } from './utils/MapGenerator';
 import { isUnitPosition } from './types/typeGuards';
 import type { Action, ActionPayload, DiaryEntry } from './types';
 import { targetFromPayload } from './utils/TargetUtils';
+import { ConfigManager } from './utils/ConfigManager';
 
 export class TakaoImpl {
   private gameEngine: GameEngine;
@@ -29,8 +34,11 @@ export class TakaoImpl {
   private isRunning: boolean = false;
   private processedDeadUnits: Set<string> = new Set();
   private lastDiaryIndex: number = 0;
+  private consoleEntries: ConsoleEntry[] = [];
+  private consoleEntryLimit: number = 200;
 
   constructor() {
+    this.configureConsoleLogging();
     this.gameEngine = new GameEngine({
       onTurnStart: this.runTurn.bind(this),
       onTurnEnd: this.afterTurn.bind(this),
@@ -46,16 +54,50 @@ export class TakaoImpl {
     return this.gameEngine.getStoryTeller();
   }
 
+  private configureConsoleLogging(): void {
+    const renderingConfig = ConfigManager.getConfig().rendering;
+    const showConsole = renderingConfig.showConsole !== false;
+    this.consoleEntryLimit = renderingConfig.consoleMaxEntries ?? 200;
+
+    if (showConsole) {
+      Logger.setConsoleEnabled(false);
+      Logger.setOutputHandler(entry => this.captureLogEntry(entry));
+      return;
+    }
+
+    Logger.setConsoleEnabled(true);
+    Logger.setOutputHandler(undefined);
+  }
+
+  private captureLogEntry(entry: LogEntry): void {
+    const consoleEntry: ConsoleEntry = {
+      timestamp: entry.timestamp,
+      level: entry.level,
+      message: entry.message,
+      ...(entry.prefix ? { prefix: entry.prefix } : {}),
+    };
+
+    this.consoleEntries.push(consoleEntry);
+
+    const overflow = this.consoleEntries.length - this.consoleEntryLimit;
+    if (overflow > 0) {
+      this.consoleEntries.splice(0, overflow);
+    }
+  }
+
   /**
    * Initialize the game with initial setup
    */
   public async initialize(): Promise<void> {
+    this.configureConsoleLogging();
     // Initialize the underlying game engine
     await this.gameEngine.initialize({ turn: 0 });
     this.logger.info('Initializing Takao Engine...');
     this.logger = new Logger({
       prefix: 'TakaoImpl',
-      disable: this.gameEngine.getConfig().rendering.visualOnly,
+      disable:
+        this.gameEngine.getConfig().rendering.visualOnly &&
+        this.gameEngine.getConfig().rendering.showConsole !== true,
     });
     this.inputManager = new InputManager({ logger: this.logger });
     this.gameInputController = new GameInputController(this.inputManager);
@@ -348,10 +390,28 @@ export class TakaoImpl {
         ...(config.rendering.diaryTitle !== undefined && {
           diaryTitle: config.rendering.diaryTitle,
         }),
+        ...(config.rendering.showConsole !== undefined && {
+          showConsole: config.rendering.showConsole,
+        }),
+        ...(config.rendering.consoleMaxHeight !== undefined && {
+          consoleMaxHeight: config.rendering.consoleMaxHeight,
+        }),
+        ...(config.rendering.consoleMaxEntries !== undefined && {
+          consoleMaxEntries: config.rendering.consoleMaxEntries,
+        }),
+        ...(config.rendering.consoleTitle !== undefined && {
+          consoleTitle: config.rendering.consoleTitle,
+        }),
       };
 
       try {
-        renderGame(world, unitsMap, rendererConfig, diaryEntries);
+        renderGame(
+          world,
+          unitsMap,
+          rendererConfig,
+          diaryEntries,
+          this.consoleEntries
+        );
       } catch {
         this.logger.error('\nNo maps to render.');
       }
@@ -541,21 +601,16 @@ export class TakaoImpl {
       const rendererConfig = {
         selectedMap: firstMap?.name,
         showUnitPositions: !isVisualOnlyMode,
-        ...(config.rendering.showDiary !== undefined && {
-          showDiary: config.rendering.showDiary,
-        }),
-        ...(config.rendering.diaryMaxHeight !== undefined && {
-          diaryMaxHeight: config.rendering.diaryMaxHeight,
-        }),
-        ...(config.rendering.diaryMaxEntries !== undefined && {
-          diaryMaxEntries: config.rendering.diaryMaxEntries,
-        }),
-        ...(config.rendering.diaryTitle !== undefined && {
-          diaryTitle: config.rendering.diaryTitle,
-        }),
+        ...config.rendering,
       };
 
-      renderGame(world, unitsMap, rendererConfig, diaryEntries);
+      renderGame(
+        world,
+        unitsMap,
+        rendererConfig,
+        diaryEntries,
+        this.consoleEntries
+      );
     } catch {
       this.logger.error('\nNo maps to render.');
     }

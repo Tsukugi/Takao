@@ -56,6 +56,10 @@ export interface MayaRenderingConfig {
   diaryMaxHeight?: number;
   diaryMaxEntries?: number;
   diaryTitle?: string;
+  showConsole?: boolean;
+  consoleMaxHeight?: number;
+  consoleMaxEntries?: number;
+  consoleTitle?: string;
 }
 
 // Combined configuration interface
@@ -143,6 +147,10 @@ export class ConfigManager {
         diaryMaxHeight: 30, // Default diary height
         diaryMaxEntries: 20, // Default max entries to show
         diaryTitle: 'Action Diary', // Default diary title
+        showConsole: true,
+        consoleMaxHeight: 12,
+        consoleMaxEntries: 200,
+        consoleTitle: 'Console Log',
       },
     };
   }

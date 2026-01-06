@@ -1,6 +1,6 @@
 {
   "maxTurnsPerSession": 50,
-  "runIndefinitely": false,
+  "runIndefinitely": true,
   "cooldownPeriod": 1,
   "clearUnitsOnStart": false,
   "overrideAvailableActions": [

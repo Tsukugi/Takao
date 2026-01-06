@@ -12,7 +12,7 @@ async function runTakaoEngine() {
   logger.info('=====================================\n');
 
   // Create and initialize the Takao Engine implementation with visual-only mode
-  const takao = new TakaoImpl(); // Set to true to see only maps
+  const takao = new TakaoImpl();
   await takao.initialize();
 
   // Start the game

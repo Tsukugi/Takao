@@ -11,6 +11,8 @@ describe('Logger', () => {
   let consoleTraceSpy: Mock;
 
   beforeEach(() => {
+    Logger.setConsoleEnabled(true);
+    Logger.setOutputHandler(undefined);
     // Mock console methods to capture their calls
     consoleLogSpy = vi
       .spyOn(console, 'log')

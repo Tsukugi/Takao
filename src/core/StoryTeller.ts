@@ -48,10 +48,12 @@ export class StoryTeller {
   private actionProcessor: ActionProcessor;
 
   constructor(unitController: UnitController, world?: World) {
-    const isVisualOnlyMode = ConfigManager.getConfig().rendering.visualOnly;
+    const renderingConfig = ConfigManager.getConfig().rendering;
+    const disableLogger =
+      renderingConfig.visualOnly && renderingConfig.showConsole !== true;
     this.logger = new Logger({
       prefix: 'StoryTeller',
-      disable: isVisualOnlyMode,
+      disable: disableLogger,
     });
     this.unitController = unitController;
     this.actionsData = DataManager.loadActions();
