@@ -5,12 +5,26 @@
  * can work with Atago units to provide spatial awareness and terrain-based effects.
  */
 
-import { BaseUnit } from '@atsu/atago';
+import { BaseUnit, type IUnitPosition } from '@atsu/atago';
+import { Position, World } from '@atsu/choukai';
 import { MapGenerator } from '../src/utils/MapGenerator';
 
 console.log(
   '=== Choukai Example: Integration with Atago Units (via Takao MapGenerator) ===\n'
 );
+
+const setUnitPosition = (
+  unit: BaseUnit,
+  mapId: string,
+  x: number,
+  y: number
+) => {
+  unit.setProperty('position', {
+    unitId: unit.id,
+    mapId,
+    position: new Position(x, y),
+  });
+};
 
 // Create a MapGenerator instance
 const mapGenerator = new MapGenerator();
@@ -48,41 +62,28 @@ enemyUnit.setProperty('speed', 3);
 console.log(`Created units:`);
 console.log(`- ${playerUnit.name} (ID: ${playerUnit.id})`);
 console.log(`- ${enemyUnit.name} (ID: ${enemyUnit.id})`);
+const units = [playerUnit, enemyUnit];
 
 // Create a world with interconnected maps using the MapGenerator
 const world = mapGenerator.generateWorldWithMaps(['Strategy Field']);
 console.log(`World created with ${world.getAllMaps().length} maps`);
 
 // Place units in the world
-world.setUnitPosition(playerUnit.id, 'Strategy Field', { x: 5, y: 4 }); // Near water
-world.setUnitPosition(enemyUnit.id, 'Strategy Field', { x: 9, y: 10 }); // Near mountain
+setUnitPosition(playerUnit, 'Strategy Field', 5, 4); // Near water
+setUnitPosition(enemyUnit, 'Strategy Field', 9, 10); // Near mountain
 
 console.log(`\nUnits placed in the world:`);
-const allUnits = world.getAllUnits();
-allUnits.forEach(unit => {
-  console.log(`- ${unit.unitId} at position ${unit.position.toString()}`);
+units.forEach(unit => {
+  const unitPosition = unit.getPropertyValue<IUnitPosition>('position');
+  console.log(`- ${unit.id} at position ${unitPosition?.position.toString()}`);
 });
 
 // Function to apply terrain effects to a unit
-function applyTerrainEffects(unit: BaseUnit, world: any, mapName: string) {
-  let pos;
-  try {
-    pos = world.getUnitPosition(unit.id);
-  } catch {
-    return; // Unit not in world
-  }
-
+function applyTerrainEffects(unit: BaseUnit, world: World, mapName: string) {
+  const pos = unit.getPropertyValue<IUnitPosition>('position');
   if (!pos || pos.mapId !== mapName) return;
 
-  let map;
-  try {
-    map = world.getMap(mapName);
-  } catch {
-    return; // Map doesn't exist
-  }
-
-  if (!map) return;
-
+  const map = world.getMap(mapName);
   const terrainProps = map.getTerrainProperties(pos.position.x, pos.position.y);
   if (!terrainProps) return;
 
@@ -124,14 +125,14 @@ console.log(
 
 // Move units and see how terrain affects them
 console.log(`\nMoving player toward the water terrain...`);
-world.moveUnit(playerUnit.id, 5, 5); // Into water terrain
+setUnitPosition(playerUnit, 'Strategy Field', 5, 5); // Into water terrain
 applyTerrainEffects(playerUnit, world, 'Strategy Field');
 console.log(
   `${playerUnit.name} now in water. Defense: ${playerUnit.getPropertyValue('defense')}, Cost: ${playerUnit.getPropertyValue('currentTerrainCost')}`
 );
 
 console.log(`\nMoving enemy toward the mountain terrain...`);
-world.moveUnit(enemyUnit.id, 10, 10); // Into mountain terrain
+setUnitPosition(enemyUnit, 'Strategy Field', 10, 10); // Into mountain terrain
 applyTerrainEffects(enemyUnit, world, 'Strategy Field');
 console.log(
   `${enemyUnit.name} now in mountain. Defense: ${enemyUnit.getPropertyValue('defense')}, Cost: ${enemyUnit.getPropertyValue('currentTerrainCost')}`

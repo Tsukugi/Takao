@@ -6,13 +6,69 @@
 import { GameLoop } from '../src/core/GameLoop';
 import { StoryTeller } from '../src/core/StoryTeller';
 import { UnitController } from '../src/ai/UnitController';
-import { MapRenderer } from '../src/utils/MapRenderer';
-import { WorldManager } from '../src/utils/WorldManager';
-import { Position } from '@atsu/choukai';
+import type { BaseUnit, IUnitPosition } from '@atsu/atago';
+import { Map as GameMap, Position, type TerrainType } from '@atsu/choukai';
 
 async function runGameLoopWithMapRendering() {
   console.log('Takao Engine - Game Loop with Map Rendering');
   console.log('============================================\n');
+
+  const TERRAIN_SYMBOLS: Record<TerrainType, string> = {
+    grass: '.',
+    water: '~',
+    mountain: '^',
+    forest: 't',
+    desert: '#',
+    road: '=',
+    plains: '.',
+    swamp: ':',
+    snow: '*',
+    sand: '-',
+  };
+
+  const setUnitPosition = (
+    unit: BaseUnit,
+    mapId: string,
+    x: number,
+    y: number
+  ) => {
+    unit.setProperty('position', {
+      unitId: unit.id,
+      mapId,
+      position: new Position(x, y),
+    });
+  };
+
+  const renderMapCompact = (map: GameMap, units: BaseUnit[]) => {
+    const unitLookup = new Map<string, BaseUnit>();
+    for (const unit of units) {
+      const unitPosition = unit.getPropertyValue<IUnitPosition>('position');
+      if (unitPosition?.mapId !== map.name) continue;
+      unitLookup.set(
+        `${unitPosition.position.x},${unitPosition.position.y}`,
+        unit
+      );
+    }
+
+    const lines: string[] = [];
+    for (let y = 0; y < map.height; y++) {
+      let line = '';
+      for (let x = 0; x < map.width; x++) {
+        const unit = unitLookup.get(`${x},${y}`);
+        if (unit) {
+          line += (unit.name || unit.id).charAt(0).toUpperCase();
+          continue;
+        }
+
+        const cell = map.getCell(x, y);
+        const terrain = cell?.terrain || 'grass';
+        line += TERRAIN_SYMBOLS[terrain] || '?';
+      }
+      lines.push(line);
+    }
+
+    return lines.join('\n');
+  };
 
   // Initialize components
   const unitController = new UnitController();
@@ -43,30 +99,22 @@ async function runGameLoopWithMapRendering() {
   const allUnits = unitController.getUnits();
   if (allUnits.length > 0) {
     // Place first few units on the MainLand map
-    const mainMap = world.getMap('MainLand');
-    if (mainMap) {
-      const positions = [
-        { x: 2, y: 2 },
-        { x: 5, y: 5 },
-        { x: 8, y: 3 },
-        { x: 12, y: 7 },
-        { x: 1, y: 8 },
-        { x: 14, y: 1 },
-        { x: 7, y: 9 },
-        { x: 4, y: 1 },
-      ];
+    const positions = [
+      { x: 2, y: 2 },
+      { x: 5, y: 5 },
+      { x: 8, y: 3 },
+      { x: 12, y: 7 },
+      { x: 1, y: 8 },
+      { x: 14, y: 1 },
+      { x: 7, y: 9 },
+      { x: 4, y: 1 },
+    ];
 
-      for (let i = 0; i < Math.min(allUnits.length, positions.length); i++) {
-        const unit = allUnits[i];
-        const pos = positions[i];
-        // Place unit in the world using WorldManager
-        WorldManager.setUnitPosition(
-          world,
-          unit.id,
-          'MainLand',
-          new Position(pos.x, pos.y)
-        );
-      }
+    for (let i = 0; i < Math.min(allUnits.length, positions.length); i++) {
+      const unit = allUnits[i];
+      const pos = positions[i];
+      if (!unit || !pos) continue;
+      setUnitPosition(unit, 'MainLand', pos.x, pos.y);
     }
   }
 
@@ -85,26 +133,20 @@ async function runGameLoopWithMapRendering() {
     console.log('\nCurrent Map State:');
     const maps = world.getAllMaps();
     for (const map of maps) {
-      console.log(MapRenderer.renderCompact(map));
+      console.log(renderMapCompact(map, unitController.getUnits()));
       console.log('');
     }
 
     // Show unit positions
     console.log('Unit Positions:');
     for (const unit of unitController.getUnits()) {
-      try {
-        const position = world.getUnitPosition(unit.id);
-        if (position) {
-          console.log(
-            `  ${unit.name} (${unit.id}) is at ${position.mapId} (${position.position.x}, ${position.position.y})`
-          );
-        } else {
-          console.log(`  ${unit.name} (${unit.id}) position not set`);
-        }
-      } catch (error) {
+      const position = unit.getPropertyValue<IUnitPosition>('position');
+      if (position) {
         console.log(
-          `  ${unit.name} (${unit.id}) not in world yet - Error: ${(error as Error).message}`
+          `  ${unit.name} (${unit.id}) is at ${position.mapId} (${position.position.x}, ${position.position.y})`
         );
+      } else {
+        console.log(`  ${unit.name} (${unit.id}) position not set`);
       }
     }
 
@@ -118,25 +160,19 @@ async function runGameLoopWithMapRendering() {
       // Show final state of all maps
       const maps = world.getAllMaps();
       for (const map of maps) {
-        console.log(MapRenderer.renderCompact(map));
+        console.log(renderMapCompact(map, unitController.getUnits()));
         console.log('');
       }
 
       console.log('Final Unit Positions:');
       for (const unit of unitController.getUnits()) {
-        try {
-          const position = world.getUnitPosition(unit.id);
-          if (position) {
-            console.log(
-              `  ${unit.name} (${unit.id}) is at ${position.mapId} (${position.position.x}, ${position.position.y})`
-            );
-          } else {
-            console.log(`  ${unit.name} (${unit.id}) position not set`);
-          }
-        } catch (error) {
+        const position = unit.getPropertyValue<IUnitPosition>('position');
+        if (position) {
           console.log(
-            `  ${unit.name} (${unit.id}) not in world yet - Error: ${(error as Error).message}`
+            `  ${unit.name} (${unit.id}) is at ${position.mapId} (${position.position.x}, ${position.position.y})`
           );
+        } else {
+          console.log(`  ${unit.name} (${unit.id}) position not set`);
         }
       }
     }
@@ -151,25 +187,19 @@ async function runGameLoopWithMapRendering() {
       // Show final state of all maps
       const maps = world.getAllMaps();
       for (const map of maps) {
-        console.log(MapRenderer.renderCompact(map));
+        console.log(renderMapCompact(map, unitController.getUnits()));
         console.log('');
       }
 
       console.log('Final Unit Positions:');
       for (const unit of unitController.getUnits()) {
-        try {
-          const position = world.getUnitPosition(unit.id);
-          if (position) {
-            console.log(
-              `  ${unit.name} (${unit.id}) is at ${position.mapId} (${position.position.x}, ${position.position.y})`
-            );
-          } else {
-            console.log(`  ${unit.name} (${unit.id}) position not set`);
-          }
-        } catch (error) {
+        const position = unit.getPropertyValue<IUnitPosition>('position');
+        if (position) {
           console.log(
-            `  ${unit.name} (${unit.id}) not in world yet - Error: ${(error as Error).message}`
+            `  ${unit.name} (${unit.id}) is at ${position.mapId} (${position.position.x}, ${position.position.y})`
           );
+        } else {
+          console.log(`  ${unit.name} (${unit.id}) position not set`);
         }
       }
     }

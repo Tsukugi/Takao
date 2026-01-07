@@ -6,12 +6,27 @@
  * and terrain management.
  */
 
+import { BaseUnit, type IUnitPosition } from '@atsu/atago';
 import { Position } from '@atsu/choukai';
 import { MapGenerator } from '../src/utils/MapGenerator';
+import { UnitPosition } from '../src/utils/UnitPosition';
 
 console.log(
   '=== Choukai Example: Basic Map Usage (via Takao MapGenerator) ===\n'
 );
+
+const setUnitPosition = (
+  unit: BaseUnit,
+  mapId: string,
+  x: number,
+  y: number
+) => {
+  unit.setProperty('position', {
+    unitId: unit.id,
+    mapId,
+    position: new Position(x, y),
+  });
+};
 
 // Create a MapGenerator instance
 const mapGenerator = new MapGenerator();
@@ -52,21 +67,38 @@ console.log(
 
 // Place units on the map
 console.log('\nPlacing units on the map...');
-const placed1 = gameMap.placeUnit('player-1', 2, 2);
-const placed2 = gameMap.placeUnit('enemy-1', 8, 8);
+const playerUnit = new BaseUnit('player-1', 'Hero', 'hero');
+const enemyUnit = new BaseUnit('enemy-1', 'Raider', 'raider');
 
-console.log(`Player placed: ${placed1}`);
-console.log(`Enemy placed: ${placed2}`);
+setUnitPosition(playerUnit, gameMap.name, 2, 2);
+setUnitPosition(enemyUnit, gameMap.name, 8, 8);
+const units = [playerUnit, enemyUnit];
 
-// Check if positions are walkable
-console.log(`Is (2,2) walkable? ${gameMap.isWalkable(2, 2)}`); // false, because of unit
-console.log(`Is (1,1) walkable? ${gameMap.isWalkable(1, 1)}`); // true
+const playerPos = playerUnit.getPropertyValue<IUnitPosition>('position');
+const enemyPos = enemyUnit.getPropertyValue<IUnitPosition>('position');
+console.log(`Player placed at: ${playerPos?.position.toString()}`);
+console.log(`Enemy placed at: ${enemyPos?.position.toString()}`);
+
+// Check if positions are walkable terrain and whether a unit occupies them
+console.log(`Is (2,2) walkable terrain? ${gameMap.isWalkable(2, 2)}`);
+console.log(
+  `Is (2,2) occupied? ${Boolean(
+    UnitPosition.getUnitAtPosition(units, gameMap.name, 2, 2)
+  )}`
+);
+console.log(`Is (1,1) walkable terrain? ${gameMap.isWalkable(1, 1)}`);
+console.log(
+  `Is (1,1) occupied? ${Boolean(
+    UnitPosition.getUnitAtPosition(units, gameMap.name, 1, 1)
+  )}`
+);
 
 // Check what units are on the map
-const units = gameMap.getAllUnits();
-console.log(`Units on map: ${units.length}`);
-units.forEach(unit => {
-  console.log(`- ${unit.unitId} at ${unit.position.toString()}`);
+const mapUnits = UnitPosition.getUnitsInMap(units, gameMap.name);
+console.log(`Units on map: ${mapUnits.length}`);
+mapUnits.forEach(unit => {
+  const unitPosition = unit.getPropertyValue<IUnitPosition>('position');
+  console.log(`- ${unit.id} at ${unitPosition?.position.toString()}`);
 });
 
 // Create a world using the MapGenerator
@@ -76,31 +108,33 @@ const world = mapGenerator.generateWorldWithMaps(['Battlefield', 'Forest']);
 console.log(`Maps in world: ${world.getAllMaps().length}`);
 
 // Place units in the world
-world.setUnitPosition('player-1', 'Battlefield', { x: 2, y: 2 });
-world.setUnitPosition('enemy-1', 'Battlefield', { x: 8, y: 8 });
-world.setUnitPosition('forest-creature', 'Forest', { x: 7, y: 7 });
+const forestUnit = new BaseUnit('forest-creature', 'Sprite', 'creature');
+setUnitPosition(playerUnit, 'Battlefield', 2, 2);
+setUnitPosition(enemyUnit, 'Battlefield', 8, 8);
+setUnitPosition(forestUnit, 'Forest', 7, 7);
+const worldUnits = [playerUnit, enemyUnit, forestUnit];
 
 console.log('\nUnits in world:');
-const allUnits = world.getAllUnits();
-allUnits.forEach(unit => {
+worldUnits.forEach(unit => {
+  const unitPosition = unit.getPropertyValue<IUnitPosition>('position');
   console.log(
-    `- ${unit.unitId} on map '${unit.mapId}' at ${unit.position.toString()}`
+    `- ${unit.id} on map '${unitPosition?.mapId}' at ${unitPosition?.position.toString()}`
   );
 });
 
 // Move a unit
-world.moveUnit('player-1', 3, 2);
+setUnitPosition(playerUnit, 'Battlefield', 3, 2);
 console.log(`\nAfter moving player-1 to (3,2):`);
-const playerPos = world.getUnitPosition('player-1');
-console.log(`Player position: ${playerPos?.position.toString()}`);
+const movedPlayerPos = playerUnit.getPropertyValue<IUnitPosition>('position');
+console.log(`Player position: ${movedPlayerPos?.position.toString()}`);
 
 // Calculate distance between units (only if they're on the same map)
-try {
-  const distanceBetween = world.getDistanceBetweenUnits('player-1', 'enemy-1');
-  console.log(`Distance between player and enemy: ${distanceBetween}`);
-} catch (error) {
-  console.log(`Cannot calculate distance: ${(error as Error).message}`);
-}
+const distanceBetween = UnitPosition.getDistanceBetweenUnits(
+  worldUnits,
+  'player-1',
+  'enemy-1'
+);
+console.log(`Distance between player and enemy: ${distanceBetween}`);
 
 // Show the configuration being used by the MapGenerator
 console.log('\nMapGenerator configuration:');
