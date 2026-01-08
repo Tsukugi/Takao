@@ -4,6 +4,7 @@ export default defineConfig({
   test: {
     include: ['tests/**/*.test.{ts,js}'],
     exclude: ['node_modules', 'dist'],
+    setupFiles: ['tests/setup.ts'],
     globals: true,
     environment: 'node',
     typecheck: {
