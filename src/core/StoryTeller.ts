@@ -523,13 +523,39 @@ export class StoryTeller {
     const payload: ActionPayload = {};
 
     if (actionDef.type === 'explore') {
-      const planned = this.worldManager.planRandomStep(unit);
-      payload.unitId = unit.id;
-      payload.mapId = planned.mapId;
-      payload.position = new Position(planned.x, planned.y);
-      payload.movedTo = { x: planned.x, y: planned.y };
+      try {
+        const steps = this.worldManager.planExploreMovement(unit, units);
+        const [firstStep] = steps;
+        if (!firstStep) {
+          return { payload, movedTowardsTarget: false };
+        }
 
-      return { payload, movedTowardsTarget: false };
+        payload.unitId = unit.id;
+        payload.mapId = firstStep.mapId;
+        payload.position = new Position(
+          firstStep.position.x,
+          firstStep.position.y
+        );
+        payload.movedTo = {
+          x: firstStep.position.x,
+          y: firstStep.position.y,
+        };
+        payload.movementPath = steps.map(step => ({
+          mapId: step.mapId,
+          x: step.position.x,
+          y: step.position.y,
+        }));
+
+        return { payload, movedTowardsTarget: false };
+      } catch (error) {
+        const err = error instanceof Error ? error : new Error(String(error));
+        this.logger.warn(
+          `Unable to plan explore move for ${this.formatUnitLabel(
+            unit
+          )}: ${err.message}`
+        );
+        return { payload, movedTowardsTarget: false };
+      }
     }
 
     if (!targetUnit) {
@@ -537,64 +563,41 @@ export class StoryTeller {
     }
 
     const actionRange = this.actionProcessor.getActionRange(actionDef);
-    const distance = UnitPosition.getDistanceBetweenUnits(
-      units,
-      unit.id,
-      targetUnit.id,
-      true
-    );
-
-    if (distance === Infinity) {
-      this.logger.warn(
-        `Units ${this.formatUnitLabel(unit)} and ${this.formatUnitLabel(
-          targetUnit
-        )} are on different maps; cannot move toward target`
+    try {
+      const plan = this.worldManager.planMovementTowardTarget(
+        unit,
+        targetUnit,
+        units,
+        actionRange
       );
-      return { payload, movedTowardsTarget: false };
-    }
 
-    if (distance > actionRange) {
-      const unitPos = unit.getPropertyValue<IUnitPosition>('position');
-      const targetPos = targetUnit.getPropertyValue<IUnitPosition>('position');
-      if (unitPos && targetPos && unitPos.mapId === targetPos.mapId) {
-        const nextStep = UnitPosition.stepTowards(
-          this.world,
-          unitPos.mapId,
-          new Position(
-            unitPos.position.x,
-            unitPos.position.y,
-            unitPos.position.z
-          ),
-          new Position(
-            targetPos.position.x,
-            targetPos.position.y,
-            targetPos.position.z
-          )
-        );
-
-        payload.movedTowardsTarget = true;
-        payload.movedTo = { x: nextStep.x, y: nextStep.y };
+      const [firstStep] = plan.steps;
+      if (firstStep) {
+        payload.movedTowardsTarget = plan.movedTowardsTarget;
+        payload.movedTo = {
+          x: firstStep.position.x,
+          y: firstStep.position.y,
+        };
         payload.unitId = unit.id;
-        payload.mapId = unitPos.mapId;
-        payload.position = new Position(nextStep.x, nextStep.y);
-
-        this.logger.info(
-          `Planned move for ${this.formatUnitLabel(unit)} -> ${this.formatUnitLabel(
-            targetUnit
-          )} (${actionDef.type}): distance ${distance} > range ${actionRange}, step to (${nextStep.x}, ${nextStep.y})`
+        payload.mapId = firstStep.mapId;
+        payload.position = new Position(
+          firstStep.position.x,
+          firstStep.position.y
         );
-      } else {
-        this.logger.warn(
-          `Unable to plan move for ${this.formatUnitLabel(
-            unit
-          )} toward ${this.formatUnitLabel(targetUnit)} (${actionDef.type}): missing position data`
-        );
+        payload.movementPath = plan.steps.map(step => ({
+          mapId: step.mapId,
+          x: step.position.x,
+          y: step.position.y,
+        }));
       }
-    } else {
-      this.logger.info(
-        `Target already in range for ${this.formatUnitLabel(unit)} -> ${this.formatUnitLabel(
-          targetUnit
-        )} (${actionDef.type}): distance ${distance} <= range ${actionRange}`
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      this.logger.warn(
+        `Unable to plan move for ${this.formatUnitLabel(
+          unit
+        )} toward ${this.formatUnitLabel(targetUnit)} (${actionDef.type}): ${
+          err.message
+        }`
       );
     }
 

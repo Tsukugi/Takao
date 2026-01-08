@@ -17,6 +17,7 @@ async function runGameLoopWithMapRendering() {
     grass: '.',
     water: '~',
     mountain: '^',
+    wall: '|',
     forest: 't',
     desert: '#',
     road: '=',

@@ -10,12 +10,17 @@ import {
   Map as ChoukaiMap,
   Position,
   findNearestFreeTile,
+  planMovementSteps,
+  getMapPositionKey,
+  type GateConnection as ChoukaiGateConnection,
+  type IMapPosition,
 } from '@atsu/choukai';
 import { UnitController } from '../ai/UnitController';
 import { MathUtils } from '../utils/Math';
 import { GateSystem, type GateConnection } from '../utils/GateSystem';
 import { Logger } from '../utils/Logger';
 import { UnitPosition } from '../utils/UnitPosition';
+import { isUnitPosition } from '../types/typeGuards';
 
 export class WorldManager {
   private world: ChoukaiWorld;
@@ -204,6 +209,133 @@ export class WorldManager {
   }
 
   /**
+   * Resolve a unit's movement range from its properties; missing means no movement.
+   */
+  getMovementRange(unit: BaseUnit): number {
+    const value = unit.getPropertyValue<number>('movementRange');
+    if (typeof value !== 'number' || !Number.isFinite(value)) {
+      return 0;
+    }
+
+    return Math.max(0, Math.floor(value));
+  }
+
+  /**
+   * Plan an exploration path for a unit within its movement range.
+   */
+  planExploreMovement(unit: BaseUnit, units: BaseUnit[]): IMapPosition[] {
+    const movementRange = this.getMovementRange(unit);
+    if (movementRange === 0) {
+      return [];
+    }
+
+    const unitPos = unit.getPropertyValue<IUnitPosition>('position');
+    if (!unitPos) {
+      throw new Error(
+        `Unable to plan explore move for ${this.formatUnitLabel(
+          unit
+        )}: missing position data`
+      );
+    }
+
+    const occupiedPositions = this.collectOccupiedPositions(units);
+    const target = this.selectRandomTarget(
+      unitPos,
+      movementRange,
+      occupiedPositions
+    );
+
+    if (!target) {
+      this.logger.info(
+        `No available exploration target for ${this.formatUnitLabel(unit)}`
+      );
+      return [];
+    }
+
+    const plan = planMovementSteps(
+      this.world,
+      { mapId: unitPos.mapId, position: unitPos.position },
+      target,
+      movementRange,
+      {
+        occupiedPositions,
+        gateConnections: this.getGateConnections(),
+        allowDiagonal: false,
+        useManhattanDistance: true,
+      }
+    );
+
+    return plan.steps;
+  }
+
+  /**
+   * Plan a path toward a target unit, respecting movement range and action range.
+   */
+  planMovementTowardTarget(
+    unit: BaseUnit,
+    targetUnit: BaseUnit,
+    units: BaseUnit[],
+    actionRange: number
+  ): { steps: IMapPosition[]; movedTowardsTarget: boolean } {
+    const movementRange = this.getMovementRange(unit);
+    if (movementRange === 0) {
+      return { steps: [], movedTowardsTarget: false };
+    }
+
+    const unitPos = unit.getPropertyValue<IUnitPosition>('position');
+    const targetPos = targetUnit.getPropertyValue<IUnitPosition>('position');
+    if (!unitPos || !targetPos) {
+      throw new Error(
+        `Unable to plan move for ${this.formatUnitLabel(
+          unit
+        )} toward ${this.formatUnitLabel(targetUnit)}: missing position data`
+      );
+    }
+
+    const distance = UnitPosition.getDistanceBetweenUnits(
+      units,
+      unit.id,
+      targetUnit.id,
+      true
+    );
+    if (distance <= actionRange) {
+      this.logger.info(
+        `Target already in range for ${this.formatUnitLabel(
+          unit
+        )} -> ${this.formatUnitLabel(targetUnit)}: distance ${distance} <= range ${actionRange}`
+      );
+      return { steps: [], movedTowardsTarget: false };
+    }
+
+    const plan = planMovementSteps(
+      this.world,
+      { mapId: unitPos.mapId, position: unitPos.position },
+      { mapId: targetPos.mapId, position: targetPos.position },
+      movementRange,
+      {
+        occupiedPositions: this.collectOccupiedPositions(units),
+        gateConnections: this.getGateConnections(),
+        allowDiagonal: false,
+        stopWithinRange: actionRange,
+        useManhattanDistance: true,
+      }
+    );
+
+    const [firstStep] = plan.steps;
+    if (firstStep) {
+      this.logger.info(
+        `Planned move for ${this.formatUnitLabel(
+          unit
+        )} -> ${this.formatUnitLabel(
+          targetUnit
+        )}: step to (${firstStep.position.x}, ${firstStep.position.y})`
+      );
+    }
+
+    return { steps: plan.steps, movedTowardsTarget: plan.steps.length > 0 };
+  }
+
+  /**
    * Adds a gate connection between two maps.
    */
   addGate(gate: GateConnection): boolean {
@@ -247,6 +379,81 @@ export class WorldManager {
    */
   getAllGates(): GateConnection[] {
     return this.gateSystem.getAllGates();
+  }
+
+  private collectOccupiedPositions(units: BaseUnit[]): IMapPosition[] {
+    return units
+      .map(unit => unit.getPropertyValue<IUnitPosition>('position'))
+      .filter(
+        (pos): pos is IUnitPosition => Boolean(pos) && isUnitPosition(pos)
+      )
+      .map(pos => ({
+        mapId: pos.mapId,
+        position: pos.position,
+      }));
+  }
+
+  private getGateConnections(): ChoukaiGateConnection[] {
+    const gates = this.getAllGates();
+    return gates.map(gate => ({
+      mapFrom: gate.mapFrom,
+      positionFrom: { x: gate.positionFrom.x, y: gate.positionFrom.y },
+      mapTo: gate.mapTo,
+      positionTo: { x: gate.positionTo.x, y: gate.positionTo.y },
+      ...(gate.name ? { name: gate.name } : {}),
+      ...(gate.bidirectional !== undefined
+        ? { bidirectional: gate.bidirectional }
+        : {}),
+    }));
+  }
+
+  private selectRandomTarget(
+    unitPos: IUnitPosition,
+    movementRange: number,
+    occupied: IMapPosition[]
+  ): IMapPosition | null {
+    const map = this.world.getMap(unitPos.mapId);
+    const blocked = new Set(occupied.map(pos => getMapPositionKey(pos)));
+
+    const candidates: IMapPosition[] = [];
+
+    for (let dy = -movementRange; dy <= movementRange; dy++) {
+      for (let dx = -movementRange; dx <= movementRange; dx++) {
+        const distance = Math.abs(dx) + Math.abs(dy);
+        if (distance > movementRange) {
+          continue;
+        }
+
+        const x = unitPos.position.x + dx;
+        const y = unitPos.position.y + dy;
+        if (x === unitPos.position.x && y === unitPos.position.y) {
+          continue;
+        }
+
+        if (!map.isWalkable(x, y)) {
+          continue;
+        }
+
+        const key = getMapPositionKey({
+          mapId: unitPos.mapId,
+          position: { x, y },
+        });
+        if (blocked.has(key)) {
+          continue;
+        }
+
+        candidates.push({
+          mapId: unitPos.mapId,
+          position: new Position(x, y),
+        });
+      }
+    }
+
+    if (candidates.length === 0) {
+      return null;
+    }
+
+    return MathUtils.getRandomFromArray(candidates);
   }
 
   private async handleMapTransition(

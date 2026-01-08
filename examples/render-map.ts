@@ -14,6 +14,7 @@ const TERRAIN_SYMBOLS: Record<TerrainType, string> = {
   grass: '.',
   water: '~',
   mountain: '^',
+  wall: '|',
   forest: 't',
   desert: '#',
   road: '=',

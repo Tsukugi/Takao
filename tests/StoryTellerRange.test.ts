@@ -10,6 +10,9 @@ describe('StoryTeller range-aware movement logging', () => {
   let unitController: UnitController;
   let world: World;
   let getRandomSpy: ReturnType<typeof vi.spyOn> | null = null;
+  const setMovementRange = (unit: BaseUnit, range: number = 1) => {
+    unit.setProperty('movementRange', range);
+  };
 
   beforeEach(async () => {
     unitController = new UnitController();
@@ -36,6 +39,7 @@ describe('StoryTeller range-aware movement logging', () => {
     const attacker = new BaseUnit('attacker', 'Attacker', 'warrior');
     attacker.setProperty('faction', 'Adventurers');
     attacker.setProperty('health', 10);
+    setMovementRange(attacker);
     attacker.setProperty('position', {
       unitId: 'attacker',
       mapId: 'Test Map',
@@ -45,6 +49,7 @@ describe('StoryTeller range-aware movement logging', () => {
     const target = new BaseUnit('target', 'Target', 'archer');
     target.setProperty('faction', 'Wild Animals');
     target.setProperty('health', 10);
+    setMovementRange(target);
     target.setProperty('position', {
       unitId: 'target',
       mapId: 'Test Map',
@@ -96,6 +101,7 @@ describe('StoryTeller range-aware movement logging', () => {
     const attacker = new BaseUnit('attacker', 'Attacker', 'warrior');
     attacker.setProperty('faction', 'Adventurers');
     attacker.setProperty('health', 10);
+    setMovementRange(attacker);
     attacker.setProperty('position', {
       unitId: 'attacker',
       mapId: 'Test Map',
@@ -105,6 +111,7 @@ describe('StoryTeller range-aware movement logging', () => {
     const target = new BaseUnit('target', 'Target', 'archer');
     target.setProperty('faction', 'Wild Animals');
     target.setProperty('health', 10);
+    setMovementRange(target);
     target.setProperty('position', {
       unitId: 'target',
       mapId: 'Test Map',
@@ -146,6 +153,7 @@ describe('StoryTeller range-aware movement logging', () => {
     const attacker = new BaseUnit('attacker', 'Attacker', 'warrior');
     attacker.setProperty('faction', 'Adventurers');
     attacker.setProperty('health', 10);
+    setMovementRange(attacker);
     attacker.setProperty('position', {
       unitId: 'attacker',
       mapId: 'Test Map',
@@ -155,6 +163,7 @@ describe('StoryTeller range-aware movement logging', () => {
     const nearTarget = new BaseUnit('near', 'Near', 'archer');
     nearTarget.setProperty('faction', 'Wild Animals');
     nearTarget.setProperty('health', 10);
+    setMovementRange(nearTarget);
     nearTarget.setProperty('position', {
       unitId: 'near',
       mapId: 'Test Map',
@@ -164,6 +173,7 @@ describe('StoryTeller range-aware movement logging', () => {
     const farTarget = new BaseUnit('far', 'Far', 'archer');
     farTarget.setProperty('faction', 'Wild Animals');
     farTarget.setProperty('health', 10);
+    setMovementRange(farTarget);
     farTarget.setProperty('position', {
       unitId: 'far',
       mapId: 'Test Map',
@@ -201,6 +211,7 @@ describe('StoryTeller range-aware movement logging', () => {
     const attacker = new BaseUnit('attacker', 'Attacker', 'warrior');
     attacker.setProperty('faction', 'Adventurers');
     attacker.setProperty('health', 10);
+    setMovementRange(attacker);
     attacker.setProperty('position', {
       unitId: 'attacker',
       mapId: 'Test Map',
@@ -211,6 +222,7 @@ describe('StoryTeller range-aware movement logging', () => {
     deadTarget.setProperty('faction', 'Wild Animals');
     deadTarget.setProperty('status', 'dead');
     deadTarget.setProperty('health', 0);
+    setMovementRange(deadTarget);
     deadTarget.setProperty('position', {
       unitId: 'dead',
       mapId: 'Test Map',
@@ -220,6 +232,7 @@ describe('StoryTeller range-aware movement logging', () => {
     const liveTarget = new BaseUnit('alive', 'Alive', 'archer');
     liveTarget.setProperty('faction', 'Wild Animals');
     liveTarget.setProperty('health', 10);
+    setMovementRange(liveTarget);
     liveTarget.setProperty('position', {
       unitId: 'alive',
       mapId: 'Test Map',
@@ -257,6 +270,7 @@ describe('StoryTeller range-aware movement logging', () => {
     const attacker = new BaseUnit('attacker', 'Attacker', 'warrior');
     attacker.setProperty('faction', 'Adventurers');
     attacker.setProperty('health', 10);
+    setMovementRange(attacker);
     attacker.setProperty('position', {
       unitId: 'attacker',
       mapId: 'Test Map',
@@ -266,6 +280,7 @@ describe('StoryTeller range-aware movement logging', () => {
     const blocker = new BaseUnit('blocker', 'Blocker', 'archer');
     blocker.setProperty('faction', 'Wild Animals');
     blocker.setProperty('health', 10);
+    setMovementRange(blocker);
     blocker.setProperty('position', {
       unitId: 'blocker',
       mapId: 'Test Map',
@@ -275,6 +290,7 @@ describe('StoryTeller range-aware movement logging', () => {
     const target = new BaseUnit('target', 'Target', 'archer');
     target.setProperty('faction', 'Wild Animals');
     target.setProperty('health', 10);
+    setMovementRange(target);
     target.setProperty('position', {
       unitId: 'target',
       mapId: 'Test Map',
