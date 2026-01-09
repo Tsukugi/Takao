@@ -9,6 +9,7 @@ import type {
   PropertyScalar,
   PropertyValue,
 } from '@atsu/atago';
+import type { IMapPosition } from '@atsu/choukai';
 import type {
   ComparisonRequirement,
   RandomValue,
@@ -32,6 +33,33 @@ export const isString = (value: unknown): value is string =>
 
 export const isNumber = (value: unknown): value is number =>
   typeof value === 'number';
+
+export const isMapPosition = (value: unknown): value is IMapPosition => {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  if (!isString(value.mapId)) {
+    return false;
+  }
+
+  if (!isRecord(value.position)) {
+    return false;
+  }
+
+  if (!isNumber(value.position.x) || !Number.isFinite(value.position.x)) {
+    return false;
+  }
+
+  if (!isNumber(value.position.y) || !Number.isFinite(value.position.y)) {
+    return false;
+  }
+
+  return true;
+};
+
+export const isMovementPath = (value: unknown): value is IMapPosition[] =>
+  Array.isArray(value) && value.every(isMapPosition);
 
 const isPropertyScalar = (value: unknown): value is PropertyScalar =>
   value === null ||

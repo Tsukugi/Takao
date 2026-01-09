@@ -22,6 +22,18 @@ import { Logger } from '../utils/Logger';
 import { UnitPosition } from '../utils/UnitPosition';
 import { isUnitPosition } from '../types/typeGuards';
 
+export interface MovementStepUpdate {
+  unitId: string;
+  stepIndex: number;
+  totalSteps: number;
+  mapId: string;
+  position: IMapPosition['position'];
+}
+
+export type MovementStepHandler = (
+  update: MovementStepUpdate
+) => void | Promise<void>;
+
 export class WorldManager {
   private world: ChoukaiWorld;
   private unitController: UnitController;
@@ -170,6 +182,79 @@ export class WorldManager {
       this.logger.error(`Failed to move unit to position: ${err.message}`);
       return false;
     }
+  }
+
+  /**
+   * Applies a planned movement path step-by-step for a unit.
+   */
+  async applyMovementPath(
+    unitId: string,
+    steps: IMapPosition[],
+    onStep?: MovementStepHandler
+  ): Promise<number> {
+    if (steps.length === 0) {
+      return 0;
+    }
+
+    const units = this.unitController.getUnits();
+    const unit = units.find(u => u.id === unitId);
+    if (!unit) {
+      throw new Error(
+        `Unit ${this.formatUnitLabel(undefined, unitId)} not found`
+      );
+    }
+
+    const unitLabel = this.formatUnitLabel(unit);
+    const totalSteps = steps.length;
+    let stepsApplied = 0;
+
+    for (let index = 0; index < totalSteps; index += 1) {
+      const step = steps[index];
+      if (!step) {
+        continue;
+      }
+
+      const unitPos = unit.getPropertyValue<IUnitPosition>('position');
+      if (!unitPos) {
+        throw new Error(`Unit ${unitLabel} has no position property`);
+      }
+
+      if (step.mapId !== unitPos.mapId) {
+        throw new Error(
+          `Movement step map mismatch for ${unitLabel}: expected ${unitPos.mapId}, got ${step.mapId}`
+        );
+      }
+
+      const moved = await this.moveUnitToPosition(
+        unitId,
+        step.position.x,
+        step.position.y
+      );
+      if (!moved) {
+        throw new Error(
+          `Failed to move ${unitLabel} to (${step.position.x}, ${step.position.y})`
+        );
+      }
+
+      stepsApplied += 1;
+
+      if (onStep) {
+        const updatedPos = unit.getPropertyValue<IUnitPosition>('position');
+        if (!updatedPos) {
+          throw new Error(`Unit ${unitLabel} missing position after movement`);
+        }
+
+        await onStep({
+          unitId,
+          stepIndex: index + 1,
+          totalSteps,
+          mapId: updatedPos.mapId,
+          position: updatedPos.position,
+        });
+      }
+    }
+
+    return stepsApplied;
   }
 
   /**

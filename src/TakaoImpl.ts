@@ -10,7 +10,7 @@ import {
   type ConsoleEntry,
 } from '@atsu/maya';
 import { World, Position, Map as ChoukaiMap } from '@atsu/choukai';
-import type { BaseUnit, IUnitPosition } from '@atsu/atago';
+import type { BaseUnit } from '@atsu/atago';
 import { GameInputController, InputManager } from '@atsu/noshiro';
 import { GameEngine } from './core/GameEngine';
 import { StoryTeller } from './core/StoryTeller';
@@ -21,6 +21,7 @@ import { isUnitPosition } from './types/typeGuards';
 import type { Action, ActionPayload, DiaryEntry } from './types';
 import { targetFromPayload } from './utils/TargetUtils';
 import { ConfigManager } from './utils/ConfigManager';
+import type { MovementStepUpdate } from './core/WorldManager';
 
 export class TakaoImpl {
   private gameEngine: GameEngine;
@@ -92,6 +93,7 @@ export class TakaoImpl {
     this.configureConsoleLogging();
     // Initialize the underlying game engine
     await this.gameEngine.initialize({ turn: 0 });
+    this.storyTeller.setMovementStepHandler(this.handleMovementStep.bind(this));
     this.logger.info('Initializing Takao Engine...');
     this.logger = new Logger({
       prefix: 'TakaoImpl',
@@ -163,39 +165,54 @@ export class TakaoImpl {
       return;
     }
 
-    // Place units based on their own position properties or defaults
-    for (const unit of allUnits.values()) {
-      // Define default positions for the first few units
-      const defaultPosition: IUnitPosition = {
-        unitId: unit.id,
-        mapId: 'Main Continent',
-        position: new Position(5, 5),
-      };
+    const world = this.storyTeller.getWorld();
+    const maps = world.getAllMaps();
+    if (maps.length === 0) {
+      throw new Error('No maps available to place units.');
+    }
 
-      // Look for position in the unit's own properties first
+    const placementMap = world.getMap('Main Continent');
+    if (!placementMap) {
+      throw new Error('Map "Main Continent" not found; cannot place units.');
+    }
+
+    const getRandomPosition = (map: ChoukaiMap): Position => {
+      const x = Math.floor(Math.random() * map.width);
+      const y = Math.floor(Math.random() * map.height);
+      return new Position(x, y);
+    };
+
+    const isWithinMap = (map: ChoukaiMap, pos: { x: number; y: number }) =>
+      pos.x >= 0 && pos.x < map.width && pos.y >= 0 && pos.y < map.height;
+
+    for (const unit of allUnits.values()) {
       const unitPosition = unit.getPropertyValue('position');
 
       if (unitPosition && isUnitPosition(unitPosition)) {
-        // If position exists in IUnitPosition format, use it
-        // Update the unit's position property with correct Position instance if needed
+        const map = world.getMap(unitPosition.mapId);
+        if (!map) {
+          throw new Error(
+            `Map ${unitPosition.mapId} not found for unit ${unit.id}; cannot place unit.`
+          );
+        }
         const pos = unitPosition.position;
-        const positionInstance =
-          pos instanceof Position ? pos : new Position(pos.x, pos.y, pos.z);
+        if (!isWithinMap(map, pos)) {
+          throw new Error(
+            `Position (${pos.x}, ${pos.y}) for unit ${unit.id} is outside map ${map.name}.`
+          );
+        }
 
         unit.setProperty('position', {
           unitId: unit.id,
-          mapId: unitPosition.mapId,
-          position: positionInstance,
+          mapId: map.name,
+          position: pos,
         });
       } else {
-        // Set the default position directly on the unit
+        const randomPos = getRandomPosition(placementMap);
         unit.setProperty('position', {
           unitId: unit.id,
-          mapId: defaultPosition.mapId,
-          position: new Position(
-            defaultPosition.position.x,
-            defaultPosition.position.y
-          ),
+          mapId: placementMap.name,
+          position: randomPos,
         });
       }
     }
@@ -347,70 +364,88 @@ export class TakaoImpl {
     this.isRendererRunning = true;
 
     this.rendererIntervalId = setInterval(() => {
-      const cachedState = this._lastWorldState;
-      // Prefer the latest cached world snapshot from the game loop, fallback to live fetch
-      const world = cachedState?.world ?? this.storyTeller.getWorld();
-      const unitsList = cachedState?.units
-        ? Array.from(cachedState.units.values())
-        : this.unitController.getUnits();
-
-      // Create a fresh units mapping to ensure all units are included
-      const unitsMap: Record<string, BaseUnit> = {};
-      for (const unit of unitsList) {
-        // Only include units that are not dead
-        const statusProperty = unit.getPropertyValue<string>('status');
-        if (statusProperty === 'dead') continue;
-        unitsMap[unit.id] = unit;
-      }
-
-      // Get diary entries from the StoryTeller
-      const diaryEntries = this.storyTeller.getDiary();
-
-      // Get configuration from ConfigManager
-      const config = this.gameEngine.getConfig();
-
-      // Render the game using Maya with the stored world state and diary
-      // Prepare configuration object with proper handling of optional properties
-      const rendererConfig = {
-        ...this.renderConfig,
-        ...(config.rendering.showDiary !== undefined && {
-          showDiary: config.rendering.showDiary,
-        }),
-        ...(config.rendering.diaryMaxHeight !== undefined && {
-          diaryMaxHeight: config.rendering.diaryMaxHeight,
-        }),
-        ...(config.rendering.diaryMaxEntries !== undefined && {
-          diaryMaxEntries: config.rendering.diaryMaxEntries,
-        }),
-        ...(config.rendering.diaryTitle !== undefined && {
-          diaryTitle: config.rendering.diaryTitle,
-        }),
-        ...(config.rendering.showConsole !== undefined && {
-          showConsole: config.rendering.showConsole,
-        }),
-        ...(config.rendering.consoleMaxHeight !== undefined && {
-          consoleMaxHeight: config.rendering.consoleMaxHeight,
-        }),
-        ...(config.rendering.consoleMaxEntries !== undefined && {
-          consoleMaxEntries: config.rendering.consoleMaxEntries,
-        }),
-        ...(config.rendering.consoleTitle !== undefined && {
-          consoleTitle: config.rendering.consoleTitle,
-        }),
-      };
-
-      try {
-        renderGame(
-          world,
-          unitsMap,
-          rendererConfig,
-          diaryEntries,
-          this.consoleEntries
-        );
-      } catch {
-        this.logger.error('\nNo maps to render.');
-      }
+      this.renderFrame();
     }, this.targetFrameTime);
+  }
+
+  private renderFrame(): void {
+    const cachedState = this._lastWorldState;
+    // Prefer the latest cached world snapshot from the game loop, fallback to live fetch
+    const world = cachedState?.world ?? this.storyTeller.getWorld();
+    const unitsList = cachedState?.units
+      ? Array.from(cachedState.units.values())
+      : this.unitController.getUnits();
+
+    // Create a fresh units mapping to ensure all units are included
+    const unitsMap: Record<string, BaseUnit> = {};
+    for (const unit of unitsList) {
+      // Only include units that are not dead
+      const statusProperty = unit.getPropertyValue<string>('status');
+      if (statusProperty === 'dead') continue;
+      unitsMap[unit.id] = unit;
+    }
+
+    // Get diary entries from the StoryTeller
+    const diaryEntries = this.storyTeller.getDiary();
+
+    // Get configuration from ConfigManager
+    const config = this.gameEngine.getConfig();
+
+    // Render the game using Maya with the stored world state and diary
+    // Prepare configuration object with proper handling of optional properties
+    const rendererConfig = {
+      ...this.renderConfig,
+      ...(config.rendering.showDiary !== undefined && {
+        showDiary: config.rendering.showDiary,
+      }),
+      ...(config.rendering.diaryMaxHeight !== undefined && {
+        diaryMaxHeight: config.rendering.diaryMaxHeight,
+      }),
+      ...(config.rendering.diaryMaxEntries !== undefined && {
+        diaryMaxEntries: config.rendering.diaryMaxEntries,
+      }),
+      ...(config.rendering.diaryTitle !== undefined && {
+        diaryTitle: config.rendering.diaryTitle,
+      }),
+      ...(config.rendering.showConsole !== undefined && {
+        showConsole: config.rendering.showConsole,
+      }),
+      ...(config.rendering.consoleMaxHeight !== undefined && {
+        consoleMaxHeight: config.rendering.consoleMaxHeight,
+      }),
+      ...(config.rendering.consoleMaxEntries !== undefined && {
+        consoleMaxEntries: config.rendering.consoleMaxEntries,
+      }),
+      ...(config.rendering.consoleTitle !== undefined && {
+        consoleTitle: config.rendering.consoleTitle,
+      }),
+    };
+
+    try {
+      renderGame(
+        world,
+        unitsMap,
+        rendererConfig,
+        diaryEntries,
+        this.consoleEntries
+      );
+    } catch {
+      this.logger.error('\nNo maps to render.');
+    }
+  }
+
+  private handleMovementStep(update: MovementStepUpdate): void {
+    if (!this.isRendererRunning) {
+      return;
+    }
+
+    if (this.renderConfig.showUnitPositions === undefined) {
+      this.renderConfig.showUnitPositions =
+        !this.gameEngine.getConfig().rendering.visualOnly;
+    }
+
+    this.renderConfig.selectedMap = update.mapId;
+    this.renderFrame();
   }
 
   private stopRenderer(): void {

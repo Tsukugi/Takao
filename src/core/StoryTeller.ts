@@ -20,7 +20,12 @@ import { ActionProcessor } from '../utils/ActionProcessor';
 import { MathUtils } from '../utils/Math';
 import { ConditionParser } from '../utils/ConditionParser';
 import { BaseUnit, type IUnitPosition } from '@atsu/atago';
-import { isComparison, isUnitPosition } from '../types/typeGuards';
+import {
+  isComparison,
+  isMovementPath,
+  isRecord,
+  isUnitPosition,
+} from '../types/typeGuards';
 import { MapGenerator } from '../utils/MapGenerator';
 import { World, Map as ChoukaiMap, Position } from '@atsu/choukai';
 import { GateSystem } from '../utils/GateSystem';
@@ -28,7 +33,7 @@ import { Logger } from '../utils/Logger';
 import { UnitPosition } from '../utils/UnitPosition';
 import { GoalSystem } from '../ai/goals/GoalSystem';
 import { RelationshipHelper } from '../utils/RelationshipHelper';
-import { WorldManager } from './WorldManager';
+import { WorldManager, type MovementStepHandler } from './WorldManager';
 
 /**
  * Represents the StoryTeller that generates narrative actions based on unit states
@@ -46,6 +51,7 @@ export class StoryTeller {
   private worldManager: WorldManager;
   private logger: Logger;
   private actionProcessor: ActionProcessor;
+  private movementStepHandler: MovementStepHandler | undefined;
 
   constructor(unitController: UnitController, world?: World) {
     const renderingConfig = ConfigManager.getConfig().rendering;
@@ -95,6 +101,13 @@ export class StoryTeller {
 
     // Ensure the action processor knows about the current world for range validation
     this.actionProcessor.setWorld(this.world);
+  }
+
+  /**
+   * Register a handler to be called after each movement step.
+   */
+  public setMovementStepHandler(handler?: MovementStepHandler | null): void {
+    this.movementStepHandler = handler ?? undefined;
   }
 
   /**
@@ -542,8 +555,11 @@ export class StoryTeller {
         };
         payload.movementPath = steps.map(step => ({
           mapId: step.mapId,
-          x: step.position.x,
-          y: step.position.y,
+          position: {
+            x: step.position.x,
+            y: step.position.y,
+            ...(step.position.z !== undefined ? { z: step.position.z } : {}),
+          },
         }));
 
         return { payload, movedTowardsTarget: false };
@@ -586,8 +602,11 @@ export class StoryTeller {
         );
         payload.movementPath = plan.steps.map(step => ({
           mapId: step.mapId,
-          x: step.position.x,
-          y: step.position.y,
+          position: {
+            x: step.position.x,
+            y: step.position.y,
+            ...(step.position.z !== undefined ? { z: step.position.z } : {}),
+          },
         }));
       }
     } catch (error) {
@@ -1082,9 +1101,20 @@ export class StoryTeller {
     executedAction: ExecutedAction
   ): Promise<void> {
     const payload = executedAction.action.payload;
-    if (!payload || !isUnitPosition(payload)) return;
+    if (!payload) return;
 
     try {
+      if (isRecord(payload) && isMovementPath(payload.movementPath)) {
+        await this.worldManager.applyMovementPath(
+          executedAction.action.player,
+          payload.movementPath,
+          this.movementStepHandler
+        );
+        return;
+      }
+
+      if (!isUnitPosition(payload)) return;
+
       const success = await this.worldManager.moveUnitToPosition(
         executedAction.action.player,
         payload.position.x,

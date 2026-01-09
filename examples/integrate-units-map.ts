@@ -52,12 +52,14 @@ playerUnit.setProperty('health', 100);
 playerUnit.setProperty('attack', 20);
 playerUnit.setProperty('defense', 10);
 playerUnit.setProperty('speed', 5);
+playerUnit.setProperty('movementRange', 3);
 
 const enemyUnit = new BaseUnit('enemy-1', 'Orc', 'monster');
 enemyUnit.setProperty('health', 80);
 enemyUnit.setProperty('attack', 25);
 enemyUnit.setProperty('defense', 8);
 enemyUnit.setProperty('speed', 3);
+enemyUnit.setProperty('movementRange', 2);
 
 console.log(`Created units:`);
 console.log(`- ${playerUnit.name} (ID: ${playerUnit.id})`);

@@ -77,6 +77,11 @@ npm run build
 - Diary entries include per-unit stat change summaries and structured blocks for JSON consumers (grouped by unit name).
 - Movement logged in the diary only applies after an action succeeds; idle turns no longer move units.
 
+### Movement range
+
+- Units move up to their `movementRange` property in tiles per turn; each step is applied in sequence.
+- If `movementRange` is missing or invalid, the unit does not move.
+
 ## Integration with Atago
 
 The engine is designed to work with the Atago library for AI decision making. The `UnitController` class handles communication with the Atago library and manages AI-controlled units that make intelligent decisions each turn.

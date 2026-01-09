@@ -115,6 +115,7 @@ async function runGameLoopWithMapRendering() {
       const unit = allUnits[i];
       const pos = positions[i];
       if (!unit || !pos) continue;
+      unit.setProperty('movementRange', 3);
       setUnitPosition(unit, 'MainLand', pos.x, pos.y);
     }
   }
