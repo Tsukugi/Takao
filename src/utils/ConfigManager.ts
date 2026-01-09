@@ -64,6 +64,20 @@ const isFullConfig = (value: unknown): value is FullConfig => {
     return false;
   }
 
+  if (
+    value.defaultMovementRange !== undefined &&
+    typeof value.defaultMovementRange !== 'number'
+  ) {
+    return false;
+  }
+
+  if (
+    value.placementMapName !== undefined &&
+    typeof value.placementMapName !== 'string'
+  ) {
+    return false;
+  }
+
   if (!isRecord(value.rendering)) {
     return false;
   }
@@ -124,6 +138,8 @@ export class ConfigManager {
       manualTurnMode: true,
       cooldownPeriod: 1, // Default: every unit can act each turn (current behavior)
       clearUnitsOnStart: false,
+      defaultMovementRange: 1,
+      placementMapName: 'Main Continent',
       mapGeneration: {
         // Map dimensions settings
         defaultMapWidth: 20,

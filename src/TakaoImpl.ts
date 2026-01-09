@@ -171,9 +171,13 @@ export class TakaoImpl {
       throw new Error('No maps available to place units.');
     }
 
-    const placementMap = world.getMap('Main Continent');
+    const placementMapName = ConfigManager.getConfig().placementMapName;
+    const placementMap = placementMapName
+      ? world.getMap(placementMapName)
+      : maps[0];
     if (!placementMap) {
-      throw new Error('Map "Main Continent" not found; cannot place units.');
+      const name = placementMapName ?? '(unspecified)';
+      throw new Error(`Map "${name}" not found; cannot place units.`);
     }
 
     const getRandomPosition = (map: ChoukaiMap): Position => {
@@ -185,6 +189,57 @@ export class TakaoImpl {
     const isWithinMap = (map: ChoukaiMap, pos: { x: number; y: number }) =>
       pos.x >= 0 && pos.x < map.width && pos.y >= 0 && pos.y < map.height;
 
+    const occupied = new Set<string>();
+    const positionKey = (mapId: string, pos: { x: number; y: number }) =>
+      `${mapId}:${pos.x},${pos.y}`;
+
+    const assertWalkable = (map: ChoukaiMap, pos: Position, unitId: string) => {
+      if (!isWithinMap(map, pos)) {
+        throw new Error(
+          `Position (${pos.x}, ${pos.y}) for unit ${unitId} is outside map ${map.name}.`
+        );
+      }
+      if (!map.isWalkable(pos.x, pos.y)) {
+        throw new Error(
+          `Position (${pos.x}, ${pos.y}) for unit ${unitId} is not walkable on map ${map.name}.`
+        );
+      }
+      const key = positionKey(map.name, pos);
+      if (occupied.has(key)) {
+        throw new Error(
+          `Position (${pos.x}, ${pos.y}) on map ${map.name} is already occupied; cannot place unit ${unitId}.`
+        );
+      }
+      occupied.add(key);
+    };
+
+    const placeAtRandomWalkable = (unit: BaseUnit) => {
+      const maxAttempts = Math.max(
+        placementMap.width * placementMap.height * 2,
+        50
+      );
+      for (let i = 0; i < maxAttempts; i++) {
+        const pos = getRandomPosition(placementMap);
+        if (!placementMap.isWalkable(pos.x, pos.y)) {
+          continue;
+        }
+        const key = positionKey(placementMap.name, pos);
+        if (occupied.has(key)) {
+          continue;
+        }
+        unit.setProperty('position', {
+          unitId: unit.id,
+          mapId: placementMap.name,
+          position: pos,
+        });
+        occupied.add(key);
+        return;
+      }
+      throw new Error(
+        `Unable to place unit ${unit.id}; no walkable tiles available on map ${placementMap.name}.`
+      );
+    };
+
     for (const unit of allUnits.values()) {
       const unitPosition = unit.getPropertyValue('position');
 
@@ -195,26 +250,21 @@ export class TakaoImpl {
             `Map ${unitPosition.mapId} not found for unit ${unit.id}; cannot place unit.`
           );
         }
-        const pos = unitPosition.position;
-        if (!isWithinMap(map, pos)) {
-          throw new Error(
-            `Position (${pos.x}, ${pos.y}) for unit ${unit.id} is outside map ${map.name}.`
-          );
-        }
-
+        const posValue = unitPosition.position;
+        const pos =
+          posValue instanceof Position
+            ? posValue
+            : new Position(posValue.x, posValue.y, posValue.z);
+        assertWalkable(map, pos, unit.id);
         unit.setProperty('position', {
           unitId: unit.id,
           mapId: map.name,
           position: pos,
         });
-      } else {
-        const randomPos = getRandomPosition(placementMap);
-        unit.setProperty('position', {
-          unitId: unit.id,
-          mapId: placementMap.name,
-          position: randomPos,
-        });
+        continue;
       }
+
+      placeAtRandomWalkable(unit);
     }
   }
 

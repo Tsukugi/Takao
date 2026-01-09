@@ -4,6 +4,7 @@ import type { IPropertyCollection } from '@atsu/atago';
 import { DataManager } from '../utils/DataManager';
 import type { GameState, NamesData, UnitDefinition } from '../types';
 import { randomUUID } from 'crypto';
+import { ConfigManager } from '../utils/ConfigManager';
 
 interface BestiarySpawnOptions {
   id?: string;
@@ -22,6 +23,8 @@ export class UnitController {
   private gameUnits: BaseUnit[] = [];
   private namesCatalog: NamesData = {};
   private readonly defaultFaction = 'Neutral';
+  private readonly defaultMovementRange =
+    ConfigManager.getConfig().defaultMovementRange ?? 3;
   private bestiaryIndex: Map<string, UnitDefinition> = new Map();
 
   /**
@@ -59,11 +62,13 @@ export class UnitController {
         );
         this.ensureFaction(unit);
         this.ensureDiplomacy(unit);
+        this.ensureMovementRange(unit);
         this.gameUnits.push(unit);
       }
       console.log(
         `Loaded ${this.gameUnits.length} game units from saved state`
       );
+      DataManager.saveUnits(this.gameUnits);
     } else {
       // Create new example units using Atago's BaseUnit class with names from the catalog
       const warriorName = this.getRandomName(true); // Male name for warrior
@@ -81,6 +86,11 @@ export class UnitController {
           baseValue: this.defaultFaction,
         },
         diplomacy: { name: 'diplomacy', value: 0, baseValue: 0 },
+        movementRange: {
+          name: 'movementRange',
+          value: this.defaultMovementRange,
+          baseValue: this.defaultMovementRange,
+        },
       });
 
       const archerName = this.getRandomName(false); // Female name for archer
@@ -98,12 +108,19 @@ export class UnitController {
           baseValue: this.defaultFaction,
         },
         diplomacy: { name: 'diplomacy', value: 0, baseValue: 0 },
+        movementRange: {
+          name: 'movementRange',
+          value: this.defaultMovementRange,
+          baseValue: this.defaultMovementRange,
+        },
       });
 
       this.ensureFaction(unit1);
       this.ensureFaction(unit2);
       this.ensureDiplomacy(unit1);
       this.ensureDiplomacy(unit2);
+      this.ensureMovementRange(unit1);
+      this.ensureMovementRange(unit2);
       this.gameUnits.push(unit1, unit2);
       console.log(
         `Initialized ${this.gameUnits.length} new game units with Atago library`
@@ -266,12 +283,18 @@ export class UnitController {
         baseValue: this.defaultFaction,
       },
       diplomacy: { name: 'diplomacy', value: 0, baseValue: 0 },
+      movementRange: {
+        name: 'movementRange',
+        value: this.defaultMovementRange,
+        baseValue: this.defaultMovementRange,
+      },
     });
 
     // Add the new unit to the game units array
     this.gameUnits.push(newUnit);
     this.ensureFaction(newUnit);
     this.ensureDiplomacy(newUnit);
+    this.ensureMovementRange(newUnit);
 
     console.log(`New unit ${newUnitName} (${newUnit.id}) has joined the game!`);
 
@@ -315,6 +338,7 @@ export class UnitController {
     this.gameUnits.push(newUnit);
     this.ensureFaction(newUnit);
     this.ensureDiplomacy(newUnit);
+    this.ensureMovementRange(newUnit);
     DataManager.saveUnits(this.gameUnits);
 
     return newUnit;
@@ -354,5 +378,16 @@ export class UnitController {
       return;
     }
     unit.setProperty('diplomacy', 0);
+  }
+
+  /**
+   * Ensure a unit has a movement range; defaults to a sensible value.
+   */
+  private ensureMovementRange(unit: BaseUnit): void {
+    const movementRange = unit.getPropertyValue<number>('movementRange');
+    if (typeof movementRange === 'number' && Number.isFinite(movementRange)) {
+      return;
+    }
+    unit.setProperty('movementRange', this.defaultMovementRange);
   }
 }

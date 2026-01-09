@@ -3,6 +3,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { UnitController } from '../src/ai/UnitController';
 import { DataManager } from '../src/utils/DataManager';
 import { GameState } from '../src/types';
+import { ConfigManager } from '../src/utils/ConfigManager';
 
 const mockBestiary = [
   {
@@ -248,5 +249,66 @@ describe('UnitController', () => {
 
     const name = unitController['getRandomName']();
     expect(name).toBe('Unknown');
+  });
+
+  it('applies configurable default movement range when missing', async () => {
+    const configSpy = vi.spyOn(ConfigManager, 'getConfig').mockReturnValue({
+      ...ConfigManager.getConfig(),
+      defaultMovementRange: 7,
+    });
+
+    (DataManager.loadUnits as any).mockReturnValue([]);
+    unitController = new UnitController();
+    await unitController.initialize({ turn: 0 });
+
+    const movementRanges = unitController
+      .getUnits()
+      .map(u => u.getPropertyValue('movementRange'));
+    expect(movementRanges.every(value => value === 7)).toBe(true);
+
+    configSpy.mockRestore();
+  });
+
+  it('preserves existing movement range when loading saved units', async () => {
+    const configSpy = vi.spyOn(ConfigManager, 'getConfig').mockReturnValue({
+      ...ConfigManager.getConfig(),
+      defaultMovementRange: 9,
+    });
+
+    (DataManager.loadUnits as any).mockReturnValue([
+      {
+        id: 'existing-unit-2',
+        name: 'ExistingArcher',
+        type: 'archer',
+        properties: {
+          health: { name: 'health', value: 70, baseValue: 70 },
+          status: { name: 'status', value: 'alive', baseValue: 'alive' },
+          movementRange: { name: 'movementRange', value: 2, baseValue: 2 },
+        },
+      },
+    ]);
+
+    unitController = new UnitController();
+    await unitController.initialize({ turn: 0 });
+
+    const [unit] = unitController.getUnits();
+    expect(unit.getPropertyValue('movementRange')).toBe(2);
+
+    configSpy.mockRestore();
+  });
+
+  it('applies default movement range to bestiary spawns missing the property', async () => {
+    const configSpy = vi.spyOn(ConfigManager, 'getConfig').mockReturnValue({
+      ...ConfigManager.getConfig(),
+      defaultMovementRange: 5,
+    });
+
+    unitController = new UnitController();
+    await unitController.initialize({ turn: 0 });
+
+    const unit = await unitController.addUnitFromBeastiary('wolf');
+    expect(unit.getPropertyValue('movementRange')).toBe(5);
+
+    configSpy.mockRestore();
   });
 });

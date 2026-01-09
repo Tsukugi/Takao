@@ -13,6 +13,10 @@ export interface AppConfig {
   cooldownPeriod?: number;
   /** When true, clears saved units before the engine initializes. */
   clearUnitsOnStart?: boolean;
+  /** Default movement range applied when a unit lacks the property. */
+  defaultMovementRange?: number;
+  /** Optional preferred map name for initial unit placement. */
+  placementMapName?: string;
 }
 
 export interface MapGenerationConfig {
