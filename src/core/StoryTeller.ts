@@ -98,6 +98,9 @@ export class StoryTeller {
       this.gateSystem,
       this.logger
     );
+    const movementStepCooldown =
+      ConfigManager.getConfig().movementStepCooldownMs ?? 0;
+    this.worldManager.setMovementStepCooldown(movementStepCooldown);
 
     // Ensure the action processor knows about the current world for range validation
     this.actionProcessor.setWorld(this.world);

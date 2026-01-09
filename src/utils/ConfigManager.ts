@@ -78,6 +78,19 @@ const isFullConfig = (value: unknown): value is FullConfig => {
     return false;
   }
 
+  if (
+    value.movementStepDelayMs !== undefined &&
+    typeof value.movementStepDelayMs !== 'number'
+  ) {
+    return false;
+  }
+  if (
+    value.movementStepCooldownMs !== undefined &&
+    typeof value.movementStepCooldownMs !== 'number'
+  ) {
+    return false;
+  }
+
   if (!isRecord(value.rendering)) {
     return false;
   }
@@ -139,6 +152,7 @@ export class ConfigManager {
       cooldownPeriod: 1, // Default: every unit can act each turn (current behavior)
       clearUnitsOnStart: false,
       defaultMovementRange: 1,
+      movementStepCooldownMs: 300,
       placementMapName: 'Main Continent',
       mapGeneration: {
         // Map dimensions settings

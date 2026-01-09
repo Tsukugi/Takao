@@ -39,17 +39,20 @@ export class WorldManager {
   private unitController: UnitController;
   private gateSystem: GateSystem;
   private logger: Logger;
+  private movementStepCooldownMs: number;
 
   constructor(
     world: ChoukaiWorld,
     unitController: UnitController,
     gateSystem: GateSystem,
-    logger: Logger
+    logger: Logger,
+    movementStepCooldownMs: number = 0
   ) {
     this.world = world;
     this.unitController = unitController;
     this.gateSystem = gateSystem;
     this.logger = logger;
+    this.movementStepCooldownMs = movementStepCooldownMs;
   }
 
   /**
@@ -252,9 +255,26 @@ export class WorldManager {
           position: updatedPos.position,
         });
       }
+
+      // Apply movement step cooldown if configured and not the last step
+      if (this.movementStepCooldownMs > 0 && index < totalSteps - 1) {
+        await this.delay(this.movementStepCooldownMs);
+      }
     }
 
     return stepsApplied;
+  }
+
+  public setMovementStepCooldown(delayMs: number): void {
+    if (!Number.isFinite(delayMs) || delayMs < 0) {
+      this.movementStepCooldownMs = 0;
+      return;
+    }
+    this.movementStepCooldownMs = Math.floor(delayMs);
+  }
+
+  private async delay(ms: number): Promise<void> {
+    await new Promise(resolve => setTimeout(resolve, ms));
   }
 
   /**

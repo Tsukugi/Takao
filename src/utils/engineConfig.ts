@@ -17,6 +17,8 @@ export interface AppConfig {
   defaultMovementRange?: number;
   /** Optional preferred map name for initial unit placement. */
   placementMapName?: string;
+  /** Cooldown in milliseconds after each movement step is applied. */
+  movementStepCooldownMs?: number;
 }
 
 export interface MapGenerationConfig {
